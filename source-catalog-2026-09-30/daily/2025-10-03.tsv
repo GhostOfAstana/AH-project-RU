@@ -1,2 +1,3 @@
 assigned_author_date	sequence	source_path	blob_sha	bytes	lines	source_url
 2025-10-03	1	day53_dual_write_problem_and_transactional_outbox.md	4c15a75d25d50af9ddb70dbcd445397ca73a5f47	9275	300	https://github.com/ernat-soltanbekov/AH-project-RU/blob/108992a6b1abfcfea39e51c7dfd4a30ce090a0d0/day53_dual_write_problem_and_transactional_outbox.md
+2025-10-03	3	day55_postgresql_replication_lag_and_read_after_write_consistency.md	e5d9fc176910837ee081b519b06656f5d8e19494	3565	59	https://github.com/ernat-soltanbekov/AH-project-RU/blob/108992a6b1abfcfea39e51c7dfd4a30ce090a0d0/day55_postgresql_replication_lag_and_read_after_write_consistency.md
