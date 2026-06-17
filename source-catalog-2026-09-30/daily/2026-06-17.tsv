@@ -4,3 +4,4 @@ assigned_author_date	sequence	source_path	blob_sha	bytes	lines	source_url
 2026-06-17	6	day56_envoy_connection_pool_exhaustion_and_outlier_detection.md	3cf52ab51dbfac5c8fb8d8af535330908ee49370	9138	221	https://github.com/ernat-soltanbekov/AH-project-RU/blob/108992a6b1abfcfea39e51c7dfd4a30ce090a0d0/day56_envoy_connection_pool_exhaustion_and_outlier_detection.md
 2026-06-17	8	docker-compose.yml	5ad0bea7635e1638c0c8d8816173c028adbd263a	908	37	https://github.com/ernat-soltanbekov/AH-project-RU/blob/108992a6b1abfcfea39e51c7dfd4a30ce090a0d0/docker-compose.yml
 2026-06-17	10	http_notes.md	6f9a0c09f07627d1806954c79755768eb0c8e183	1382	37	https://github.com/ernat-soltanbekov/AH-project-RU/blob/108992a6b1abfcfea39e51c7dfd4a30ce090a0d0/http_notes.md
+2026-06-17	12	incident_analysis_day10.md	b2ecdf3f1e700344364b2cb67322696ee6b41bee	3744	98	https://github.com/ernat-soltanbekov/AH-project-RU/blob/108992a6b1abfcfea39e51c7dfd4a30ce090a0d0/incident_analysis_day10.md
