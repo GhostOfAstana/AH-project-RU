@@ -1,3 +1,4 @@
 assigned_author_date	sequence	source_path	blob_sha	bytes	lines	source_url
 2026-06-29	2	DOCKER_STRATEGY_may_09_2026.md	f760065e87107207931eafbd3e5bbd846c3ca534	3250	30	https://github.com/ernat-soltanbekov/AH-project-RU/blob/108992a6b1abfcfea39e51c7dfd4a30ce090a0d0/DOCKER_STRATEGY_may_09_2026.md
 2026-06-29	4	Linux.bash	05506d6dcd7098bc557cda23360879f3aa649f81	2392	32	https://github.com/ernat-soltanbekov/AH-project-RU/blob/108992a6b1abfcfea39e51c7dfd4a30ce090a0d0/Linux.bash
+2026-06-29	6	POSTMORTEM_MAY_07_2026.md	a9a5e65aecf84a4f3568df176fb7270f41c3bd90	4067	31	https://github.com/ernat-soltanbekov/AH-project-RU/blob/108992a6b1abfcfea39e51c7dfd4a30ce090a0d0/POSTMORTEM_MAY_07_2026.md
