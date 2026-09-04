@@ -10,3 +10,4 @@ assigned_author_date	sequence	source_path	blob_sha	bytes	lines	source_url
 2026-09-04	17	practice.py	9ed22d593046fb9e3cfe92b22e8d9677423a73b6	3188	77	https://github.com/ernat-soltanbekov/AH-project-RU/blob/108992a6b1abfcfea39e51c7dfd4a30ce090a0d0/practice.py
 2026-09-04	19	roles_notes.md	592e6d50800fb80151b2a7f2ceea0c8f14600f0f	1062	10	https://github.com/ernat-soltanbekov/AH-project-RU/blob/108992a6b1abfcfea39e51c7dfd4a30ce090a0d0/roles_notes.md
 2026-09-04	21	sql_day_1.sql	7ff60c611e65ba77ef7f3dd12a833349e5299ea8	821	45	https://github.com/ernat-soltanbekov/AH-project-RU/blob/108992a6b1abfcfea39e51c7dfd4a30ce090a0d0/sql_day_1.sql
+2026-09-04	23	sql_day_3.sql	14fee5f972ad055bb04a47db4cc1bd595fdddeb5	1053	50	https://github.com/ernat-soltanbekov/AH-project-RU/blob/108992a6b1abfcfea39e51c7dfd4a30ce090a0d0/sql_day_3.sql
