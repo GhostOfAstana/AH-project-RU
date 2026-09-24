@@ -9,3 +9,4 @@ assigned_author_date	sequence	source_path	blob_sha	bytes	lines	source_url
 2026-09-24	15	Dockerfile	a52ec2f153b2b89af3d2ec1823b1600cb5c03658	1208	42	https://github.com/ernat-soltanbekov/AH-project-RU/blob/108992a6b1abfcfea39e51c7dfd4a30ce090a0d0/Dockerfile
 2026-09-24	17	OPTIMIZED_DOCKER_BUILD_May_10_2026.md	525a023ecb3f59a3115c716b9f014437b1f1d9b7	3040	25	https://github.com/ernat-soltanbekov/AH-project-RU/blob/108992a6b1abfcfea39e51c7dfd4a30ce090a0d0/OPTIMIZED_DOCKER_BUILD_May_10_2026.md
 2026-09-24	19	README.md	e7770ca901a0632b36bcbc6a7573d6fa60db74c2	1527	30	https://github.com/ernat-soltanbekov/AH-project-RU/blob/108992a6b1abfcfea39e51c7dfd4a30ce090a0d0/README.md
+2026-09-24	21	day54_kubernetes_memory_pressure_and_pod_evictions.md	357b7a5adfc0c67ddf2a2eee1a21ce1a7361ff21	11867	485	https://github.com/ernat-soltanbekov/AH-project-RU/blob/108992a6b1abfcfea39e51c7dfd4a30ce090a0d0/day54_kubernetes_memory_pressure_and_pod_evictions.md
