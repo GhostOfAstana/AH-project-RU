@@ -1,483 +1,483 @@
-# Incident Analysis — Week 11 Day 1
+# Разбор инцидента — неделя 11, день 1
 
-## Scenario
+## Сценарий
 
-A new application release was deployed.
+Была развернута новая версия приложения.
 
-Shortly after deployment:
+Вскоре после развертывания:
 
-- API latency increased dramatically
-- some requests timed out after exactly 30 seconds
-- PostgreSQL CPU remained low
-- Horizontal Pod Autoscaler added more API Pods
-- rollback improved the situation only partially
+- Задержка API резко возросла
+- Тайм-аут некоторых запросов истекает ровно через 30 секунд
+- ЦП PostgreSQL оставался низким
+- Horizontal Pod Autoscaler добавил объекты Pod сервиса API
+- Откат улучшил ситуацию лишь частично
 
-Engineering teams suspected database performance issues.
+Команды инженеров заподозрили проблемы с производительностью базы данных.
 
-Investigation revealed that database CPU utilization never exceeded 20%.
-
----
-
-# What Problem Is Happening
-
-The platform entered a connection coordination failure.
-
-The primary bottleneck was not database computation.
-
-The bottleneck was the lifecycle of database connections and transactions.
-
-A combination of:
-
-- connection pool saturation
-- long-running transactions
-- N+1 query behavior
-- queue growth inside PgBouncer
-
-caused request latency to explode.
-
-The database spent most of its time waiting rather than computing.
-
-Low CPU usage created a false impression that PostgreSQL was healthy.
+Расследование показало, что загрузка ЦП базы данных никогда не превышала 20%.
 
 ---
 
-# Why Low Database CPU Can Be Misleading
+# В чём заключается проблема
 
-Database CPU measures computation.
+Платформа обнаружила сбой координации соединения.
 
-It does not measure:
+Основным узким местом были не вычисления в базе данных.
 
-- lock contention
-- connection contention
-- queue waiting
-- transaction scheduling delays
-- client wait states
+Узким местом был жизненный цикл соединений и транзакций базы данных.
 
-A database can be nearly idle from a CPU perspective while users experience severe latency.
+Комбинация:
 
-Healthy CPU utilization does not guarantee healthy throughput.
+- насыщение пула соединений
+- Длительные транзакции
+- Поведение запроса N+1
+- рост очереди внутри PgBouncer
+
+вызывало резкое увеличение задержки запроса.
+
+База данных большую часть времени проводила в ожидании, а не в вычислениях.
+
+Низкая загрузка ЦП создавала ложное впечатление, что PostgreSQL исправен.
 
 ---
 
-# PgBouncer As A Bottleneck
+# Почему низкая загрузка CPU базы данных может вводить в заблуждение
 
-PgBouncer protects PostgreSQL by limiting direct connections.
+ЦП базы данных измеряет вычисления.
 
-Clients connect to PgBouncer.
+Он не измеряет:
 
-PgBouncer manages a smaller pool of server connections.
+- Конфликт блокировки
+- Конфликт при соединении
+- ожидание в очереди
+- Задержки планирования транзакций
+- Состояния ожидания клиента
 
-Example:
+База данных может практически простаивать с точки зрения ЦП, в то время как пользователи испытывают серьезные задержки.
+
+Рациональное использование ЦП не гарантирует нормальную пропускную способность.
+
+---
+
+# PgBouncer как узкое место
+
+PgBouncer защищает PostgreSQL путем ограничения прямых соединений.
+
+Клиенты подключаются к PgBouncer.
+
+PgBouncer управляет меньшим пулом серверных соединений.
+
+Пример:
 
 ```text
-500 application clients
+500 клиентов приложений
 ↓
-50 PostgreSQL connections
+50 соединений PostgreSQL
 ```
 
-This improves scalability.
+Это улучшает масштабируемость.
 
-However, if transactions become slow, server connections remain occupied longer.
+Однако, если транзакции становятся медленными, соединения с сервером остаются занятыми дольше.
 
-As transaction duration increases, pool throughput decreases.
+По мере увеличения продолжительности транзакции пропускная способность пула снижается.
 
-Eventually clients begin waiting in queues.
-
----
-
-# Transaction Pooling
-
-In transaction pooling mode:
-
-- server connections are assigned only during transactions
-- connections return to the pool immediately after commit or rollback
-
-Benefits:
-
-- higher connection efficiency
-- better concurrency
-- reduced PostgreSQL connection pressure
-
-Limitations:
-
-- session variables may not work
-- temporary tables become problematic
-- prepared statement behavior changes
-
-Applications must be compatible with transaction pooling semantics.
+В конце концов клиенты начинают ждать в очередях.
 
 ---
 
-# N+1 Query Amplification
+# Пул соединений на уровне транзакций
 
-A common ORM anti-pattern is N+1 querying.
+В режиме объединения транзакций:
 
-Example:
+- Соединения с сервером назначаются только во время транзакций
+- Соединения возвращаются в пул сразу после фиксации или отката
+
+Преимущества:
+
+- Более высокая эффективность соединения
+- Улучшение параллелизма
+- Снижено давление соединения PostgreSQL
+
+Ограничения:
+
+- Переменные сеанса могут не работать
+- временные таблицы становятся проблематичными
+- Изменения в поведении подготовленного оператора
+
+Приложения должны быть совместимы с семантикой объединения транзакций в пул.
+
+---
+
+# Рост нагрузки из-за запросов N+1
+
+Распространенным антишаблоном ORM является запрос N+1.
+
+Пример:
 
 ```text
-1 query for orders
+1 запрос на заказы
 +
-100 queries for order details
+100 запросов для получения подробной информации о заказе
 ```
 
-instead of:
+вместо:
 
 ```text
-1 joined query
+1 объединенный запрос
 ```
 
-Each additional database round trip increases transaction duration.
+Каждое дополнительное обращение к базе данных увеличивает продолжительность транзакции.
 
-A transaction that previously required:
+Транзакция, которая ранее требовала:
 
 ```text
-10 ms
+10 мс
 ```
 
-may now require:
+теперь может потребовать:
 
 ```text
-500 ms
+500 мс
 ```
 
-or more.
+или более.
 
-This dramatically reduces pool capacity.
+Это резко снижает емкость пула.
 
 ---
 
-# Queue Formation Inside PgBouncer
+# Формирование очереди внутри PgBouncer
 
-Assume:
-
-```text
-50 server connections
-```
-
-and:
+Предположим:
 
 ```text
-500 incoming requests
+50 подключений к серверу
 ```
 
-When all server connections become occupied:
+И:
 
-- new requests cannot execute
-- requests enter a waiting queue
-- queue length grows
-- latency increases
+```text
+500 входящих запросов
+```
 
-Users experience slow responses despite low database CPU usage.
+Когда все серверные соединения заняты:
+
+- новые запросы не могут быть выполнены
+- запросы попадают в очередь ожидания
+- Длина очереди увеличивается
+- Задержка увеличивается
+
+Пользователи испытывают медленные ответы, несмотря на низкую загрузку ЦП базы данных.
 
 ---
 
-# Head-Of-Line Blocking
+# Блокировка очереди первым запросом (head-of-line blocking)
 
-Head-of-Line Blocking occurs when slow requests delay unrelated requests.
+Блокировка очереди первым запросом происходит, когда медленные запросы задерживают несвязанные запросы.
 
-Example:
+Пример:
 
 ```text
-49 requests = 20 ms
-1 request = 25 sec
+49 запросов = 20 мс
+1 запрос = 25 секунд
 ```
 
-The long-running request occupies scarce resources.
+Длительный запрос занимает ограниченные ресурсы.
 
-Other requests wait behind it.
+За ним ждут другие запросы.
 
-Fast operations become slow even though they are individually efficient.
+Быстрые операции становятся медленными, даже если они индивидуально эффективны.
 
-This effect can spread latency throughout the platform.
+Этот эффект может распространить задержку по всей платформе.
 
 ---
 
-# Tail Latency Amplification
+# Рост высоких перцентилей задержки
 
-Average latency can hide severe user-facing problems.
+Средняя задержка может скрыть серьезные проблемы, с которыми сталкивается пользователь.
 
-Example:
+Пример:
 
 ```text
-95% requests = 100 ms
-5% requests = 30 sec
+95% запросов = 100 мс
+5% запросов = 30 секунд
 ```
 
-Average metrics may appear acceptable.
+Средние показатели могут оказаться приемлемыми.
 
-However:
+Однако:
 
-- slow requests consume resources longer
-- queues expand
-- connection pools saturate
-- additional requests become delayed
+- медленные запросы дольше потребляют ресурсы
+- очереди расширяются
+- Пулы соединений переполняются
+- Дополнительные запросы задерживаются
 
-The latency tail begins affecting the entire service.
+Хвост задержки начинает влиять на всю услугу.
 
-This phenomenon is known as tail latency amplification.
+Это явление известно как усиление задержки в высоких перцентилях.
 
 ---
 
-# Why HPA Made Things Worse
+# Почему HPA ухудшила ситуацию
 
-Horizontal Pod Autoscaler reacts to resource metrics.
+Horizontal Pod Autoscaler реагирует на метрики ресурсов.
 
-In this incident:
-
-```text
-CPU was not the bottleneck
-```
-
-The constrained resource was:
+В этом инциденте:
 
 ```text
-database connections
+ЦП не был узким местом
 ```
 
-Scaling API Pods increased:
+Ограниченный ресурс составлял:
 
-- concurrency
-- connection demand
-- queue pressure
+```text
+Соединения с базой данных
+```
 
-without increasing available database capacity.
+Масштабирование объектов Pod сервиса API увеличило:
 
-More Pods generated more contention.
+- параллелизм
+- Требование соединения
+- давление очереди
+
+без увеличения доступной емкости базы данных.
+
+Большее число объектов Pod усиливало конкуренцию за ресурсы.
 
 ---
 
-# Why Rollback Helped Only Partially
+# Почему откат помог лишь частично
 
-Rollback stopped creating new problematic transactions.
+Откат прекратил создание новых проблемных транзакций.
 
-However:
+Однако:
 
-- waiting requests already existed
-- active transactions remained open
-- queues remained populated
+- запросы на ожидание уже существовали
+- активные транзакции оставались открытыми
+- очереди оставались заполненными
 
-Recovery required time.
+Требуемое время для восстановления.
 
-Distributed systems frequently exhibit recovery tails after the root cause is removed.
+Распределенные системы часто демонстрируют хвосты восстановления после устранения основной причины.
 
 ---
 
-# The Significance Of Exact 30-Second Timeouts
+# Значение точных 30-секундных тайм-аутов
 
-A strong diagnostic clue was:
+Сильным диагностическим признаком было:
 
 ```text
-requests failed after exactly 30 seconds
+запросы не удались ровно через 30 секунд
 ```
 
-Fixed timeout values usually indicate:
+Фиксированные значения тайм-аута обычно указывают:
 
-- connection wait timeout
-- pool timeout
-- context deadline
-- gateway timeout
+- Тайм-аут ожидания соединения
+- Тайм-аут пула
+- Контекстный срок
+- Тайм-аут шлюза
 
-The request was often waiting for a resource rather than executing database work.
+Запрос часто ожидал ресурса, а не выполнял работу с базой данных.
 
 ---
 
-# Backpressure Propagation
+# Распространение обратного давления
 
-Delays spread upward through service layers.
+Задержки распространяются вверх по уровням обслуживания.
 
-Example:
+Пример:
 
 ```text
 PostgreSQL
 ↓
 PgBouncer
 ↓
-API Service
+Служба API
 ↓
-Service Mesh
+Сервисная сетка
 ↓
-Ingress
+Вход
 ↓
-Client
+Клиент
 ```
 
-A bottleneck in PostgreSQL connection acquisition becomes:
+Узким местом в получении соединения PostgreSQL становится:
 
-- API latency
-- mesh queueing
-- gateway timeout
-- user-visible failure
+- Задержка API
+- сетчатая организация очередей
+- Тайм-аут шлюза
+- Видимый пользователю сбой
 
-Backpressure propagates through the entire request path.
+Обратное давление распространяется по всему пути запроса.
 
 ---
 
-# Investigation Process
+# Процесс расследования
 
-## PgBouncer Metrics
+## Метрики PgBouncer
 
-Key indicators:
+Ключевые показатели:
 
 ```text
 cl_waiting
 sv_active
 ```
 
-Growing waiting queues combined with low database CPU strongly suggest pool saturation.
+Рост очередей ожидания в сочетании с низкой загрузкой ЦП базы данных убедительно свидетельствует о насыщении пула.
 
 ---
 
-## PostgreSQL Activity Analysis
+## Анализ активности PostgreSQL
 
-Inspect:
+Исследовать:
 
 ```sql
 pg_stat_activity
 ```
 
-Look for:
+Ищите:
 
-- long-running transactions
-- idle in transaction sessions
-- excessive transaction duration
+- Длительные транзакции
+- Простой в сеансах транзакций
+- чрезмерная продолжительность транзакции
 
 ---
 
-## Distributed Tracing
+## Распределенная трассировка
 
-Tracing systems reveal where latency is spent.
+Системы отслеживания показывают, на что расходуется задержка.
 
-Important distinction:
+Важное различие:
 
 ```text
-query execution time
-vs
-queue waiting time
+время выполнения запроса
+против
+время ожидания в очереди
 ```
 
-If database execution is fast but request latency is high, the queue is usually the culprit.
+Если выполнение базы данных происходит быстро, но задержка запроса высока, виновником обычно является очередь.
 
 ---
 
-# Production Mitigation
+# Снижение последствий инцидента в рабочей среде
 
-## Immediate Stabilization
+## Немедленная стабилизация
 
-### Terminate Problematic Transactions
+### Прекращение проблемных транзакций
 
-Identify and remove:
+Выявить и удалить:
 
-- idle transactions
-- long-running sessions
-- blocked workers
+- холостые транзакции
+- длительные сеансы
+- заблокированные рабочие
 
-Purpose:
+Назначение:
 
-- release server connections
-- reduce queue pressure
+- освободить соединения с сервером
+- уменьшить давление в очереди
 
 ---
 
-### Limit Incoming Demand
+### Ограничить входящую нагрузку
 
-Reduce accepted concurrency.
+Уменьшить допустимый параллелизм.
 
-Prefer:
+Предпочитать:
 
 ```text
-fast 503
+быстро 503
 ```
 
-over:
+Вместо:
 
 ```text
-30-second timeout
+30-секундный тайм-аут
 ```
 
-Controlled rejection protects system stability.
+Контролируемое отклонение защищает стабильность системы.
 
 ---
 
-### Tune PgBouncer
+### Настроить PgBouncer
 
-Review:
+Проверить:
 
-- pool size
-- max client connections
-- timeout values
-- pooling mode
+- размер пула
+- Максимальное количество клиентских подключений
+- Значения таймаута
+- режим объединения
 
-Goal:
+Цель:
 
-- prevent unbounded queue growth
-
----
-
-# Long-Term Improvements
-
-## Eliminate N+1 Queries
-
-Replace repeated ORM queries with:
-
-- joins
-- batching
-- bulk loading
-- dataloader patterns
-
-Purpose:
-
-- reduce transaction duration
+- Предотвращение неограниченного роста очереди
 
 ---
 
-## Read/Write Separation
+# Долгосрочные улучшения
 
-Move read-heavy workloads to replicas.
+## Устранение запросов N+1
 
-Benefits:
+Замените повторяющиеся запросы ORM на:
 
-- lower pressure on primary database
-- improved connection availability
+- присоединяется
+- дозирование
+- массовая загрузка
+- Шаблоны загрузчика данных
+
+Назначение:
+
+- сократить продолжительность транзакции
 
 ---
 
-## Statement Timeouts
+## Разделение чтения/записи
 
-Configure strict limits.
+Перенесите рабочие нагрузки с большим объемом чтения на реплики.
 
-Example:
+Преимущества:
+
+- Снижение нагрузки на первичную базу данных
+- Улучшена доступность соединения
+
+---
+
+## Таймауты операторов
+
+Настройте строгие ограничения.
+
+Пример:
 
 ```text
 statement_timeout
 ```
 
-Purpose:
+Назначение:
 
-- prevent runaway queries
-- protect pool capacity
-
----
-
-## Load Shedding
-
-Reject excess traffic before pools become exhausted.
-
-Purpose:
-
-- preserve service quality
-- avoid cascading failures
+- Предотвратить неконтролируемые запросы
+- Защита емкости пула
 
 ---
 
-# Key Learning
+## Сброс нагрузки
 
-- low database CPU does not guarantee healthy performance
-- connection pools can become bottlenecks before databases do
-- transaction duration directly affects throughput
-- N+1 queries reduce effective pool capacity
-- head-of-line blocking amplifies latency
+Отклонять избыточный трафик до того, как пулы исчерпаются.
+
+Назначение:
+
+- сохранять качество обслуживания
+- избежать каскадных сбоев
+
+---
+
+# Основные выводы
+
+- Низкий процессор базы данных не гарантирует работоспособность
+- Пулы соединений могут стать узкими местами раньше, чем это сделают базы данных.
+- Продолжительность транзакции напрямую влияет на пропускную способность
+- Запросы N+1 уменьшают эффективную емкость пула.
+- Блокировка начала строки увеличивает задержку
 - tail latency matters more than averages
-- HPA cannot solve connection bottlenecks
-- fixed timeout values are valuable diagnostic clues
-- backpressure propagates through entire distributed systems
-- throughput depends on coordination efficiency, not only computation
+- HPA не может устранить узкие места соединения.
+- Фиксированные значения тайм-аута являются ценными диагностическими признаками.
+- Обратное давление распространяется по всей распределенной системе.
+- Пропускная способность зависит от эффективности координации, а не только вычислений

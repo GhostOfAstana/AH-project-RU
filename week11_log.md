@@ -1,46 +1,46 @@
 ## 2026-05-30
-- Studied connection pool saturation and PgBouncer bottlenecks
-- Learned transaction pooling and connection lifecycle management
-- Analyzed N+1 query amplification effects
-- Studied head-of-line blocking and tail latency amplification
-- Learned backpressure propagation across distributed systems
-- Investigated database performance beyond CPU utilization metrics
+- Изучил насыщение пула соединений и узкие места PgBouncer
+- Изучил пул соединений на уровне транзакций и управление жизненным циклом соединений
+- Проанализировал усиление нагрузки из-за запросов N+1
+- Изучил блокировку очереди первым запросом и рост высоких перцентилей задержки
+- Изучил распространение обратного давления в распределённых системах
+- Исследовал производительность базы данных по показателям, не ограничиваясь загрузкой CPU
 ## 2026-05-31
-- Studied Kubernetes rolling update mechanics
-- Learned maxUnavailable and maxSurge behavior
-- Investigated scheduling failures and Pending Pods
-- Studied resource requests versus limits
-- Learned resource fragmentation and node capacity constraints
-- Analyzed Cluster Autoscaler limitations
-- Studied storage topology and volume affinity conflicts
-- Learned capacity planning for node failures and deployments
+- Изучил механизм последовательного обновления Kubernetes
+- Изучил поведение параметров maxUnavailable и maxSurge
+- Изучил сбои планировщика и объекты Pod в состоянии Pending
+- Изучил различия между запросами ресурсов и лимитами
+- Изучил фрагментацию ресурсов и ограничения ёмкости узлов
+- Проанализировал ограничения Cluster Autoscaler
+- Изучил топологию хранилища и конфликты привязки томов
+- Изучил планирование запаса ресурсов на случай отказов узлов и новых развёртываний
 ## 2026-06-01
-- Studied Istio certificate rotation failures
-- Learned mTLS architecture and workload identity concepts
-- Analyzed Envoy sidecars and SDS secret distribution
-- Investigated trust bundle propagation and stale proxy states
-- Learned production troubleshooting of Service Mesh outages
-- Studied certificate expiration monitoring and safe CA rotation strategies
-### Day 53 - Dual Write Problem and Transactional Outbox
-- Dual Write Problem
-- At-most-once vs at-least-once delivery
-- Idempotent consumer design
-- Transactional Outbox Pattern
-- Change Data Capture (CDC)
-- Debezium architecture
-- Event consistency guarantees
-- Reconciliation processes
-- Financial transaction safety
-### Day 54 - Kubernetes Memory Pressure and Pod Evictions
-- Resource requests and limits
-- Allocatable vs actual resource consumption
-- Memory overcommit and node overpacking
-- Kubelet Eviction Manager
-- OOMKilled vs Evicted
-- Kubernetes QoS classes
-- MemoryPressure conditions
-- Capacity planning
-- Vertical Pod Autoscaler (VPA)
-- Goldilocks recommendations
-### Day 55: Investigated PostgreSQL replication lag, recovery conflicts, WAL replay delays, and read-after-write consistency strategies.
-### Day 56: Investigated Envoy connection pool exhaustion, circuit breaking behavior, proxy-generated 503 responses, and Outlier Detection cascading failures.
+- Изучил сбои ротации сертификатов Istio
+- Изучил архитектуру mTLS и принципы идентификации приложений
+- Проанализировал вспомогательные прокси-контейнеры Envoy и доставку секретов через SDS
+- Исследовал распространение наборов доверенных сертификатов и устаревшие состояния прокси
+- Изучил диагностику сбоев сервисной сети в рабочей среде
+- Изучил мониторинг истечения сертификатов и безопасную ротацию центров сертификации
+### День 53 — проблема двойной записи и транзакционный исходящий журнал
+- Проблема двойной записи
+- Доставка «не более одного раза» и «не менее одного раза»: различия
+- Проектирование идемпотентных потребителей
+- Паттерн транзакционного исходящего журнала (Transactional Outbox)
+- Регистрация измененных данных (CDC)
+- Архитектура Debezium
+- Гарантии согласованности событий
+- Процессы сверки данных
+- Безопасность финансовых транзакций
+### День 54 — нехватка памяти в Kubernetes и вытеснение Pod
+- Запросы и ограничения ресурсов
+- Доступные для размещения ресурсы и их фактическое потребление
+- Избыточное выделение памяти и слишком плотное размещение нагрузки на узлах
+- Менеджер вытеснения kubelet
+- Различия между OOMKilled и Evicted
+- Классы QoS в Kubernetes
+- Условия MemoryPressure
+- Планирование ресурсов
+- Вертикальное автомасштабирование Pod (VPA)
+- Рекомендации Goldilocks
+### День 55: Исследована задержка репликации PostgreSQL, конфликты восстановления, задержки воспроизведения WAL и стратегии согласованности чтения после записи
+### День 56: Изучил исчерпание пула соединений Envoy, работу предохранителей, ответы 503 от прокси и каскадные сбои при обнаружении неисправных узлов

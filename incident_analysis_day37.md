@@ -1,416 +1,416 @@
-# Incident Analysis — Week 9 Day 2
+# Разбор инцидента — неделя 9, день 2
 
-## Scenario
+## Сценарий
 
-Team deployed a new API version into Kubernetes cluster.
+Команда развернула новую версию API в кластере Kubernetes.
 
-Deployment completed successfully:
-- Pods entered `Running` state
-- restart count remained zero
-- CPU and memory metrics looked healthy
+Deployment успешно завершен:
+- Объекты Pod перешли в состояние `Running`
+- счетчик перезапусков оставался нулевым
+- Показатели процессора и памяти выглядели нормально
 
-However, production users experienced severe instability:
-- intermittent 502 errors
-- high p99 latency during rollout
-- traffic routed into Pods that were still initializing
-- requests interrupted during Pod termination
-- temporary service degradation during rolling updates
+Однако рабочие пользователи столкнулись с серьезной нестабильностью:
+- периодические ошибки 502
+- Высокая задержка p99 во время развертывания
+- Трафик направлялся к объектам Pod, которые ещё проходили инициализацию
+- запросы прерываются во время завершения Pod
+- временное ухудшение качества обслуживания во время чередующихся обновлений
 
-Kubernetes events showed:
-- readiness probe failures
-- unstable rollout behavior
+События Kubernetes показали:
+- Отказы датчика готовности
+- нестабильное поведение при развертывании
 
-CTO concluded:
-The team does not understand the difference between a running process and a production-ready service.
-
----
-
-## What Problem Is Happening
-
-The system suffers from premature traffic routing and unsafe Pod lifecycle handling.
-
-During rolling deployment:
-- Kubernetes launches new Pods
-- container process starts successfully
-- Pod enters `Running` state
-
-But application initialization is not finished yet.
-
-The application may still be:
-- establishing database connections
-- warming caches
-- initializing thread pools
-- loading configuration
-- preparing internal state
-
-Despite this:
-- traffic already reaches the Pod
-- clients receive failures
-- ingress returns 502 errors
-
-At the same time:
-- old Pods may terminate too aggressively
-- active requests become interrupted
-- user sessions break during rollout
-
-Result:
-- unstable deployments
-- temporary outages
-- elevated latency
-- failed client requests
+Технический директор заключил:
+Команда не понимает разницы между запущенным процессом и готовым к эксплуатации сервисом.
 
 ---
 
-## Why `Running` Status Guarantees Nothing
+## В чём заключается проблема
 
-`Running` only means:
-- container process exists
-- main PID is alive
-- container did not exit
+Система страдает от преждевременной маршрутизации трафика и небезопасной обработки жизненного цикла Pod.
 
-Kubernetes does not understand:
-- application logic
-- initialization state
-- dependency readiness
-- service responsiveness
+Во время скользящего развертывания:
+- Kubernetes запускает новые объекты Pod
+- Процесс контейнера запускается успешно
+- Pod переходит в состояние `Running`
 
-A Pod may remain `Running` while:
-- application is deadlocked
-- database connectivity is broken
-- startup initialization is incomplete
-- internal worker pool is exhausted
-- application returns only HTTP 500 responses
+Но инициализация приложения еще не завершена.
 
-From Kubernetes perspective:
-- process alive = Running
+Приложение по-прежнему может быть:
+- Установление соединений с базой данных
+- потепление тайников
+- инициализация пулов потоков
+- Загрузка конфигурации
+- подготовка внутреннего состояния
 
-From user perspective:
-- service unavailable
+Несмотря на это:
+- трафик уже достигает Pod
+- клиенты получают сбои
+- Вход возвращает 502 ошибки
 
-This creates critical mismatch between infrastructure state and real service health.
+В то же время:
+- Старые объекты Pod могут завершаться слишком резко
+- активные запросы прерываются
+- Сеансы пользователей прерываются во время развертывания
 
----
-
-# Kubernetes Probes
-
-Kubernetes uses probes to understand actual application state.
-
-Probes may execute:
-- HTTP requests
-- TCP socket checks
-- commands inside container
-
-There are three major probe types.
+Результат:
+- нестабильные развертывания
+- временные отключения
+- повышенная задержка
+- неудачные клиентские запросы
 
 ---
 
-## Startup Probe
+## Почему статус `Running` ничего не гарантирует
 
-### Purpose
+`Running` означает только:
+- Контейнерный процесс существует
+- Основной PID активен
+- контейнер не вышел
 
-Protect slow-starting applications.
+Kubernetes не понимает:
+- Логика приложения
+- Состояние инициализации
+- Готовность зависимости
+- Скорость реагирования службы
 
-Some services require:
-- cache warm-up
-- migrations
-- JVM startup
-- model loading
-- dependency initialization
+Pod может оставаться `Running`, пока:
+- Приложение находится в состоянии взаимоблокировки
+- Соединение с базой данных нарушено
+- Инициализация запуска не завершена
+- внутренний рабочий пул исчерпан
+- приложение возвращает только HTTP 500 ответов
 
-Startup probe delays other probes until initialization completes.
+С точки зрения Kubernetes:
+- процесс активен = Running
 
----
+С точки зрения пользователя:
+- услуга недоступна
 
-### Mechanism
-
-While Startup Probe fails:
-- Readiness Probe disabled
-- Liveness Probe disabled
-
-If Startup Probe eventually succeeds:
-- normal lifecycle checks begin
-
-If Startup Probe fails repeatedly:
-- container restarted
-
----
-
-### Purpose In Production
-
-Prevents:
-- premature restarts
-- false liveness failures
-- crash loops during startup
+Это создает критическое несоответствие между состоянием инфраструктуры и реальным состоянием услуги.
 
 ---
 
-## Readiness Probe
+# Пробы Kubernetes
 
-### Purpose
+Kubernetes использует пробы для понимания фактического состояния приложения.
 
-Determines whether Pod may receive traffic.
+Пробы могут выполнять:
+- Запросы HTTP
+- Проверка сокетов TCP
+- команды внутри контейнера
 
-Main question:
-- "Can this Pod safely serve users right now?"
-
----
-
-### Mechanism
-
-If readiness succeeds:
-- Pod added into Service Endpoints
-- ingress/load balancer may send traffic
-
-If readiness fails:
-- Pod removed from routing
-- traffic stops immediately
-
-Important:
-- Pod is NOT restarted
-- container continues running
+Существует три основных типа проб.
 
 ---
 
-### Typical Readiness Checks
+## Проба запуска
 
-- database connectivity
-- Redis availability
-- dependency responsiveness
-- internal queue saturation
-- application warm-up completion
+### Цель
 
----
+Защитите медленно запускающиеся приложения.
 
-## Liveness Probe
+Некоторые услуги требуют:
+- Прогрев кэша
+- миграции
+- Запуск JVM
+- загрузка модели
+- Инициализация зависимостей
 
-### Purpose
-
-Detect unrecoverable application state.
-
-Main question:
-- "Is process permanently broken?"
+Запуск пробы задерживает другие пробы до завершения инициализации.
 
 ---
 
-### Mechanism
+### Механизм
 
-If Liveness Probe fails repeatedly:
-- Kubernetes restarts container
+При сбое проверки запуска:
+- Проверка готовности отключена.
+- Проверка активности отключена
 
-This acts as automatic recovery mechanism.
+Если проверка запуска в конечном итоге увенчалась успехом:
+- Начинаются обычные проверки жизненного цикла
 
----
-
-### Typical Liveness Checks
-
-- event loop responsiveness
-- web server responsiveness
-- deadlock detection
-- internal heartbeat
+Если проба запуска неоднократно дает сбой:
+- контейнер перезапущен
 
 ---
 
-## Important Distinction
+### Назначение в рабочей среде
 
-Liveness should NOT depend on external business dependencies.
-
-Bad example:
-- liveness fails because database unavailable
-
-Result:
-- Kubernetes restarts healthy application
-- restart storm begins
-
-Liveness must answer:
-- "Should this process be restarted?"
-
-NOT:
-- "Is downstream infrastructure healthy?"
+Предотвращает:
+- преждевременные перезапуски
+- Ложные сбои работоспособности
+- аварийные циклы во время запуска
 
 ---
 
-## How Misconfigured Probes Destroy Production
+## Проверка готовности
 
-Incorrect probes may trigger cascading failures.
+### Цель
 
-Classic production scenario:
+Определяет, может ли Pod принимать трафик.
 
-1. Database becomes slow
-2. API latency increases
-3. Liveness timeout too aggressive
-4. Kubernetes restarts API Pods
-5. Remaining Pods receive more traffic
-6. Latency grows further
-7. More probes fail
-8. More Pods restart
-9. Entire cluster destabilizes
+Основной вопрос:
+- «Может ли этот Pod безопасно обслуживать пользователей прямо сейчас?»
 
-This creates:
-- probe flapping
-- restart storms
-- deployment collapse
+---
+
+### Механизм
+
+Если готовность прошла успешно:
+- Pod включается в список конечных точек Service
+- Входной/балансировщик нагрузки может отправлять трафик
+
+Если готовность не удалась:
+- Pod удален из маршрутизации.
+- движение немедленно прекращается
+
+Важно:
+- Pod НЕ перезапускается
+- Контейнер продолжает работу
+
+---
+
+### Типичные проверки готовности
+
+- возможность подключения к базе данных
+- Доступность Redis
+- отзывчивость зависимостей
+- насыщение внутренней очереди
+- завершение прогрева приложения
+
+---
+
+## Проверка жизнеспособности (liveness probe)
+
+### Цель
+
+Обнаружение неисправимого состояния приложения.
+
+Основной вопрос:
+- «Процесс навсегда нарушен?»
+
+---
+
+### Механизм
+
+Если проверка работоспособности неоднократно дает сбой:
+- Kubernetes перезапускает контейнер
+
+Это действует как механизм автоматического восстановления.
+
+---
+
+### Типичные проверки работоспособности
+
+- отзывчивость цикла событий
+- Отзывчивость веб-сервера
+- Обнаружение взаимоблокировок
+- внутреннее сердцебиение
+
+---
+
+## Важное отличие
+
+Проверка жизнеспособности НЕ должна зависеть от внешних бизнес-сервисов.
+
+Плохой пример:
+- Сбой в работе, поскольку база данных недоступна
+
+Результат:
+- Kubernetes перезапускает работоспособное приложение
+- Начинается перезапуск шторма
+
+Живость должна ответить:
+- «Следует ли перезапустить этот процесс?»
+
+НЕ:
+- «Исправна ли инфраструктура зависимых сервисов?»
+
+---
+
+## Как неверно настроенные пробы нарушают работу системы
+
+Неправильные пробы могут вызвать каскадные сбои.
+
+Типичный сценарий в рабочей среде:
+
+1. База данных становится медленной
+2. Задержка API увеличивается
+3. Тайм-аут активности слишком агрессивный
+4. Kubernetes перезапускает объекты Pod сервиса API
+5. Оставшиеся Pod получают больше трафика
+6. Задержка увеличивается дальше
+7. Больше проб терпят неудачу
+8. Перезапускается ещё больше объектов Pod
+9. Весь кластер дестабилизируется.
+
+Это создает:
+- колебание пробы
+- перезапуск штормов
+- Сбой развертывания
 
 ---
 
 ## CrashLoopBackOff
 
-If Pod repeatedly fails startup or liveness checks:
-- Kubernetes enters CrashLoopBackOff state
+Если Pod неоднократно не проходит проверку запуска или работоспособности:
+- Kubernetes переходит в состояние CrashLoopBackOff
 
-Behavior:
-- restart
-- fail
-- exponential delay
-- restart again
+Поведение:
+- перезапуск
+- провалиться
+- Экспоненциальная задержка
+- перезапустить снова
 
-Purpose:
-- prevent infinite aggressive restart loops
-
----
-
-## Warm-Up Phase
-
-Applications often require initialization time before becoming operational.
-
-Examples:
-- loading ML models
-- opening DB pools
-- cache hydration
-- JIT compilation
-- dependency synchronization
-
-Traffic during warm-up causes:
-- timeouts
-- 502 responses
-- poor latency
-
-Readiness probes protect against premature traffic exposure.
+Назначение:
+- Предотвращение бесконечных циклов агрессивного перезапуска
 
 ---
 
-## Graceful Shutdown
+## Фаза прогрева
 
-When Kubernetes removes Pod:
-- kubelet sends SIGTERM
+Приложениям часто требуется время на инициализацию, прежде чем они начнут работать.
 
-Application should:
-1. fail readiness probe
-2. stop receiving new traffic
-3. finish active requests
-4. close resources safely
-5. terminate gracefully
+Примеры:
+- загрузка моделей ML
+- открытие пулов БД
+- гидратация кэша
+- JIT-компиляция
+- синхронизация зависимостей
 
-Without graceful shutdown:
-- active requests interrupted
-- users receive errors
-- transactions may break
+Движение во время прогрева вызывает:
+- тайм-ауты
+- 502 ответа
+- плохая задержка
+
+Датчики готовности защищают от преждевременного воздействия трафика.
 
 ---
 
-## Traffic Draining
+## Плавное завершение работы
 
-Traffic draining means:
-- removing Pod from load balancing
-- while allowing existing requests to finish
+Когда Kubernetes удаляет Pod:
+- kubelet отправляет SIGTERM
 
-This prevents:
-- abrupt session termination
-- broken uploads
-- incomplete transactions
+Приложение должно:
+1. Проверка готовности к сбою
+2. прекратить получение нового трафика
+3. завершить активные запросы
+4. безопасно закрыть ресурсы
+5. завершить изящно
+
+Без корректного завершения работы:
+- Активные запросы прерваны
+- пользователи получают ошибки
+- транзакции могут прерываться
+
+---
+
+## Завершение обработки текущих запросов (traffic draining)
+
+Слив трафика означает:
+- Удаление Pod из балансировки нагрузки
+- позволяя при этом завершить существующие запросы
+
+Это предотвращает:
+- внезапное завершение сеанса
+- неработающие загрузки
+- незавершенные транзакции
 
 ---
 
 ## terminationGracePeriodSeconds
 
-Kubernetes waits limited time after SIGTERM before force killing container.
+Kubernetes ожидает ограниченное время после SIGTERM перед принудительным уничтожением контейнера.
 
-This parameter defines:
-- graceful shutdown window
+Этот параметр определяет:
+- Окно корректного завершения работы
 
-If too small:
-- requests interrupted
+Если слишком маленький:
+- запросы прерваны
 
-If too large:
-- deployments become slow
+Если слишком большой:
+- развертывания становятся медленными
 
 ---
 
-## Production-Grade Health Checking
+## Проверки работоспособности в рабочей среде
 
-Reliable production systems require:
+Надежные рабочие системы требуют:
 
-### Separate Probe Endpoints
+### Отдельные эндпоинты для разных проб
 
-#### Liveness Endpoint
+#### Эндпоинт проверки жизнеспособности
 
-Example:
+Пример:
 - `/healthz/live`
 
-Characteristics:
-- lightweight
-- dependency-independent
-- checks only core process health
+Характеристики:
+- легкий
+- независимый от зависимости
+- проверяет только работоспособность основного процесса
 
 ---
 
-#### Readiness Endpoint
+#### Эндпоинт проверки готовности
 
-Example:
+Пример:
 - `/healthz/ready`
 
-Characteristics:
-- verifies critical dependencies
-- validates service readiness
-- controls traffic admission
+Характеристики:
+- проверяет критические зависимости
+- проверяет готовность к обслуживанию
+- контролирует пропуск трафика
 
 ---
 
-### Conservative Thresholds
+### Консервативные пороги
 
-Avoid aggressive probe settings.
+Избегайте агрессивных настроек пробы.
 
-Recommended:
-- retries before restart
-- reasonable timeout windows
-- startup delays
-- failure thresholds
+Рекомендуется:
+- повторные попытки перед перезапуском
+- Разумные окна тайм-аута
+- Задержки запуска
+- Пороги отказа
 
-Purpose:
-- tolerate temporary slowdowns
-- avoid cascading restarts
-
----
-
-### Graceful Lifecycle Management
-
-Applications must support:
-- SIGTERM handling
-- connection draining
-- readiness transition
-- safe termination
+Назначение:
+- допускать временные замедления
+- избегать каскадных перезапусков
 
 ---
 
-### Rolling Update Safety
+### Корректное управление жизненным циклом
 
-During deployment:
-- new Pods become ready first
-- old Pods removed gradually
-- traffic shifts progressively
-
-Purpose:
-- zero-downtime deployment
-- stable rollout behavior
+Приложения должны поддерживать:
+- Обработка SIGTERM
+- Соединение для слива
+- Переход готовности
+- безопасное завершение
 
 ---
 
-## Key Learning
+### Безопасность последовательного обновления
 
-- Running does not mean ready
-- probes define operational lifecycle
-- readiness controls traffic routing
-- liveness controls restart behavior
-- startup probe protects initialization phase
-- bad probes can destroy production stability
-- graceful shutdown prevents request loss
-- deployment safety depends on lifecycle orchestration
+Во время развертывания:
+- Сначала новые объекты Pod достигают готовности
+- Затем старые объекты Pod постепенно удаляются
+- Движение транспорта постепенно меняется
+
+Назначение:
+- Развертывание с нулевым временем простоя
+- стабильное поведение при развертывании
+
+---
+
+## Основные выводы
+
+- Running не означает готовность
+- Пробы определяют жизненный цикл эксплуатации
+- Готовность контролирует маршрутизацию трафика
+- Управление активностью при перезапуске
+- Пробник запуска защищает фазу инициализации
+- Ошибочные пробы могут нарушить стабильность рабочей среды
+- Плавное завершение работы предотвращает потерю запросов
+- Безопасность развертывания зависит от оркестрации жизненного цикла

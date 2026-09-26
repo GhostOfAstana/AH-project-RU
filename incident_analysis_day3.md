@@ -1,100 +1,100 @@
-# Incident Analysis — Week 4 Day 3
+# Разбор инцидента — неделя 4, день 3
 
-## Scenario
-User reports: "I clicked 'Pay', money was deducted, but order status is still 'pending'"
-
----
-
-## My Initial Thinking
-
-### Questions
-- Where and when was the payment made?
-- How many times was the payment attempted?
-- Is the issue related only to payment?
-
-### First Steps
-- Check transaction via developer tools
-- Verify if payment is actually completed
-- Check order data in database
-
-### Problem
-- I did not clearly identify the integration gap
-- I jumped too quickly to database checks
-- My questions were not focused on confirmation of payment and status behavior
+## Сценарий
+Пользователь сообщает: «Я нажал «Оплатить», деньги были списаны, но статус заказа все еще «ожидает»»
 
 ---
 
-## Corrected Approach
+## Мои первоначальные размышления
 
-### 1. Questions to User
-- When did you make the payment?
-- Did you receive payment confirmation?
-- Was money actually deducted from your account?
-- Does the order status change over time or remain "pending"?
+### Вопросы
+- Где и когда был произведен платеж?
+- Сколько раз была предпринята попытка оплаты?
+- Проблема связана только с оплатой?
 
----
+### Первые шаги
+- Проверка транзакции с помощью инструментов разработчика
+- Проверьте, действительно ли выполнен платеж
+- Проверка данных заказа в базе данных
 
-### 2. First Step (Frontend - DevTools)
-
-Open DevTools → Network:
-- Trigger payment or reload order status
-- Check:
-  - payment request
-  - order status request
-  - response status and body
+### Проблема
+- Я не четко определил пробел в интеграции.
+- Я слишком быстро перешел к проверке базы данных
+- Мои вопросы не были сосредоточены на подтверждении платежа и статусном поведении
 
 ---
 
-### 3. Key Insight
+## Исправленный подход
 
-This is likely an **integration issue between payment and order system**:
-
-→ Payment is successful  
-→ Order status is not updated  
-
----
-
-### 4. Diagnostic Flow
-
-#### Step 1: Check payment request
-- Was it successful (200 / success)?
-
-#### Step 2: Check order status API
-- Does it return "pending" or updated status?
-
-#### Step 3: If still "pending":
-- Test API via Postman
-
-#### Step 4:
-- Check backend processing
-- Verify if status update logic is triggered
-
-#### Step 5:
-- Check database (final step)
+### 1. Вопросы пользователю
+- Когда вы произвели оплату?
+- Вы получили подтверждение оплаты?
+- Действительно ли деньги были списаны с вашего счета?
+- Изменяется ли статус заказа со временем или остается «ожидающим»?
 
 ---
 
-### 5. Possible Causes
+### 2. Первый шаг (интерфейс — DevTools)
 
-- Payment callback not received by backend
-- Backend failed to update order status
-- Payment processed but not linked to order
-- API returns outdated order status
-- Frontend does not refresh status
-
----
-
-### 6. Escalation
-
-- Backend → if payment is successful but order status not updated
-- Frontend → if API returns updated status but UI shows "pending"
-- Payment system → if payment confirmation is missing
+Откройте DevTools → Сеть:
+- Запуск платежа или перезагрузка статуса заказа
+- Проверить:
+  - запрос платежа
+  - запрос статуса заказа
+  - Статус и тело ответа
 
 ---
 
-## Key Learning
+### 3. Ключевое наблюдение
 
-- Identify integration gaps between services
-- Do not jump directly to database checks
-- Start from frontend and follow the full request flow
-- Payment success does not guarantee order update
+Вероятно, это **проблема интеграции между системой оплаты и заказа**:
+
+→ Платеж прошел успешно  
+→ Статус заказа не обновляется  
+
+---
+
+### 4. Последовательность диагностики
+
+#### Шаг 1: Проверка запроса на оплату
+- Было ли оно успешным (200/успех)?
+
+#### Шаг 2: Проверка API статуса заказа
+- Возвращает ли он статус «ожидание» или обновленный?
+
+#### Шаг 3: Если все еще «ожидается»:
+- Тестирование API через Postman
+
+#### Шаг 4:
+- Проверка внутренней обработки
+- Проверьте, срабатывает ли логика обновления статуса.
+
+#### Шаг 5:
+- Проверка базы данных (заключительный этап)
+
+---
+
+### 5. Возможные причины
+
+- Обратный вызов платежа не получен серверной частью
+- Серверной части не удалось обновить статус заказа.
+- Платеж обработан, но не связан с заказом
+- API возвращает устаревший статус заказа
+- Интерфейс не обновляет статус
+
+---
+
+### 6. Эскалация
+
+- Серверная часть → если платеж прошел успешно, но статус заказа не обновлен
+- Интерфейс → если API возвращает обновленный статус, но пользовательский интерфейс показывает «ожидание»
+- Платежная система → если отсутствует подтверждение платежа
+
+---
+
+## Основные выводы
+
+- Выявление пробелов в интеграции между услугами
+- Не переходите непосредственно к проверке базы данных.
+- Начните с внешнего интерфейса и проследите весь поток запросов.
+- Успешный платеж не гарантирует обновление заказа.

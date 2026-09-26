@@ -1,140 +1,140 @@
-# Incident Analysis — Week 10 Day 2
+# Разбор инцидента — неделя 10, день 2
 
-## Scenario
+## Сценарий
 
-Production fintech-like platform experienced severe transactional degradation under high concurrency load.
+Рабочая финтех-платформа испытывала серьезную деградацию транзакций при высокой параллельной нагрузке.
 
-Architecture:
+Архитектура:
 
 ```text
 Kubernetes
   ↓
-Backend API
+Серверный API
   ↓
 PostgreSQL
 ```
 
-Symptoms:
-- payment freezes
-- hanging balance updates
-- transaction retries
-- random 500 errors
-- increased API latency
+Симптомы:
+- замораживание платежей
+- зависание обновлений баланса
+- повторные попытки транзакции
+- Случайные 500 ошибок
+- Увеличение задержки API
 
-Database metrics:
-- increasing active transactions
-- growing lock counts
-- deadlocks detected
-- blocked queries accumulating
+Метрики базы данных:
+- Увеличение активных транзакций
+- увеличение количества блокировок
+- Обнаружены взаимоблокировки
+- накопление заблокированных запросов
 
-Infrastructure remained:
-- operational
-- CPU not critically high
-- Kubernetes healthy
+Инфраструктура осталась:
+- Эксплуатационный
+- ЦП не критически высок
+- Kubernetes здоров
 
-Root cause involved:
-- lock contention
-- long-running transactions
-- row-level locking
-- deadlock amplification
-- connection pool exhaustion
+Основная причина:
+- Конфликт блокировки
+- Длительные транзакции
+- блокировка на уровне строк
+- Усиление взаимоблокировок
+- исчерпание пула соединений
 
-rather than:
-- infrastructure failure.
-
----
-
-# ACID Transactions
-
-Database transactions provide:
-- atomicity
-- consistency
-- isolation
-- durability
+вместо:
+- Сбой инфраструктуры.
 
 ---
 
-# Atomicity
+# ACID-транзакции
 
-Operations complete:
-- entirely
-or:
-- rollback entirely
-
-Partial execution impossible.
-
----
-
-# Consistency
-
-Transactions preserve:
-- database integrity rules
-
-System remains:
-- logically valid after commit.
+Транзакции базы данных обеспечивают:
+- атомарность
+- Согласованность
+- изоляция
+- Долговечность данных
 
 ---
 
-# Isolation
+# Атомность
 
-Concurrent transactions should not:
-- corrupt each other
+Операции завершены:
+- полностью
+Или:
+- Откат полностью
 
-Isolation controls:
-- concurrency visibility semantics.
-
----
-
-# Durability
-
-Committed transactions survive:
-- crashes
-- restarts
-- failures
-
-via:
-- WAL persistence.
+Частичное выполнение невозможно.
 
 ---
 
-# PostgreSQL MVCC
+# Согласованность
 
-PostgreSQL uses:
-- Multi-Version Concurrency Control (MVCC)
+Транзакции сохраняют:
+- правила целостности базы данных
 
-Instead of overwriting rows:
-- UPDATE creates new tuple version
-
-Readers access:
-- consistent snapshots
-
-Benefits:
-- readers do not block writers
-- writers do not block readers
-
-This enables:
-- high read concurrency.
+Система остается:
+- Логически допустимо после фиксации.
 
 ---
 
-# MVCC Limits
+# Изоляция
 
-MVCC does NOT eliminate:
-- writer vs writer conflicts
+Параллельные транзакции не должны:
+- развращают друг друга
 
-Two concurrent writes to same row still require:
-- serialization
-
-PostgreSQL therefore introduces:
-- row-level locking
-
-for conflicting writes.
+Средства управления изоляцией:
+- Семантика видимости параллелизма.
 
 ---
 
-# Row-Level Locking
+# Долговечность данных
 
-Operations such as:
+Зафиксированные транзакции сохраняются:
+- сбои
+- перезапуск
+- отказы
+
+Через:
+- Сохранение WAL.
+
+---
+
+# Многоверсионность (MVCC) в PostgreSQL
+
+PostgreSQL использует:
+- Многоверсионное управление параллелизмом (MVCC)
+
+Вместо перезаписи строк:
+- UPDATE создает новую версию кортежа.
+
+Доступ читателей:
+- согласованные снимки
+
+Преимущества:
+- читатели не блокируют авторов
+- писатели не блокируют читателей
+
+Это позволяет:
+- Высокий уровень одновременного чтения.
+
+---
+
+# Ограничения MVCC
+
+MVCC НЕ устраняет:
+- Конфликты писателей и писателей
+
+Две одновременные записи в одну и ту же строку по-прежнему требуют:
+- сериализация
+
+Таким образом, PostgreSQL представляет:
+- блокировка на уровне строк
+
+для конфликтующих записей.
+
+---
+
+# Блокировка на уровне строк
+
+Такие операции, как:
 
 ```sql
 SELECT ... FOR UPDATE
@@ -142,276 +142,276 @@ UPDATE
 DELETE
 ```
 
-acquire:
-- exclusive row locks
+Получать:
+- эксклюзивные блокировки рядов
 
-Purpose:
-- prevent concurrent modification corruption
+Назначение:
+- Предотвратить повреждение одновременной модификации
 
-If another transaction attempts same row:
-- it waits until lock released.
+Если другая транзакция пытается выполнить ту же строку:
+- он ждет, пока блокировка не будет снята.
 
-This creates:
-- lock queues.
-
----
-
-# Hot Rows
-
-Hot rows are:
-- heavily contended records
-
-Examples:
-- account balances
-- inventory counters
-- global statistics rows
-
-High concurrency on same row creates:
-- serialization bottleneck
-
-Scaling compute infrastructure does not solve:
-- logical contention bottlenecks.
+Это создает:
+- Блокировка очередей.
 
 ---
 
-# Lock Queue Amplification
+# Строки с высокой конкуренцией за доступ
 
-Example:
+Горячими строками являются:
+- сильно оспариваемые рекорды
+
+Примеры:
+- остатки на счетах
+- Счетчики инвентаря
+- Строки глобальной статистики
+
+Высокий уровень параллелизма в одной и той же строке создает:
+- Узкое место сериализации
+
+Масштабирование вычислительной инфраструктуры не решает:
+- Логические разногласия по узким местам.
+
+---
+
+# Рост очереди ожидания блокировок
+
+Пример:
 
 ```text
-T1 holds lock
-T2 waits
-T3 waits
-T4 waits
+T1 удерживает блокировку
+Т2 ждет
+Т3 ждет
+Т4 ждет
 ```
 
-Waiting transactions consume:
-- DB connections
-- memory
-- worker capacity
-- API resources
+Ожидающие транзакции потребляют:
+- Соединения с БД
+- память
+- работоспособность
+- Ресурсы API
 
-As queues grow:
-- connection pools exhaust
-- request latency explodes
-- API appears frozen
+По мере роста очередей:
+- Пулы соединений исчерпываются
+- Задержка запроса резко возрастает
+- API кажется зависшим
 
-even while:
-- CPU remains normal.
-
----
-
-# Why CPU Stayed Normal
-
-Waiting transactions:
-- sleep on locks
-
-They are not:
-- actively computing
-
-Therefore:
-- CPU utilization remains moderate
-
-while:
-- concurrency coordination collapses.
-
-This is common in:
-- transactional bottlenecks.
+даже в то время, когда:
+- ЦП остается в норме.
 
 ---
 
-# Long-Running Transactions
+# Почему ЦП остался в норме
 
-Long transactions dangerous because they:
-- retain locks longer
-- retain MVCC snapshots longer
-- delay cleanup
-- increase contention windows
+Ожидающие транзакции:
+- спать на замках
 
-Typical anti-pattern:
+Они не являются:
+- активное вычисление
+
+Поэтому:
+- Загрузка ЦП остается умеренной
+
+При этом:
+- Координация параллелизма разрушается.
+
+Это часто встречается в:
+- узкие места транзакций.
+
+---
+
+# Длительные транзакции
+
+Длинные транзакции опасны, поскольку они:
+- дольше сохраняют замки
+- Снимки MVCC сохраняются дольше
+- задержка очистки
+- Увеличение окон конкуренции
+
+Типичный антипаттерн:
 
 ```text
 BEGIN
-→ update balance
-→ external API call
-→ reconciliation logic
-→ commit
+→ обновить баланс
+→ внешний вызов API
+→ логика согласования
+→ зафиксировать
 ```
 
-During entire operation:
-- locks remain held.
+В течение всей работы:
+- Замки остаются удержанными.
 
-This dramatically increases:
-- contention probability.
-
----
-
-# MVCC Side Effects Of Long Transactions
-
-Old row versions cannot be cleaned while:
-- old transactions remain active
-
-Consequences:
-- table bloat
-- index bloat
-- vacuum lag
-- storage amplification
-
-Long-running transactions therefore damage:
-- both concurrency
-and:
-- storage efficiency.
+Это резко увеличивает:
+- Вероятность разногласий.
 
 ---
 
-# Deadlocks
+# Побочные эффекты длинных транзакций MVCC
 
-Deadlock occurs when:
+Старые версии строк не могут быть очищены, пока:
+- старые транзакции остаются активными
+
+Последствия:
+- раздувание таблицы
+- раздувание индекса
+- вакуумная задержка
+- Усиление хранения
+
+Таким образом, длительные транзакции наносят ущерб:
+- оба параллелизма
+И:
+- Эффективность хранения.
+
+---
+
+# Взаимоблокировки
+
+Взаимоблокировка возникает, когда:
 
 ```text
-T1 holds row A
-→ waits for row B
+T1 содержит строку A
+→ ожидает строки B
 
-T2 holds row B
-→ waits for row A
+T2 содержит строку B
+→ ожидает строки A
 ```
 
-Both transactions wait forever.
+Обе транзакции ждут вечно.
 
-PostgreSQL detects cycle and aborts one transaction.
+PostgreSQL обнаруживает цикл и прерывает одну транзакцию.
 
-Typical error:
+Типичная ошибка:
 
 ```text
 ERROR: deadlock detected
 ```
 
-Deadlocks increase under:
-- high contention
-- inconsistent locking order
-- long transactions.
+Взаимоблокировки учащаются при:
+- высокая конкуренция
+- непоследовательный порядок блокировки
+- Длинные транзакции.
 
 ---
 
-# Isolation Levels
+# Уровни изоляции
 
-## READ COMMITTED
+## READ COMMITTED — чтение подтверждённых данных
 
-Default PostgreSQL isolation.
+Изоляция PostgreSQL по умолчанию.
 
-Each query sees:
-- committed state at query start
+Каждый запрос видит:
+- состояние фиксации в начале запроса
 
-Allows:
-- non-repeatable reads
+Позволяет:
+- неповторяющиеся чтения
 
-Good balance between:
-- consistency
-- concurrency
-
----
-
-# REPEATABLE READ
-
-Transaction sees:
-- stable snapshot
-
-Prevents:
-- non-repeatable reads
-
-Higher isolation cost:
-- increased contention risk.
+Хороший баланс между:
+- Согласованность
+- параллелизм
 
 ---
 
-# SERIALIZABLE
+# REPEATABLE READ — повторяемое чтение
 
-Strongest isolation.
+Транзакция видит:
+- стабильный снимок
 
-Database detects:
-- unsafe concurrent execution
+Предотвращает:
+- неповторяющиеся чтения
 
-May abort transactions with:
+Более высокая стоимость изоляции:
+- Повышенный риск разногласий.
+
+---
+
+# SERIALIZABLE — сериализуемость
+
+Сильнейшая изоляция.
+
+База данных обнаруживает:
+- небезопасное одновременное выполнение
+
+Могут прерывать транзакции с:
 
 ```text
 could not serialize access
 ```
 
-Provides strongest correctness.
+Обеспечивает максимальную корректность.
 
-Tradeoff:
-- lower throughput
-- more retries
-- higher contention.
+Компромисс:
+- более низкая пропускная способность
+- больше попыток
+- Более высокая конкуренция.
 
 ---
 
-# Contention Collapse
+# Коллапс из-за конкуренции за ресурсы
 
-Database degradation often caused by:
-- coordination collapse
+Деградация базы данных часто вызвана:
+- Координационный коллапс
 
-not:
-- raw overload
+А не:
+- необработанная перегрузка
 
-Flow:
+Последовательность:
 
 ```text
-hot rows
-→ lock queues
-→ waiting transactions
-→ pool exhaustion
-→ retries
-→ more contention
-→ cascading latency
+Строки с высокой конкуренцией за доступ
+→ блокировка очередей
+→ ожидающие транзакции
+→ исчерпание пула
+→ повторы
+→ больше разногласий
+→ каскадная задержка
 ```
 
-This creates:
-- concurrency collapse dynamics.
+Это создает:
+- Динамика коллапса параллелизма.
 
 ---
 
-# Retry Storms At Database Layer
+# Шторм повторных запросов на уровне базы данных
 
-Applications often retry:
-- deadlocks
-- serialization failures
-- lock timeouts
+Приложения часто повторяют попытку:
+- Взаимоблокировки
+- Сбои сериализации
+- таймауты блокировки
 
-Under heavy contention:
-- retries amplify transaction density
+В условиях серьезного спора:
+- Повторные попытки увеличивают плотность транзакций
 
-Result:
-- self-generated overload loop
+Результат:
+- самогенерируемый контур перегрузки
 
-Similar to:
-- distributed retry storms.
-
----
-
-# Optimistic vs Pessimistic Locking
-
-## Pessimistic Locking
-
-Uses:
-- explicit locks
-- SELECT FOR UPDATE
-
-Pros:
-- strong protection
-
-Cons:
-- lock queues
-- contention amplification
+Аналогично:
+- Распределенные повторные попытки.
 
 ---
 
-# Optimistic Locking
+# Оптимистическая и пессимистическая блокировка
 
-Uses:
-- version checks
+## Пессимистическая блокировка
 
-Example:
+Использует:
+- явные блокировки
+- SELECT ДЛЯ UPDATE
+
+Преимущества:
+- сильная защита
+
+Недостатки:
+- блокировка очередей
+- усиление разногласий
+
+---
+
+# Оптимистическая блокировка
+
+Использует:
+- проверка версии
+
+Пример:
 
 ```sql
 UPDATE accounts
@@ -421,244 +421,244 @@ WHERE id = :id
   AND version = :expected_version;
 ```
 
-Pros:
-- avoids long lock waits
-- improves concurrency
+Преимущества:
+- позволяет избежать длительного ожидания блокировки
+- улучшает параллелизм
 
-Cons:
-- retries required on conflicts
+Недостатки:
+- В случае конфликтов требуются повторные попытки
 
-Works best when:
-- contention relatively low.
+Лучше всего работает, когда:
+- Разногласия относительно невелики.
 
 ---
 
-# Connection Pool Exhaustion
+# Исчерпание пула соединений
 
-Database connections limited.
+Ограничены соединения с базой данных.
 
-Example:
+Пример:
 
 ```text
-pool size = 100
+размер пула = 100
 ```
 
-If transactions block:
-- all connections occupied
+Если транзакции блокируются:
+- все соединения заняты
 
-New requests cannot:
-- obtain DB connection
+Новые запросы не могут:
+- получить соединение с БД
 
-API threads begin:
-- hanging
-- timing out
+Потоки API начинаются:
+- подвешивание
+- Тайм-аут
 
-Entire platform appears:
-- frozen
+Появляется вся платформа:
+- замороженный
 
-despite:
-- moderate DB CPU usage.
-
----
-
-# Idempotent Financial Operations
-
-Retries dangerous in financial systems.
-
-Without idempotency:
-- duplicate charges possible
-
-Production systems require:
-- idempotency keys
-- replay-safe operations
-- duplicate suppression
-
-especially for:
-- payments
-- transfers
-- balance mutations.
+Несмотря на:
+- Умеренное использование ЦП БД.
 
 ---
 
-# Investigation Process
+# Идемпотентные финансовые операции
+
+Повторные попытки опасны в финансовых системах.
+
+Без идемпотентности:
+- Возможно дублирование платежей
+
+Рабочие системы требуют:
+- Ключи идемпотентности
+- Операции, безопасные для повторного воспроизведения
+- Подавление дублирования
+
+специально для:
+- платежи
+- передачи
+- Балансные мутации.
+
+---
+
+# Процесс расследования
 
 ## pg_stat_activity
 
-Inspect:
-- waiting queries
-- active transactions
-- long-running sessions
-- lock waits
+Исследовать:
+- ожидающие запросы
+- активные транзакции
+- длительные сеансы
+- ожидание блокировки
 
-Critical fields:
+Критические поля:
 - wait_event_type
-- query duration
-- transaction age
+- продолжительность запроса
+- возраст транзакции
 
 ---
 
 # pg_locks
 
-Analyze:
-- lock types
-- blocking chains
-- lock ownership
+Проанализировать:
+- типы замков
+- блокирующие цепи
+- блокировка владения
 
-Purpose:
-- identify contention hotspots.
+Назначение:
+- Идентифицировать горячие точки разногласий.
 
 ---
 
-# Deadlock Logs
+# Журналы взаимоблокировок
 
-Inspect PostgreSQL logs for:
+Проверьте журналы PostgreSQL на наличие:
 
 ```text
 deadlock detected
 ```
 
-Logs reveal:
-- conflicting queries
-- lock acquisition order
-- blocked resources
+Журналы показывают:
+- конфликтующие запросы
+- порядок получения блокировки
+- заблокированные ресурсы
 
 ---
 
-# Transaction Duration Analysis
+# Анализ продолжительности транзакции
 
-Find:
-- unusually long transactions
+Найти:
+- необычно длинные транзакции
 
-Common causes:
-- external calls inside transaction
-- slow reconciliation workers
-- oversized transaction scope
-
----
-
-# Connection Pool Metrics
-
-Inspect:
-- pool utilization
-- waiting clients
-- acquisition latency
-
-Detect:
-- pool starvation.
+Распространенные причины:
+- внешние вызовы внутри транзакции
+- Медленные обработчики сверки данных
+- слишком большой объем транзакции
 
 ---
 
-# Production Mitigation Plan
+# Показатели пула соединений
 
-## Short-Term Stabilization
+Исследовать:
+- использование пула
+- ожидающие клиенты
+- задержка обнаружения
 
-- reduce transaction scope
-- terminate stuck workers
-- introduce lock timeouts
-- reduce retry aggressiveness
-- isolate reconciliation jobs
-- shorten transaction lifetime
+Выявить:
+- Нехватка свободных соединений в пуле.
 
-Example:
+---
+
+# План снижения последствий инцидента в рабочей среде
+
+## Кратковременная стабилизация
+
+- уменьшить объем транзакции
+- прекратить застрявшие работники
+- введение таймаутов блокировки
+- уменьшить агрессивность повторных попыток
+- Изолировать задания по сверке
+- сократить время жизни транзакции
+
+Пример:
 
 ```sql
 SET lock_timeout = '2s';
 SET idle_in_transaction_session_timeout = '5s';
 ```
 
-Goal:
-- stop lock queue growth.
+Цель:
+- Остановить рост очереди блокировок.
 
 ---
 
-# Long-Term Improvements
+# Долгосрочные улучшения
 
-## Transaction Scope Reduction
+## Сокращение объема транзакции
 
-Keep transactions:
-- minimal
-- local
-- short-lived
+Сохранение транзакций:
+- минимальный
+- местный
+- недолговечный
 
-Avoid:
-- network calls inside transactions.
-
----
-
-# Lock Ordering Discipline
-
-Enforce:
-- deterministic lock acquisition order
-
-Purpose:
-- reduce deadlock probability.
+Избегать:
+- Сетевые вызовы внутри транзакций.
 
 ---
 
-# Hot Row Decomposition
+# Единый порядок захвата блокировок
 
-Shard highly contended entities:
-- balances
-- counters
-- inventory
+Обеспечить соблюдение:
+- Порядок получения детерминированной блокировки
 
-Reduce:
-- single-row contention bottlenecks.
+Назначение:
+- Снизить вероятность взаимоблокировки.
 
 ---
 
-# Optimistic Concurrency
+# Разделение строк с высокой конкуренцией
 
-Adopt:
-- version-based updates
+Осколки спорных объектов:
+- остатки
+- счетчики
+- инвентарь
 
-Reduce:
-- lock queue amplification.
-
----
-
-# Retry Governance
-
-Implement:
-- bounded retries
-- exponential backoff
-- retry budgets
-
-Prevent:
-- retry-driven collapse.
+Уменьшить:
+- Узкие места конкуренции в одной строке.
 
 ---
 
-# Architectural Lessons
+# Оптимистический параллелизм
 
-Databases frequently fail because:
-- concurrency coordination collapses
+Внедрить:
+- Обновления на основе версий
 
-not because:
-- hardware overloaded
-
-Critical bottlenecks often emerge from:
-- hot rows
-- lock queues
-- transaction scope
-- retry amplification
-- pool exhaustion
-
-Reliable backend systems require:
-- short transactions
-- bounded contention
-- careful concurrency design
-- retry-aware architecture
+Уменьшить:
+- Усиление очереди блокировки.
 
 ---
 
-# Key Learning
+# Управление повторными попытками
 
-- MVCC reduces read/write contention but not write/write conflicts
-- long transactions amplify lock lifetime
-- deadlocks emerge from cyclic waiting
-- contention collapse often occurs with normal CPU usage
-- retries can amplify DB overload
-- connection pool exhaustion freezes entire backend
-- hot rows create logical scalability bottlenecks
-- transaction scope determines concurrency survivability
+Реализовать:
+- ограниченные повторы
+- Экспоненциальное увеличение задержки перед повтором
+- Бюджеты повторных попыток
+
+Предотвращать:
+- Коллапс, вызванный повторной попыткой.
+
+---
+
+# Архитектурные уроки
+
+Базы данных часто выходят из строя по следующим причинам:
+- Координация параллелизма разрушается
+
+Не потому, что:
+- Аппаратное обеспечение перегружено
+
+Критические узкие места часто возникают из-за:
+- Строки с высокой конкуренцией за доступ
+- блокировка очередей
+- объем транзакции
+- Усиление нагрузки из-за повторных запросов
+- Исчерпание пула
+
+Надежные серверные системы требуют:
+- короткие транзакции
+- ограниченное разногласие
+- Тщательный дизайн параллелизма
+- Архитектура с возможностью повторных попыток
+
+---
+
+# Основные выводы
+
+- MVCC уменьшает конфликты чтения/записи, но не конфликты записи/записи.
+- длинные транзакции увеличивают срок службы блокировки
+- Взаимоблокировки возникают из-за циклического ожидания
+- Коллапс конфликтов часто происходит при нормальной загрузке ЦП.
+- повторные попытки могут усилить перегрузку БД
+- исчерпание пула соединений приводит к зависанию всей серверной части
+- Горячие строки создают узкие места в логической масштабируемости.
+- Объем транзакции определяет живучесть параллелизма

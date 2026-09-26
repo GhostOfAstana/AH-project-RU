@@ -1,626 +1,626 @@
-# Incident Analysis — Week 10 Day 6
+# Разбор инцидента — неделя 10, день 6
 
-## Scenario
+## Сценарий
 
-Critical financial platform migrated to:
-
-```text
-multi-region active-active architecture
-```
-
-Regions:
+Критическая финансовая платформа перенесена на:
 
 ```text
-Region A
-Region B
-Region C
+Многорегиональная архитектура «активный-активный»
 ```
 
-Each region:
-- accepted writes
-- served users independently
-- used local PostgreSQL cluster
-- replicated asynchronously across regions
-
-After major inter-region packet loss:
-- balances diverged
-- duplicate transactions appeared
-- negative balances emerged
-- reconciliation became impossible
-- retries amplified inconsistency
-- replay storms overloaded infrastructure
-
-Infrastructure remained:
-- operational
-- green on dashboards
-- healthy at node level
-
-Business correctness collapsed.
-
----
-
-# Root Cause
-
-The platform violated distributed coordination assumptions.
-
-Team attempted to combine:
-- active-active writes
-- asynchronous replication
-- last-write-wins conflict resolution
-- automatic failover
-
-for:
-- strongly consistent financial workloads
-
-This architecture allowed:
-- split brain
-- divergent histories
-- conflicting writes
-- causal ordering loss
-
-The system preserved:
-- availability
-
-by sacrificing:
-- consistency
-
-during network partition.
-
----
-
-# CAP Theorem In Production
-
-CAP theorem becomes relevant during:
-- network partition
-
-System must choose:
+Регионы:
 
 ```text
-Consistency
-OR
-Availability
+Область А
+Область Б
+Область С
 ```
 
-under:
-- partition conditions
+Каждый регион:
+- принятые записи
+- обслуживали пользователей независимо
+- использовал локальный кластер PostgreSQL
+- асинхронно реплицировались между регионами
 
-The platform chose:
-- availability
+После значительной межрегиональной потери пакетов:
+- Балансы разошлись
+- Появились повторяющиеся транзакции
+- Возникли отрицательные балансы
+- Сверка данных стала невозможной
+- повторные попытки усиливают несогласованность
+- повтор штормов перегрузил инфраструктуру
 
-Regions continued accepting writes independently.
+Инфраструктура осталась:
+- Эксплуатационный
+- зеленый цвет на приборных панелях
+- исправен на уровне узла
 
-Result:
-- business truth diverged
-
-Infrastructure stayed operational while data correctness collapsed.
-
----
-
-# Split Brain
-
-Split brain occurs when:
-- multiple regions believe their state is authoritative simultaneously
-
-Each region:
-- accepts writes
-- processes payments
-- mutates balances
-- emits events independently
-
-This creates:
-- conflicting histories
-- irreversible side effects
-- duplicate financial operations
-
-Split brain is catastrophic because:
-- both sides may perform valid-looking but mutually incompatible actions
+Корректность бизнеса рухнула.
 
 ---
 
-# Why Active-Active Is Dangerous
+# Основная причина
 
-Active-active architecture works safely only when:
-- conflicts are mergeable
-- ordering is unimportant
-- operations are commutative
+Платформа нарушила предположения о распределенной координации.
 
-Financial systems violate these assumptions.
+Команда предприняла попытку объединить:
+- активная-активная запись
+- асинхронная репликация
+- Разрешение конфликта «победитель последней записи»
+- автоматическое переключение при сбое
 
-Financial operations require:
-- deterministic ordering
-- monotonic balance history
-- causality preservation
-- strict invariants
+Для:
+- строго последовательные финансовые нагрузки
 
-Example:
+Эта архитектура позволяла:
+- Расхождение лидеров (split brain)
+- разные истории
+- противоречивые записи
+- Причинная потеря упорядоченности
+
+В системе сохранено:
+- доступность
+
+жертвуя:
+- Согласованность
+
+Во время разделения сети.
+
+---
+
+# Теорема CAP в рабочей среде
+
+Теорема CAP становится актуальной во время:
+- сетевой раздел
+
+Система должна выбрать:
 
 ```text
-Withdraw $100
-Close account
+Согласованность
+ИЛИ
+Доступность
 ```
 
-Reordering operations creates invalid state.
+При:
+- Условия разделения
+
+Платформа выбрала:
+- доступность
+
+Регионы продолжали принимать записи самостоятельно.
+
+Результат:
+- Деловая правда разошлась
+
+Инфраструктура оставалась работоспособной, хотя корректность данных ухудшалась.
 
 ---
 
-# Asynchronous Replication
+# Расхождение лидеров (split brain)
 
-Asynchronous replication introduces:
-- replication lag
+Расхождение лидеров происходит, когда:
+- несколько регионов одновременно считают свое государство авторитетным
 
-Writes acknowledged locally before remote regions confirm replication.
+Каждый регион:
+- принимает записи
+- обрабатывает платежи
+- мутирует балансы
+- генерирует события независимо
 
-During partition:
-- each region continues diverging independently
+Это создает:
+- противоречивые истории
+- необратимые побочные эффекты
+- дублирование финансовых операций
 
-When connectivity restored:
-- conflicting WAL histories collide
+Расхождение лидеров является катастрофическим, потому что:
+- обе стороны могут совершать действия, выглядящие обоснованными, но взаимно несовместимыми.
 
-This creates:
-- replay storms
-- conflict amplification
-- reconciliation overload
+---
+
+# Чем опасен активный-активный режим
+
+Активно-активная архитектура работает безопасно только тогда, когда:
+- конфликты можно объединять
+- порядок неважен
+- операции коммутативны
+
+Финансовые системы нарушают эти предположения.
+
+Финансовые операции требуют:
+- детерминированное упорядочение
+- История монотонного баланса
+- сохранение причинно-следственной связи
+- строгие инварианты
+
+Пример:
+
+```text
+Вывести 100 долларов США
+Закрыть аккаунт
+```
+
+Операции переупорядочения создают недопустимое состояние.
+
+---
+
+# Асинхронная репликация
+
+Асинхронная репликация обеспечивает:
+- задержка репликации
+
+Запись подтверждена локально до того, как удаленные регионы подтвердят репликацию.
+
+Во время разделения:
+- каждая область продолжает расходиться независимо
+
+Когда соединение восстановлено:
+- Противоречивые истории WAL сталкиваются
+
+Это создает:
+- Шторм повторной обработки событий
+- усиление конфликта
+- перегрузка сверки
 
 ---
 
 # Last-Write-Wins (LWW)
 
-LWW resolves conflicts using:
-- timestamps
+LWW разрешает конфликты, используя:
+- временные метки
 
-This is dangerous because:
-- clocks are unreliable
-- causality is ignored
-- ordering becomes nondeterministic
+Это опасно, потому что:
+- часы ненадежны
+- причинно-следственная связь игнорируется
+- упорядочение становится недетерминированным
 
-Clock drift may reorder events incorrectly.
+Смещение тактового сигнала может привести к неправильному переупорядочению событий.
 
-LWW optimizes:
-- convergence
+LWW оптимизирует:
+- конвергенция
 
-not:
-- correctness
+А не:
+- правильность
 
-For finance this is unacceptable.
-
----
-
-# Clock Drift And Logical Time
-
-Physical clocks cannot guarantee distributed ordering.
-
-Problems:
-- NTP drift
-- asymmetric latency
-- packet reordering
-- network jitter
-
-Distributed systems therefore use:
-- logical clocks
+Для финансов это неприемлемо.
 
 ---
 
-# Lamport Clocks
+# Дрейф часов и логическое время
 
-Lamport clocks preserve:
-- happened-before relationships partially
+Физические часы не могут гарантировать распределенный порядок.
 
-Purpose:
-- establish logical ordering without synchronized clocks
+Проблемы:
+- Дрейф NTP
+- асимметричная задержка
+- переупорядочение пакетов
+- Джиттер сети
 
----
-
-# Vector Clocks
-
-Vector clocks preserve:
-- causality relationships more accurately
-
-But:
-- complexity grows rapidly at scale
-
-Large systems often avoid generalized conflict resolution entirely.
-
-Instead:
-- authority centralized through leaders and quorum.
+Таким образом, в распределенных системах используются:
+- логические часы
 
 ---
 
-# Quorum
+# Часы Лампорта
 
-Quorum ensures:
-- majority agreement
+Часы Лампорта сохраняют:
+- Отношения «случилось до того», частично
 
-Example:
+Назначение:
+- установить логический порядок без синхронизированных часов
+
+---
+
+# Векторные часы
+
+Векторные часы сохраняют:
+- Причинно-следственные связи более точно
+
+Но:
+- Сложность быстро растет в масштабе
+
+Большие системы часто полностью избегают обобщенного разрешения конфликтов.
+
+Вместо этого:
+- Полномочия централизованы через лидеров и кворум.
+
+---
+
+# Кворум
+
+Кворум обеспечивает:
+- согласие большинства
+
+Пример:
 
 ```text
-3 nodes
-quorum = 2
+3 узла
+кворум = 2
 ```
 
-Two independent leaders cannot both achieve majority simultaneously.
+Два независимых лидера не могут одновременно достичь большинства.
 
-Quorum prevents:
-- split brain
-- conflicting leaders
-- concurrent authority
+Кворум предотвращает:
+- Расхождение лидеров (split brain)
+- конфликтующие лидеры
+- параллельные полномочия
 
-Without quorum:
-- consistency impossible
+Без кворума:
+- последовательность невозможна
 
 ---
 
-# Leader Election
+# Выборы лидера
 
-Distributed systems require:
-- single authoritative writer
+Распределенные системы требуют:
+- один авторитетный писатель
 
-Protocols:
+Протоколы:
 - Raft
-- Paxos
+- Паксос
 
-Purpose:
-- coordinated leader election
-- replicated state agreement
-
----
-
-# Stale Leaders
-
-Network partitions may isolate leader.
-
-Old leader may continue believing:
-- lease still valid
-
-This creates:
-- stale leader problem
+Назначение:
+- скоординированные выборы лидера
+- тиражируемое государственное соглашение
 
 ---
 
-# Fencing Tokens
+# Устаревшие лидеры
 
-Fencing tokens prevent stale leaders from mutating state.
+Сетевые разделы могут изолировать лидера.
 
-Every leadership epoch receives:
-- monotonically increasing token
+Старый лидер может продолжать верить:
+- Договор аренды все еще действителен
 
-Storage rejects writes from:
-- outdated leaders
-
-Purpose:
-- prevent stale authority corruption
+Это создает:
+- Проблема устаревшего лидера
 
 ---
 
-# Automatic Failover Dangers
+# Токены отсечения устаревших лидеров (fencing tokens)
 
-Automatic failover under unstable networks becomes:
-- failure amplification engine
+Ограждающие жетоны не позволяют устаревшим лидерам изменять состояние.
 
-Transient packet loss may falsely trigger:
-- leader elections
-- replay storms
-- lease invalidation
-- replication cascades
+Каждая эпоха лидерства получает:
+- монотонно возрастающий токен
 
-Repeated failovers amplify:
-- coordination instability
+Хранилище отклоняет запись от:
+- устаревшие лидеры
 
-before infrastructure fully fails.
+Назначение:
+- Предотвратить устаревшую коррупцию в органах власти
 
 ---
 
-# Retry Amplification
+# Опасности автоматического переключения при отказе
 
-Retries amplify:
-- duplicate writes
-- replay windows
-- ordering uncertainty
-- causal ambiguity
+Автоматическое переключение при отказе в нестабильных сетях становится:
+- Усиление неисправности двигателя
 
-Retries increase:
-- inconsistency surface area
+Временная потеря пакетов может ложно вызвать:
+- выборы лидера
+- Шторм повторной обработки событий
+- признание аренды недействительной
+- Каскады репликации
 
-not just:
-- traffic volume
+Повторяющиеся аварийные переключения усиливают:
+- нестабильность координации
 
----
-
-# Replay Storms
-
-After recovery:
-- all regions replay accumulated WAL logs simultaneously
-
-This creates:
-- massive write amplification
-- queue saturation
-- duplicate processing
-- reconciliation overload
-
-Recovery traffic often exceeds:
-- original production traffic
-
-This is:
-- recovery amplification
+Прежде чем инфраструктура полностью выйдет из строя.
 
 ---
 
-# Exactly-Once Illusion
+# Усиление нагрузки из-за повторных запросов
 
-Exactly-once delivery is generally impossible across distributed boundaries.
+Повторные попытки усиливают:
+- повторяющиеся записи
+- Окна воспроизведения
+- Неопределённость порядка
+- причинно-следственная двусмысленность
 
-Networks may:
-- duplicate
-- reorder
-- replay
-- partially fail
+Увеличение повторных попыток:
+- Несоответствие площади поверхности
 
-Practical systems target:
+не просто:
+- объем трафика
+
+---
+
+# Шторм повторной обработки событий
+
+После восстановления:
+- все регионы одновременно воспроизводят накопленные журналы WAL
+
+Это создает:
+- Массовое усиление записи
+- насыщение очереди
+- обработка дубликатов
+- перегрузка сверки
+
+Восстановительный трафик часто превышает:
+- исходный рабочий трафик
+
+Это:
+- Усиление восстановления
+
+---
+
+# Иллюзия «Ровно однажды»
+
+Ровно однократная доставка через распределенные границы обычно невозможна.
+
+Сети могут:
+- дубликат
+- изменить порядок
+- повтор
+- Частичный провал
+
+Целью практических систем является:
 
 ```text
-exactly-once effects
+Эффекты ровно один раз
 ```
 
-through:
-- idempotency
-- deduplication
-- transactional coordination
+Через:
+- идемпотентность
+- дедупликация
+- координация транзакций
 
 ---
 
-# Idempotency
+# Идемпотентность
 
-Every financial operation requires:
-- unique idempotency key
+Каждая финансовая операция требует:
+- уникальный ключ идемпотентности
 
-Consumers must:
-- detect duplicates
-- suppress replayed operations
+Потребители должны:
+- обнаруживать дубликаты
+- Подавить повторные операции
 
-Idempotency requires:
-- durable deduplication storage
-- transactional validation
-- deterministic side effects
-
----
-
-# Transactional Outbox Pattern
-
-Database write and event publication must be atomic.
-
-Solution:
-- transaction writes business row
-- transaction writes outbox event
-
-Separate relay publishes:
-- durable ordered events
-
-Purpose:
-- eliminate dual-write inconsistency
+Идемпотентность требует:
+- Долговременное хранилище с дедупликацией
+- проверка транзакций
+- Детерминированные побочные эффекты
 
 ---
 
-# Saga Pattern
+# Паттерн транзакционного исходящего журнала (Transactional Outbox)
 
-Distributed transactions cannot truly rollback.
+Запись в базу данных и публикация событий должны быть атомарными.
 
-Sagas provide:
-- forward recovery
+Решение:
+- Транзакция записывает бизнес-строку
+- транзакция записывает событие исходящих сообщений
 
-Failures handled through:
-- compensating actions
+Отдельное реле публикует:
+- прочно упорядоченные события
 
-Example:
-- refund transaction
-instead of:
-- erasing payment
+Назначение:
+- Устранить несогласованность двойной записи
 
 ---
 
-# Why Reconciliation Became Impossible
+# Паттерн саги
 
-Financial operations are:
-- non-commutative
+Распределенные транзакции не могут по-настоящему откатиться.
 
-Meaning:
+Саги предусматривают:
+- прямое восстановление
+
+Неисправности устраняются посредством:
+- Компенсирующие действия
+
+Пример:
+- транзакция возврата
+вместо:
+- удаление платежа
+
+---
+
+# Почему сверка данных стала невозможной
+
+Финансовыми операциями являются:
+- некоммутативный
+
+Значение:
 
 ```text
-A then B ≠ B then A
+A, затем B ≠ B, затем A
 ```
 
-Once ordering and causality lost:
-- deterministic merge impossible
+После потери упорядоченности и причинности:
+- детерминированное слияние невозможно
 
-Some business histories cannot be reconstructed safely.
-
----
-
-# Healthy Infrastructure / Corrupted Business State
-
-Infrastructure health means:
-- processes alive
-- packets flowing
-- nodes operational
-
-Business correctness requires:
-- preserved coordination assumptions
-
-Distributed systems may remain:
-- operationally healthy
-
-while becoming:
-- logically corrupted
-
-This is one of the hardest distributed systems failure modes.
+Некоторые истории бизнеса не могут быть безопасно реконструированы.
 
 ---
 
-# Investigation Process
+# Исправная инфраструктура и нарушенная согласованность бизнес-данных
 
-## Replication Lag Analysis
+Здоровье инфраструктуры означает:
+- живые процессы
+- пакеты текут
+- Узлы в рабочем состоянии
 
-Measure:
-- WAL replication delay
-- replication backlog growth
-- region divergence timing
+Корректность бизнеса требует:
+- Сохранены предположения о координации
 
----
+Распределенные системы могут оставаться:
+- работоспособен
 
-## Conflict Analysis
+при этом становясь:
+- логически поврежден
 
-Identify:
-- conflicting writes
-- duplicated transactions
-- overwritten histories
-
----
-
-## Replay Analysis
-
-Trace:
-- replayed WAL sequences
-- repeated event processing
-- duplicate Kafka consumption
+Это один из самых сложных режимов отказа распределенных систем.
 
 ---
 
-## Partition Timeline Reconstruction
+# Процесс расследования
 
-Correlate:
-- packet loss
-- region isolation
-- failover timing
-- leader elections
-- retry storms
+## Анализ задержки репликации
 
----
-
-## Duplicate Detection
-
-Search:
-- repeated idempotency keys
-- duplicate payment IDs
-- replayed event IDs
+Измерить:
+- Задержка репликации WAL
+- рост отставания в репликации
+- Время расхождения областей
 
 ---
 
-# Production Mitigation Plan
+## Анализ конфликта
 
-# Short-Term Stabilization
-
-## Enter Read-Only Mode
-
-Freeze writes globally.
-
-Purpose:
-- stop divergence growth
+Определить:
+- противоречивые записи
+- дублированные транзакции
+- перезаписанные истории
 
 ---
 
-## Disable Automatic Failover
+## Анализ повтора
 
-Prevent:
-- additional leader instability
-
----
-
-## Pause Replay And Reconciliation Workers
-
-Purpose:
-- stop recovery amplification
+Проследить:
+- воспроизведенные последовательности WAL
+- повторная обработка событий
+- дублирование потребления Kafka
 
 ---
 
-## Manual Conflict Resolution
+## Восстановление хронологии сетевого разделения
 
-Use:
-- audit logs
-- outbox records
-- immutable event history
-
-instead of:
-- timestamps
-
----
-
-# Long-Term Architecture
-
-## Avoid Active-Active For Financial Balances
-
-Prefer:
-- single-writer authority
-- home-region ownership
-- strongly consistent coordination
+Сопоставить:
+- потеря пакетов
+- изоляция региона
+- Время переключения при отказе
+- выборы лидера
+- Штормы повторных запросов
 
 ---
 
-## Strong Consistency
+## Обнаружение дубликатов
 
-Use:
-- quorum-based writes
-- synchronous replication
-- consensus systems
-
-Examples:
-- Spanner
-- CockroachDB
-- Raft-based systems
-
-Tradeoff:
-- higher write latency
-- lower inconsistency risk
+Найти:
+- Повторяющиеся ключи идемпотентности
+- дубликаты идентификаторов платежей
+- Идентификаторы воспроизведенных событий
 
 ---
 
-# Causal Consistency
+# План снижения последствий инцидента в рабочей среде
 
-Preserve:
-- operation ordering
-- happened-before relationships
+# Кратковременная стабилизация
 
-Critical for:
-- financial correctness
+## Вход в режим только для чтения
 
----
+Заморозка пишет по всему миру.
 
-# Deterministic Conflict Resolution
-
-Never rely solely on:
-- timestamps
-
-Use:
-- business semantics
-- version vectors
-- monotonic sequencing
+Назначение:
+- остановить рост дивергенции
 
 ---
 
-# Fencing Tokens
+## Отключение автоматического переключения при отказе
 
-Protect storage from:
-- stale leaders
-
-Critical for:
-- failover safety
+Предотвращать:
+- дополнительная нестабильность лидера
 
 ---
 
-# Duplicate Suppression
+## Приостановить обработчики повторного воспроизведения и сверки данных
 
-All side effects require:
-- durable idempotency validation
-
-Purpose:
-- prevent replay corruption
+Назначение:
+- Остановить восстановительную амплификацию
 
 ---
 
-# Key Learning
+## Разрешение конфликтов вручную
 
-Distributed systems usually fail not because:
-- machines stop working
+Использовать:
+- журналы аудита
+- записи исходящих сообщений
+- неизменяемая история событий
 
-but because:
-- coordination assumptions stop being true
+вместо:
+- временные метки
 
-Healthy infrastructure does not guarantee:
-- correct business state
+---
+
+# Долгосрочная архитектура
+
+## Не использовать active-active для финансовых балансов
+
+Предпочитать:
+- авторитет одного автора
+- Владение домашним регионом
+- строго последовательная координация
+
+---
+
+## Строгая согласованность
+
+Использовать:
+- Запись на основе кворума
+- синхронная репликация
+- Консенсусные системы
+
+Примеры:
+- Гаечный ключ
+- ТараканДБ
+- Системы на базе Raft
+
+Компромисс:
+- более высокая задержка записи
+- Более низкий риск несоответствия
+
+---
+
+# Причинная согласованность
+
+Сохранять:
+- Упорядочение операций
+- Отношения «произошло до»
+
+Критично для:
+- финансовая правильность
+
+---
+
+# Детерминированное разрешение конфликтов
+
+Никогда не полагайтесь исключительно на:
+- временные метки
+
+Использовать:
+- бизнес-семантика
+- Векторы версий
+- монотонное секвенирование
+
+---
+
+# Токены отсечения устаревших лидеров (fencing tokens)
+
+Защищайте хранилище от:
+- устаревшие лидеры
+
+Критично для:
+- Безопасность аварийного переключения
+
+---
+
+# Подавление дублирования
+
+Все побочные эффекты требуют:
+- Проверка устойчивой идемпотентности
+
+Назначение:
+- Предотвратить повреждение воспроизведения
+
+---
+
+# Основные выводы
+
+Распределенные системы обычно выходят из строя не потому, что:
+- машины перестают работать
+
+но потому что:
+- Координационные предположения перестают быть правдой
+
+Здоровая инфраструктура не гарантирует:
+- правильное бизнес-состояние

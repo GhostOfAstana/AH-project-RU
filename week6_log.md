@@ -1,28 +1,28 @@
 ## 2026-04-25
-- Learned basic Linux diagnostics (uptime, htop, vmstat)
-- Practiced identifying CPU, memory, and I/O bottlenecks
-- Combined system metrics with log analysis
+- Изучил базовую диагностику Linux с помощью uptime, htop и vmstat
+- Практика выявления узких мест ЦП, памяти и ввода-вывода.
+- Комбинированные системные метрики с анализом журналов
 ## 2026-04-26
-- Learned how to locate API process in a multi-process system
-- Practiced mapping process to port using ss and lsof
-- Measured real API performance using curl
+- Научились находить процесс API в многопроцессной системе.
+- Практиковался в сопоставлении процессов и портов с помощью ss и lsof
+- Измерил фактическую производительность API с помощью curl
 ## 2026-04-27
-- Diagnosed external service latency impact
-- Practiced isolating dependency-related delays
-- Learned importance of direct measurement (curl)
+- Диагностированное влияние задержки внешней услуги
+- Практика изоляции задержек, связанных с зависимостями.
+- Понял важность прямых измерений с помощью curl
 ## 2026-04-28
-- Learned about concurrency and request queueing
-- Diagnosed performance issues without resource bottlenecks
-- Practiced identifying execution model limitations
+- Узнал о параллелизме и очередях запросов.
+- Диагностированные проблемы с производительностью без узких мест в ресурсах.
+- Практика выявления ограничений модели выполнения.
 ## 2026-04-29
-- Learned about saturation and performance degradation under load
-- Practiced identifying system limits (workers, pools, OS limits)
-- Understood queueing effects on latency
+- Узнали о насыщении и снижении производительности под нагрузкой.
+- Практика определения системных ограничений (работников, пулов, ограничений ОС).
+- Понимание влияния организации очереди на задержку.
 ## 2026-04-30
-- Learned to diagnose multi-factor performance issues
-- Understood impact of long-tail latency and instability
-- Practiced prioritizing stabilization over optimization
+- Научились диагностировать многофакторные проблемы с производительностью.
+- Разобрался во влиянии редких длительных задержек и нестабильности
+- Практика отдавала приоритет стабилизации над оптимизацией.
 ## 2026-05-01
-- Synthesized full system behavior under load
-- Understood cascading degradation and queueing effects
-- Practiced prioritizing stabilization in complex systems
+- Сформировал целостное понимание поведения системы под нагрузкой
+- Понимание эффектов каскадной деградации и организации очередей.
+- Практика определения приоритетов стабилизации в сложных системах.

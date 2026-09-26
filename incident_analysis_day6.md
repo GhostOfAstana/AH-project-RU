@@ -1,100 +1,100 @@
-# Incident Analysis — Week 4 Day 6
+# Разбор инцидента — неделя 4, день 6
 
-## Scenario
-User reports: "I added an item to cart, but when I open the cart, it is empty"
-
----
-
-## My Initial Thinking
-
-### Questions
-- What item (SKU) was added?
-- When was the item added?
-- Did you receive confirmation?
-
-### First Steps
-- Check request via DevTools
-- Verify API response
-
-### Problem
-- I focused too much on inventory instead of cart state
-- I did not consider session/user context
-- I missed the importance of user state synchronization
+## Сценарий
+Пользователь сообщает: «Я добавил товар в корзину, но когда я открываю корзину, она пуста»
 
 ---
 
-## Corrected Approach
+## Мои первоначальные размышления
 
-### 1. Questions to User
-- Are you logged into your account?
-- Does the issue happen consistently or occasionally?
-- Do you see the item immediately after adding it?
-- Are you using multiple devices or browser tabs?
+### Вопросы
+- Какой товар (SKU) был добавлен?
+- Когда был добавлен элемент?
+- Вы получили подтверждение?
 
----
+### Первые шаги
+- Проверка запроса через DevTools
+- Проверка ответа API
 
-### 2. First Step (Frontend - DevTools)
-
-Open DevTools → Network:
-- Check POST /cart (add item)
-- Check GET /cart (retrieve cart)
-- Analyze responses
-
----
-
-### 3. Key Insight
-
-This is a **state/session-related issue**, not inventory:
-
-→ Item may be added  
-→ But cart state is not preserved or retrieved correctly  
+### Проблема
+- Я слишком много внимания уделял инвентарю, а не состоянию корзины.
+- Я не учитывал контекст сеанса/пользователя
+- Я упустил важность синхронизации состояний пользователя.
 
 ---
 
-### 4. Diagnostic Flow
+## Исправленный подход
 
-#### Step 1: Check POST /cart
-- Status code
-- Response (item added?)
-
-#### Step 2: Check GET /cart
-- Does it return the item?
-
----
-
-#### Case A: POST success, GET empty
-→ Backend/session/user_id issue
-
-#### Case B: POST fails
-→ Backend issue
-
-#### Case C: GET has item, UI empty
-→ Frontend issue
+### 1. Вопросы пользователю
+- Вы вошли в свою учетную запись?
+- Проблема возникает постоянно или время от времени?
+- Вы видите элемент сразу после его добавления?
+- Используете ли вы несколько устройств или вкладок браузера?
 
 ---
 
-### 5. Possible Causes
+### 2. Первый шаг (интерфейс — DevTools)
 
-- Cart is not persisted in backend
-- Session is lost (cookies issue)
-- user_id mismatch (guest vs logged user)
-- API returns empty cart
-- Frontend does not display cart correctly
-- Race condition (intermittent issue)
+Откройте DevTools → Сеть:
+- Проверьте POST /cart (добавить элемент)
+- Проверьте GET /cart (извлечь тележку)
+- Анализ ответов
 
 ---
 
-### 6. Escalation
+### 3. Ключевое наблюдение
 
-- Frontend → if API returns items but UI shows empty cart
-- Backend → if cart is not saved or returned
-- Auth/Session → if cart is tied to incorrect session or user
+Это **проблема состояния или сеанса**, а не складских остатков:
+
+→ Товар может быть добавлен  
+→ Но состояние корзины не сохраняется или не извлекается правильно  
 
 ---
 
-## Key Learning
+### 4. Последовательность диагностики
 
-- Cart is a state problem, not inventory
-- Must track user/session context
-- Always verify POST and GET flow
-- Follow full system path: frontend → API → backend → session/storage
+#### Шаг 1: Проверьте POST /cart
+- Код состояния
+- Ответ (пункт добавлен?)
+
+#### Шаг 2: Проверьте GET /cart
+- Возвращает ли он товар?
+
+---
+
+#### Случай A: POST успешен, GET пуст
+→ Проблема с серверной частью/сеансом/user_id
+
+#### Случай B: POST не работает
+→ Проблема с серверной частью
+
+#### Случай C: GET имеет элемент, пользовательский интерфейс пуст
+→ Проблема с интерфейсом
+
+---
+
+### 5. Возможные причины
+
+- Корзина не сохраняется в серверной части
+- Сеанс потерян (проблема с файлами cookie)
+- Несоответствие user_id (гость и вошедший в систему пользователь)
+- API возвращает пустую корзину
+- Во внешнем интерфейсе корзина отображается неправильно.
+- Состояние гонки (периодическая проблема)
+
+---
+
+### 6. Эскалация
+
+- Интерфейс → если API возвращает товары, но пользовательский интерфейс показывает пустую корзину
+- Backend → если корзина не сохранена или не возвращена
+- Аутентификация/Сессия → если корзина привязана к неправильному сеансу или пользователю
+
+---
+
+## Основные выводы
+
+- Проблема корзины связана с сохранением состояния, а не со складскими остатками
+- Необходимо отслеживать контекст пользователя/сеанса.
+- Всегда проверяйте поток POST и GET.
+- Следуйте полному системному пути: интерфейс → API → серверная часть → сеанс/хранилище.

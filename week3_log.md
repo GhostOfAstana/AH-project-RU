@@ -1,28 +1,28 @@
 ## 2026-04-04
-- Created first incident report
-- Learned how to document issue, expected vs observed result
-- Practiced structured problem description
+- Создан первый отчет об инциденте.
+- Научились документировать проблему, ожидаемый и наблюдаемый результат.
+- Практикуемое структурированное описание проблемы
 ## 2026-04-05
-- Created incident report for login issue
-- Learned to distinguish user error vs system bug
-- Practiced basic user-side troubleshooting before escalation
+- Создан отчет об инциденте, связанном с проблемой входа в систему.
+- Научились отличать ошибку пользователя от системной ошибки.
+- Практика устранения основных неполадок на стороне пользователя перед эскалацией
 ## 2026-04-06
-- Created incident report for empty data case
-- Learned that 200 OK does not guarantee correct data
-- Practiced multi-layer analysis (API, SQL, frontend)
+- Создан отчет об инциденте для случая пустых данных.
+- Выяснилось, что 200 ОК не гарантирует корректность данных.
+- Практикуемый многоуровневый анализ (API, SQL, интерфейс).
 ## 2026-04-07
-- Created incident report for payment/order issue
-- Learned how to structure proper escalation
-- Practiced identifying working vs failing system parts
+- Составил отчёт об инциденте, связанном с оплатой и созданием заказа
+- Научились структурировать правильную эскалацию
+- Практика определения работающих и неисправных частей системы.
 ## 2026-04-08
-- Created incident report for performance issue
-- Learned that slow system is also a problem
-- Practiced identifying performance bottlenecks without jumping to conclusions
+- Создан отчет об инцидентах, связанных с проблемой производительности.
+- Выяснилось, что медленная система также является проблемой.
+- Практиковался в выявлении узких мест в производительности, не делая поспешных выводов.
 ## 2026-04-09
-- Created complex incident report (form submission issue)
-- Learned to start debugging from user action (frontend)
-- Practiced full diagnostic flow: frontend → API → backend → database
+- Создан сложный отчет об инциденте (проблема с отправкой формы)
+- Научились запускать отладку от действий пользователя (интерфейс)
+- Практикуется полный поток диагностики: интерфейс → API → серверная часть → база данных.
 ## 2026-04-10
-- Created debugging checklist
-- Consolidated all debugging approaches into one system
-- Learned structured problem-solving approach
+- Создан контрольный список отладки.
+- Все подходы к отладке объединены в одну систему.
+- Изучил структурированный подход к решению проблем

@@ -1,100 +1,100 @@
-# Incident Analysis — Week 4 Day 5
+# Разбор инцидента — неделя 4, день 5
 
-## Scenario
-User reports: "I can log into my account, but I am immediately redirected back to the login page"
-
----
-
-## My Initial Thinking
-
-### Questions
-- When did you try logging in?
-- How many attempts were made?
-- Are the credentials correct?
-
-### First Steps
-- Check request in DevTools
-- Verify login processing
-
-### Problem
-- My questions were too general and not focused on session behavior
-- I did not consider token/cookie handling
-- I did not analyze authentication flow deeply
+## Сценарий
+Пользователь сообщает: «Я могу войти в свою учетную запись, но меня немедленно перенаправляют обратно на страницу входа»
 
 ---
 
-## Corrected Approach
+## Мои первоначальные размышления
 
-### 1. Questions to User
-- What happens immediately after login?
-- Does the redirect happen instantly or after a delay?
-- Have you tried another browser or incognito mode?
-- Have you cleared cookies/cache?
+### Вопросы
+- Когда вы пытались войти в систему?
+- Сколько попыток было предпринято?
+- Верны ли учетные данные?
 
----
+### Первые шаги
+- Проверьте запрос в DevTools
+- Проверка обработки входа в систему
 
-### 2. First Step (Frontend - DevTools)
-
-Open DevTools:
-
-#### Network tab:
-- Check login request (POST /login)
-- Verify response (status, token/session)
-
-#### Application tab:
-- Check cookies
-- Verify if session/token is stored
+### Проблема
+- Мои вопросы были слишком общими и не касались поведения сеанса.
+- Я не рассматривал обработку токенов/cookie.
+- Я не анализировал глубоко поток аутентификации.
 
 ---
 
-### 3. Key Insight
+## Исправленный подход
 
-This is likely an **authentication/session issue**:
-
-→ Login succeeds  
-→ Session is not maintained  
-
----
-
-### 4. Diagnostic Flow
-
-#### Step 1: Check login response
-- Is token/session returned?
-
-#### Step 2: Check cookies
-- Is token stored in browser?
-
-#### Step 3: Check next request (e.g. /profile)
-- Is token sent with request?
-
-#### Step 4:
-- If token missing → frontend / cookie issue
-- If token present but rejected → backend issue
+### 1. Вопросы пользователю
+- Что происходит сразу после входа в систему?
+- Перенаправление происходит мгновенно или с задержкой?
+- Пробовали ли вы другой браузер или режим инкогнито?
+- Вы очистили файлы cookie/кеш?
 
 ---
 
-### 5. Possible Causes
+### 2. Первый шаг (интерфейс — DevTools)
 
-- Token is not stored in cookies
-- Cookies are blocked (browser/security settings)
-- Session expires immediately
-- Token is not sent with requests
-- Backend rejects token (invalid/expired)
-- Cookie configuration issue (SameSite, Secure, domain)
+Откройте DevTools:
 
----
+#### Вкладка «Сеть»:
+- Проверка запроса на вход в систему (POST /login)
+- Проверка ответа (статус, токен/сеанс)
 
-### 6. Escalation
-
-- Frontend → if token is not stored or not sent
-- Backend → if token is invalid or session fails
-- Infrastructure/Security → if cookie policy blocks session
+#### Вкладка «Приложение»:
+- Проверка файлов cookie
+- Проверьте, сохранен ли сеанс/токен
 
 ---
 
-## Key Learning
+### 3. Ключевое наблюдение
 
-- Authentication depends on token/session, not just login success
-- DevTools (Network + Application) is critical for auth debugging
-- Cookies play a key role in maintaining user session
-- Must trace full auth flow: login → token → session → next request
+Вероятно, это **проблема аутентификации/сессии**:
+
+→ Вход успешен  
+→ Сеанс не поддерживается  
+
+---
+
+### 4. Последовательность диагностики
+
+#### Шаг 1: Проверьте ответ на вход
+- Возвращен ли токен/сеанс?
+
+#### Шаг 2: Проверка файлов cookie
+- Сохраняется ли токен в браузере?
+
+#### Шаг 3: Проверка следующего запроса (например, /profile)
+- Отправляется ли токен вместе с запросом?
+
+#### Шаг 4:
+- Если токен отсутствует → проблема с интерфейсом / файлом cookie
+- Если токен присутствует, но отклонен → проблема с серверной частью
+
+---
+
+### 5. Возможные причины
+
+- Токен не хранится в файлах cookie.
+- Файлы cookie заблокированы (настройки браузера/безопасности)
+- Сессия завершается немедленно
+- Токен не отправляется с запросами
+- Серверная часть отклоняет токен (недействительный/истёк срок действия)
+- Проблема с настройкой файлов cookie (SameSite, Secure, домен)
+
+---
+
+### 6. Эскалация
+
+- Интерфейс → если токен не сохранен или не отправлен
+- Серверная часть → если токен недействителен или сеанс не выполнен
+- Инфраструктура/Безопасность → если политика файлов cookie блокирует сеанс
+
+---
+
+## Основные выводы
+
+- Аутентификация зависит от токена/сессии, а не только от успеха входа в систему.
+- DevTools (Сеть + Приложение) имеет решающее значение для отладки аутентификации.
+- Файлы cookie играют ключевую роль в поддержании сеанса пользователя.
+- Необходимо отслеживать полный поток аутентификации: вход → токен → сеанс → следующий запрос.

@@ -1,104 +1,104 @@
-# Incident Analysis — Week 7 Day 5
+# Разбор инцидента — неделя 7, день 5
 
-## Scenario
-User reports:
-"Too many alerts and logs. Hard to understand what actually matters."
-
----
-
-## Observations
-
-- Large volume of logs, metrics, and traces
-- Frequent alerts, many of them non-critical
-- Important alerts are missed or ignored
-- Team experiences alert fatigue
+## Сценарий
+Отчеты пользователей:
+«Слишком много предупреждений и журналов. Трудно понять, что на самом деле важно».
 
 ---
 
-## What Is Happening
+## Наблюдения
 
-- Monitoring system generates excessive signals
-- Alerts are triggered on low-level metrics (CPU, minor latency changes)
-- No prioritization or filtering
-
-→ Result:
-Signal is lost in noise, critical issues are overlooked
+- Большой объем журналов, метрик и трассировок
+- Частые оповещения, многие из которых некритичны.
+- Важные оповещения пропускаются или игнорируются.
+- Команда испытывает усталость от оповещений
 
 ---
 
-## Core Problem
+## Что происходит
 
-- Alerts are not tied to user impact
-- No clear distinction between critical and non-critical events
-- Alerts do not guide action
+- Система мониторинга генерирует чрезмерные сигналы
+- Оповещения срабатывают по метрикам низкого уровня (ЦП, незначительные изменения задержки)
+- Никакой приоритезации или фильтрации.
 
----
-
-## Solutions
-
-### 1. Actionable Alerts
-
-- Every alert must:
-  - Indicate a real issue
-  - Be tied to user impact
-  - Include a runbook or clear action
-
-Example:
-Instead of:
-"CPU > 80%"
-
-Use:
-"Order processing delay detected — possible overload"
-
-Result:
-- Alerts become meaningful and actionable
+→ Результат:
+Сигнал теряется из-за шума, критические проблемы игнорируются.
 
 ---
 
-### 2. SLO-Based Alerting
+## Основная проблема
 
-- Define SLOs (e.g., 99.9% success rate)
-- Use error budget to determine when to alert
-
-Principle:
-- Alert only when risk of SLO violation increases
-
-Result:
-- Reduces unnecessary alerts
-- Focuses on real business impact
+- Оповещения не привязаны к воздействию пользователя
+- Нет четкого различия между критическими и некритическими событиями.
+- Оповещения не направляют действия
 
 ---
 
-### 3. Alert Prioritization
+## Решения
 
-- Critical:
-  - Immediate action required
-  - System or business impact
-- Warning:
-  - Needs attention during working hours
-- Info:
-  - No alert, visible only in dashboards
+### 1. Оповещения, требующие конкретных действий
 
-Result:
-- Clear response strategy
-- Reduced noise
+- Каждое предупреждение должно:
+  - Укажите реальную проблему
+  - Будьте привязаны к влиянию пользователя
+  - Включите модуль Runbook или четкое действие.
 
----
+Пример:
+Вместо:
+«ЦП > 80%»
 
-### 4. Alert Grouping & Deduplication
+Использовать:
+«Обнаружена задержка обработки заказа — возможная перегрузка»
 
-- Combine multiple related alerts into one incident
-- Suppress duplicates
-
-Result:
-- Avoid alert storms
-- Focus on root cause instead of symptoms
+Результат:
+- Оповещения становятся значимыми и действенными
 
 ---
 
-## Key Learning
+### 2. Оповещение на основе SLO
 
-- Too much monitoring without structure creates noise
-- Alerts must be tied to user impact and action
-- SLO-driven alerting improves signal quality
-- Prioritization and grouping are essential for effective response
+- Определить SLO (например, 99,9% успеха)
+- Используйте бюджет ошибок, чтобы определить, когда следует предупреждать
+
+Принцип:
+- Оповещение только при возрастании риска нарушения SLO.
+
+Результат:
+- Уменьшает ненужные оповещения
+- Ориентирован на реальное влияние на бизнес
+
+---
+
+### 3. Приоритизация оповещений
+
+- Критически важно:
+  - Требуются немедленные действия
+  - Влияние на систему или бизнес
+- Предупреждение:
+  - Требует внимания в рабочее время.
+- Информация:
+  - Оповещение отсутствует, отображается только на информационных панелях.
+
+Результат:
+- Четкая стратегия реагирования
+- Пониженный шум
+
+---
+
+### 4. Группировка предупреждений и дедупликация
+
+- Объединение нескольких связанных оповещений в один инцидент
+- Подавление дубликатов
+
+Результат:
+- Избегайте грозовых штормов
+- Сосредоточьтесь на первопричине, а не на симптомах.
+
+---
+
+## Основные выводы
+
+- Слишком сильный мониторинг без структуры создает шум.
+- Оповещения должны быть привязаны к воздействию и действиям пользователя.
+- Оповещение на основе SLO улучшает качество сигнала.
+- Расстановка приоритетов и группировка необходимы для эффективного реагирования.

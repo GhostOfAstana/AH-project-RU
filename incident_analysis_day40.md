@@ -1,465 +1,465 @@
-# Incident Analysis — Week 9 Day 5
+# Разбор инцидента — неделя 9, день 5
 
-## Scenario
+## Сценарий
 
-Company deployed microservice platform behind:
+Компания развернула микросервисную платформу для:
 
 ```text
-Users
+Пользователи
   ↓
 NGINX Ingress
   ↓
-API Gateway
+API-шлюз
   ↓
-Microservices
+Микросервисы
 ```
 
-During major marketing campaign:
-- incoming traffic increased 15x
-- login endpoint became unstable
-- clients received:
-  - 429 Too Many Requests
-  - 502 Bad Gateway
-  - 504 Gateway Timeout
+Во время крупной маркетинговой кампании:
+- Входящий трафик увеличился в 15 раз
+- Конечная точка входа стала нестабильной
+- клиенты получили:
+  - 429 Too Many Requests — слишком много запросов
+  - 502 Bad Gateway — некорректный ответ вышестоящего сервера
+  - 504 Gateway Timeout — превышено время ожидания ответа
 
-Symptoms:
-- login requests timing out
-- aggressive client retries
-- gateway CPU saturation
-- stable memory usage
-- healthy downstream services
-- healthy PostgreSQL
-- healthy Kubernetes nodes
+Симптомы:
+- Тайм-аут запросов на вход в систему
+- агрессивные повторные попытки клиента
+- Загрузка ЦП шлюза
+- стабильное использование памяти
+- Здоровые последующие услуги
+- здоровый PostgreSQL
+- исправные узлы Kubernetes
 
-Initial engineering assumption:
-- Kubernetes networking failure
+Исходное инженерное предположение:
+- Сбой сети Kubernetes
 
-Actual root cause:
-- retry storm combined with API Gateway CPU exhaustion
-
----
-
-# What Is API Gateway
-
-API Gateway acts as centralized entry point for client traffic.
-
-Gateway responsibilities commonly include:
-- authentication
-- JWT validation
-- request routing
-- TLS termination
-- logging
-- rate limiting
-- request aggregation
-- observability
-- traffic policies
-
-Gateway centralizes cross-cutting concerns for distributed systems.
+Фактическая основная причина:
+- Повторный штурм в сочетании с истощением ЦП шлюза API
 
 ---
 
-# Why Gateway Became Bottleneck
+# Что такое API-шлюз?
 
-Ingress layer continued forwarding traffic normally.
+API-шлюз действует как централизованная точка входа для клиентского трафика.
 
-Gateway became overloaded because:
-- authentication endpoints were CPU expensive
-- login traffic increased sharply
-- retries amplified request volume
-- gateway processed excessive concurrent requests
+Обязанности шлюза обычно включают в себя:
+- аутентификация
+- Проверка JWT
+- маршрутизация запроса
+- Завершение TLS
+- регистрация
+- Ограничение скорости
+- агрегирование запросов
+- наблюдаемость
+- Политика трафика
 
-Result:
-- request queues expanded
-- latency increased
-- timeout cascade started
-
-Healthy downstream services did not help because many requests never reached them.
-
-Platform availability depends on:
-- entire request path
-not only:
-- backend service health
+Шлюз централизует сквозные задачи для распределенных систем.
 
 ---
 
-# 429 vs 502 vs 504
+# Почему шлюз стал узким местом
 
-## 429 Too Many Requests
+Входной уровень продолжал пересылать трафик в обычном режиме.
 
-Gateway intentionally rejected traffic because:
-- rate limit exceeded
-- system attempted self-protection
+Шлюз оказался перегружен, потому что:
+- Конечные точки аутентификации были ресурсоёмкими для ЦП
+- трафик входа в систему резко увеличился
+- повторяет увеличенный объем запроса
+- шлюз обрабатывал чрезмерное количество одновременных запросов
 
-Meaning:
-- gateway still operational
-- overload protection activated
+Результат:
+- Расширены очереди запросов
+- Задержка увеличена
+- Запущен каскад тайм-аутов
 
----
+Работоспособные нижестоящие службы не помогли, потому что многие запросы так и не дошли до них.
 
-# 502 Bad Gateway
-
-Gateway received invalid upstream response.
-
-Possible causes:
-- upstream connection reset
-- broken TCP connection
-- malformed upstream response
-- exhausted connection pools
-- upstream crash during request
-
-502 does not necessarily mean gateway itself crashed.
+Доступность платформы зависит от:
+- Весь путь запроса
+не только:
+- Состояние серверной службы
 
 ---
 
-# 504 Gateway Timeout
+# Различия между кодами 429, 502 и 504
 
-Gateway successfully forwarded request but upstream response exceeded timeout limit.
+## 429 Too Many Requests — слишком много запросов
 
-Meaning:
-- request processing exceeded configured deadline
+Шлюз намеренно отклонил трафик, потому что:
+- Превышен предел скорости
+- Система предприняла попытку самозащиты
+
+Значение:
+- шлюз все еще работает
+- Активирована защита от перегрузки
 
 ---
 
-# Retry Storm
+# 502 Bad Gateway — некорректный ответ вышестоящего сервера
 
-Mobile clients aggressively retried failed requests.
+Шлюз получил некорректный ответ от целевого сервера.
 
-Flow:
+Возможные причины:
+- Сброс соединения с целевым сервером
+- нарушено TCP-соединение
+- Некорректный ответ целевого сервера
+- исчерпаны пулы соединений
+- Сбой целевого сервиса во время обработки запроса
+
+502 не обязательно означает, что произошел сбой самого шлюза.
+
+---
+
+# 504 Gateway Timeout — превышено время ожидания ответа
+
+Шлюз успешно передал запрос, но ответ целевого сервера не поступил в пределах заданного тайм-аута.
+
+Значение:
+- обработка запроса превысила настроенный срок
+
+---
+
+# Шторм повторных запросов
+
+Мобильные клиенты агрессивно повторяли неудачные запросы.
+
+Последовательность:
 
 ```text
-slow responses
-→ client retries
-→ higher traffic
-→ more latency
-→ additional retries
-→ cascading overload
+медленные реакции
+→ повторные попытки клиента
+→ более высокий трафик
+→ больше задержки
+→ дополнительные попытки
+→ каскадная перегрузка
 ```
 
-Traffic amplification transformed:
-- 15x traffic spike
-into:
-- much larger effective load
+Преобразованное усиление трафика:
+- 15-кратный всплеск трафика
+В:
+- Гораздо большая эффективная нагрузка
 
-Retry storms commonly destroy partially degraded systems.
-
----
-
-# Thundering Herd Problem
-
-Clients retried requests simultaneously after receiving timeouts.
-
-Without randomized retry delays:
-- thousands of clients synchronized retry behavior
-- traffic arrived in massive waves
-
-This phenomenon called:
-- thundering herd problem
-
-Synchronized retries amplify overload conditions dramatically.
+Повторные штормы обычно разрушают частично деградировавшие системы.
 
 ---
 
-# Exponential Backoff With Jitter
+# Проблема одновременного всплеска запросов (thundering herd)
 
-Production mobile clients should implement:
-- exponential backoff
-- randomized jitter
+Клиенты повторили запросы одновременно после получения таймаутов.
 
-Example:
+Без рандомизированных задержек повторных попыток:
+- тысячи клиентов синхронизировали поведение повторных попыток
+- трафик прибывал массовыми волнами
+
+Это явление называется:
+- Проблема одновременного всплеска запросов (thundering herd)
+
+Синхронизированные повторные попытки значительно усиливают условия перегрузки.
+
+---
+
+# Экспоненциальное увеличение задержки со случайным разбросом
+
+Рабочие мобильные клиенты должны реализовать:
+- Экспоненциальное увеличение задержки перед повтором
+- Случайный разброс задержек
+
+Пример:
 
 ```text
-1s
-2s
-4s
-8s
+1 с
+2с
+4с
+8 с
 ```
 
-with random delay offsets.
+со случайными смещениями задержки.
 
-Purpose:
-- desynchronize retries
-- smooth traffic spikes
-- reduce synchronized overload
+Назначение:
+- десинхронизировать повторные попытки
+- сглаживание всплесков трафика
+- Уменьшить синхронизированную перегрузку
 
-Jitter prevents retry synchronization waves.
-
----
-
-# Why CPU Saturation Is Dangerous
-
-Memory exhaustion usually produces:
-- OOMKill
-- fast restart
-- visible failure state
-
-CPU saturation more dangerous because:
-- process remains alive
-- latency grows continuously
-- queues expand
-- timeout cascade spreads
-- partial availability appears
-
-System becomes:
-- alive but operationally nonfunctional
-
-This creates zombie-state infrastructure.
+Случайный разброс задержек предотвращает волны синхронных повторных запросов.
 
 ---
 
-# Request Queue Collapse
+# Почему перегрузка процессора опасна
 
-Under CPU pressure:
-- incoming requests accumulate in queues
+Истощение памяти обычно приводит к:
+- ООМКилл
+- быстрый перезапуск
+- видимое состояние отказа
 
-Growing queues produce:
-- additional latency
-- memory pressure
-- timeout amplification
+Перегрузка ЦП более опасна, потому что:
+- Процесс остается активным
+- Задержка постоянно растет
+- очереди расширяются
+- Распространяется каскад тайм-аутов
+- Появляется частичная доступность
 
-Eventually:
-- requests timeout before execution even begins
+Система становится:
+- жив, но функционально нефункционален
 
-Infinite queue growth destabilizes entire platform.
-
-Reliable systems use:
-- bounded queues
-- concurrency limits
-- controlled rejection
-
-instead of:
-- unbounded waiting.
+Это создает инфраструктуру зомби-состояния.
 
 ---
 
-# Backpressure
+# Перегрузка очереди запросов
 
-Backpressure means controlled refusal of excess work.
+Под давлением процессора:
+- Входящие запросы накапливаются в очередях
 
-System intentionally slows or rejects traffic when overloaded.
+Растущие очереди приводят к:
+- дополнительная задержка
+- давление памяти
+- Усиление тайм-аута
 
-Mechanisms include:
-- bounded queues
-- concurrency caps
-- adaptive throttling
-- connection limits
-- request rejection
+В конечном итоге:
+- запрашивает таймаут еще до начала выполнения
 
-Purpose:
-- prevent total system collapse
+Бесконечный рост очереди дестабилизирует всю платформу.
 
-Backpressure protects latency and platform survivability.
+В надежных системах используются:
+- ограниченные очереди
+- Ограничения параллелизма
+- контролируемое отторжение
+
+вместо:
+- неограниченное ожидание.
 
 ---
 
-# Load Shedding
+# Обратное давление (backpressure)
 
-Load shedding intentionally drops requests during overload.
+Обратное давление означает управляемый отказ от избыточной работы.
 
-Principle:
+Система намеренно замедляет или отклоняет трафик при перегрузке.
+
+Механизмы включают в себя:
+- ограниченные очереди
+- Ограничения параллелизма
+- адаптивное регулирование
+- Ограничения на подключение
+- Отказ в запросе
+
+Назначение:
+- Предотвращение полного коллапса системы
+
+Обратное давление сдерживает задержки и помогает платформе сохранять работоспособность.
+
+---
+
+# Сброс нагрузки
+
+Распределение нагрузки намеренно отбрасывает запросы во время перегрузки.
+
+Принцип:
 
 ```text
-better partial availability
-than total failure
+Улучшенная частичная доступность
+Чем полный отказ
 ```
 
-Examples:
-- rejecting anonymous traffic
-- disabling noncritical features
-- prioritizing authentication traffic
-- rejecting expensive endpoints
+Примеры:
+- отклонение анонимного трафика
+- отключение некритических функций
+- определение приоритета аутентификационного трафика
+- отказ от дорогостоящих конечных точек
 
-Production systems often reduce functionality temporarily to survive spikes.
+Рабочие системы часто временно снижают функциональность, чтобы пережить пиковые нагрузки.
 
 ---
 
-# Why Healthy Services Did Not Save Platform
+# Почему исправные сервисы не спасли платформу
 
-Microservices and databases remained healthy because:
-- gateway failed first
+Микросервисы и базы данных оставались работоспособными, потому что:
+- Сначала произошел сбой шлюза
 
-Architecture contained centralized choke point.
+Архитектура содержала централизованное узкое место.
 
-Failure at gateway layer prevented requests from reaching:
+Сбой на уровне шлюза не позволил запросам достичь:
 - services
-- databases
+- базы данных
 
-Distributed platform availability depends on:
-- weakest critical component
+Доступность распределенной платформы зависит от:
+- Самый слабый критический компонент
 
-not:
-- average component health.
-
----
-
-# Autoscaling Limitations
-
-Horizontal Pod Autoscaler cannot instantly solve overload.
-
-Reasons:
+А не:
+- Среднее состояние компонента.
 
 ---
 
-# Scaling Delay
+# Ограничения автомасштабирования
 
-New Pods require:
-- scheduling
-- image pull
-- startup
-- readiness checks
+Horizontal Pod Autoscaler не может мгновенно устранить перегрузку.
 
-Scaling may require:
-- tens of seconds
-
-Retry storms escalate within seconds.
+Причины:
 
 ---
 
-# Metrics Delay
+# Задержка масштабирования
 
-HPA reacts using delayed metrics pipeline.
+Для запуска новых объектов Pod требуются:
+- планирование
+- Скачивание образа
+- запуск
+- Проверки готовности
 
-Metrics collection includes:
-- scrape intervals
-- aggregation
-- stabilization windows
+Масштабирование может потребовать:
+- десятки секунд
 
-Autoscaling always reactive.
-
----
-
-# Persistent Bottlenecks
-
-Additional Pods may not solve:
-- database connection exhaustion
-- TLS bottlenecks
-- auth bottlenecks
-- load balancer limits
-- network saturation
-
-Scaling compute does not automatically remove architectural bottlenecks.
+Штормы повторных попыток усиливаются в течение нескольких секунд.
 
 ---
 
-# Architectural Mistakes
+# Задержка показателей
 
-Team made several critical mistakes.
+HPA реагирует, используя конвейер отложенных метрик.
 
----
+Коллекция показателей включает в себя:
+- Интервалы сбора метрик
+- агрегация
+- Окна стабилизации
 
-# Weak Retry Strategy
-
-Mobile applications aggressively retried requests without:
-- exponential backoff
-- jitter
-- retry limits
-
-Clients effectively behaved as self-generated DDoS traffic.
+Автомасштабирование всегда реактивно.
 
 ---
 
-# Poor Protection Placement
+# Постоянные узкие места
 
-Rate limiting executed too deep in request path.
+Дополнительные объекты Pod могут не устранить:
+- Исчерпание соединения с базой данных
+- Узкие места TLS
+- узкие места аутентификации
+- Ограничения балансировщика нагрузки
+- насыщение сети
 
-Gateway CPU spent resources:
-- validating
-- parsing
-- authenticating
-
-before rejecting excess traffic.
-
-Protection should begin:
-- as early as possible
-
-preferably:
-- at ingress edge.
+Масштабирование вычислений не устраняет автоматически узкие места в архитектуре.
 
 ---
 
-# Shared Critical Resources
+# Архитектурные ошибки
 
-Heavy authentication traffic shared same gateway infrastructure with normal requests.
-
-Expensive login processing degraded entire platform.
-
-Critical endpoints require:
-- isolation
-- prioritization
-- dedicated scaling strategy
+Команда допустила несколько критических ошибок.
 
 ---
 
-# Production-Grade Mitigation Plan
+# Неудачная стратегия повторных попыток
 
-## Client Layer
+Мобильные приложения агрессивно повторяли запросы без:
+- Экспоненциальное увеличение задержки перед повтором
+- Случайный разброс задержек
+- лимит повторов
 
-Implement:
-- exponential backoff
-- randomized jitter
-- retry caps
-- smarter retry conditions
-
-Prevent synchronized retry storms.
+Клиенты фактически вели себя как самогенерируемый DDoS-трафик.
 
 ---
 
-# Ingress Layer
+# Плохое размещение защиты
 
-Deploy:
-- edge rate limiting
-- connection limiting
-- IP throttling
-- request filtering
+Ограничение скорости выполнено слишком глубоко в пути запроса.
 
-Reject malicious or excessive traffic before gateway layer.
+Затраченные ресурсы ЦП шлюза:
+- проверка достоверности
+- синтаксический анализ
+- аутентификация
 
----
+перед отклонением избыточного трафика.
 
-# Gateway Layer
+Защита должна начинаться:
+- как можно раньше
 
-Implement:
-- circuit breakers
-- bounded queues
-- concurrency limits
-- load shedding
-- adaptive throttling
-
-Protect CPU and latency stability.
+Предпочтительно:
+- на входной кромке.
 
 ---
 
-# Infrastructure Layer
+# Общие критические ресурсы
 
-Configure:
-- HPA based on CPU
-- proactive scaling thresholds
-- warm standby capacity
-- gateway isolation
+Интенсивный трафик аутентификации использовал ту же инфраструктуру шлюза, что и обычные запросы.
 
-Avoid scaling only after saturation already begins.
+Дорогая обработка входа в систему ухудшила всю платформу.
 
----
-
-# Architectural Principles
-
-Reliable traffic systems require:
-- layered defense
-- retry control
-- bounded concurrency
-- overload protection
-- graceful degradation
-- traffic desynchronization
-- choke-point awareness
+Критические конечные точки требуют:
+- изоляция
+- расстановка приоритетов
+- специальная стратегия масштабирования
 
 ---
 
-# Key Learning
+# План снижения последствий инцидента в рабочей среде
 
-- healthy services do not guarantee healthy platform
-- retries can amplify outages catastrophically
-- synchronized clients create thundering herd effects
-- CPU saturation causes latency collapse
-- autoscaling reacts slower than traffic spikes
-- backpressure and load shedding protect survivability
-- gateways are common distributed-system choke points
-- production systems must reject excess work intentionally
+## Клиентский уровень
+
+Реализовать:
+- Экспоненциальное увеличение задержки перед повтором
+- Случайный разброс задержек
+- количество повторных попыток
+- Более разумные условия повторной попытки
+
+Предотвращение синхронизированных повторных попыток.
+
+---
+
+# Уровень входящего трафика (Ingress)
+
+Развернуть:
+- Ограничение скорости фронта
+- Ограничение соединения
+- IP-регулирование
+- Фильтрация запросов
+
+Отклоняйте вредоносный или чрезмерный трафик перед уровнем шлюза.
+
+---
+
+# Уровень шлюза
+
+Реализовать:
+- предохранители
+- ограниченные очереди
+- Ограничения параллелизма
+- Сброс нагрузки
+- адаптивное регулирование
+
+Защитите ЦП и стабильность задержки.
+
+---
+
+# Уровень инфраструктуры
+
+Настроить:
+- HPA на базе ЦП
+- Пороги упреждающего масштабирования
+- Емкость теплого резерва
+- изоляция шлюза
+
+Избегайте масштабирования только после того, как уже началось насыщение.
+
+---
+
+# Архитектурные принципы
+
+Надежные системы дорожного движения требуют:
+- многоуровневая защита
+- Управление повторными попытками
+- ограниченный параллелизм
+- защита от перегрузки
+- изящное ухудшение
+- десинхронизация трафика
+- Осведомленность о узких местах
+
+---
+
+# Основные выводы
+
+- Здоровые услуги не гарантируют работоспособность платформы
+- Повторные попытки могут катастрофически усилить сбои в работе
+- синхронизированные клиенты создают эффект грома стада
+- Перенасыщение ЦП приводит к коллапсу задержки
+- автомасштабирование реагирует медленнее, чем всплески трафика
+- Обратное давление и сброс нагрузки обеспечивают живучесть
+- Шлюзы являются распространенными узкими местами распределенных систем.
+- рабочие системы должны намеренно отклонять избыточную работу

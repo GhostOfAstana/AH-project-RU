@@ -1,42 +1,42 @@
-# Day 54 — Kubernetes Memory Pressure and Pod Evictions
+# День 54 — нехватка памяти в Kubernetes и вытеснение Pod
 
-## Incident Summary
+## Краткое описание инцидента
 
-A Kubernetes production cluster began experiencing service degradation during normal operations.
+Рабочий кластер Kubernetes начал испытывать ухудшение качества обслуживания во время нормальной работы.
 
-Observed symptoms:
+Наблюдаемые симптомы:
 
-- Intermittent HTTP 503 responses
-- Unexpected pod restarts
-- Increasing number of Evicted pods
-- Cluster-wide CPU and memory utilization appeared healthy
-- Several nodes reported MemoryPressure=True
+- Прерывистые ответы HTTP 503
+- Неожиданный перезапуск модуля
+- Увеличение количества модулей Evicted
+- Использование ЦП и памяти в масштабе кластера оказалось нормальным.
+- Несколько узлов сообщили, что MemoryPressure=True
 
-Infrastructure metrics:
+Показатели инфраструктуры:
 
 ```text
-Cluster CPU: 45%
-Cluster Memory: 55%
+Загрузка ЦП кластера: 45%
+Память кластера: 55%
 ```
 
-However, individual nodes showed:
+Однако отдельные узлы показали:
 
 ```text
-Memory Usage:
+Использование памяти:
 92%
 95%
 97%
 98%
 ```
 
-Kubelet logs contained:
+Журналы Kubelet содержали:
 
 ```text
 eviction manager:
 attempting to reclaim memory
 ```
 
-followed by:
+за которым следует:
 
 ```text
 evicting pod frontend-api
@@ -45,11 +45,11 @@ evicting pod recommendation-worker
 
 ---
 
-## Root Cause
+## Основная причина
 
-The cluster suffered from memory overcommit caused by inaccurate resource requests.
+Кластер страдал от перерасхода памяти, вызванного неточными запросами ресурсов.
 
-Most workloads declared:
+Большинство заявленных рабочих нагрузок:
 
 ```yaml
 resources:
@@ -58,143 +58,143 @@ resources:
     memory: 128Mi
 ```
 
-while real application consumption was:
+в то время как реальное потребление приложения составляло:
 
 ```text
-1.5–2.0 GiB RAM
+1,5–2,0 ГБ ОЗУ
 ```
 
-for multiple Java services.
+для нескольких служб Java.
 
-The Kubernetes scheduler places workloads according to declared requests rather than actual runtime consumption.
+Планировщик Kubernetes размещает рабочие нагрузки в соответствии с заявленными запросами, а не фактическим потреблением во время выполнения.
 
-As a result:
+В результате:
 
 ```text
-Low Requests
+Заниженные запросы ресурсов
         ↓
-Node Overpacking
+Переупаковка узла
         ↓
-Memory Pressure
+Давление на память
         ↓
-Pod Evictions
+Вытеснение объектов Pod
 ```
 
-The cluster appeared healthy on average while individual nodes became overloaded.
+В среднем кластер выглядел работоспособным, в то время как отдельные узлы были перегружены.
 
 ---
 
-## Resource Concepts
+## Концепции ресурсов
 
 ### Requests
 
-Guaranteed resources reserved by the scheduler.
+Ресурсы Guaranteed зарезервированы планировщиком.
 
-Used during placement decisions.
+Используется при принятии решения о размещении.
 
-Example:
+Пример:
 
 ```yaml
 requests:
   memory: 128Mi
 ```
 
-The scheduler assumes the pod requires only 128 MiB.
+Планировщик предполагает, что для модуля требуется только 128 МБ.
 
 ---
 
 ### Limits
 
-Maximum resources a container may consume.
+Максимальные ресурсы, которые может потреблять контейнер.
 
-Example:
+Пример:
 
 ```yaml
 limits:
   memory: 2Gi
 ```
 
-If exceeded, container-level OOM events may occur.
+При превышении могут возникнуть события OOM на уровне контейнера.
 
 ---
 
-### Allocatable Resources
+### Ресурсы, доступные для размещения Pod (Allocatable)
 
-Resources available for workloads after reserving capacity for:
+Ресурсы, доступные для рабочих нагрузок после резервирования мощности для:
 
-- Operating system
+- Операционная система
 - kubelet
-- container runtime
-- system daemons
+- время выполнения контейнера
+- системные демоны
 
-Example:
+Пример:
 
 ```text
-Node Capacity
+Пропускная способность узла
       -
-System Reserved
+Зарезервировано системой
       =
-Allocatable
+Распределяемый
 ```
 
 ---
 
-### Actual Consumption
+### Фактическое потребление
 
-Real runtime usage observed on the node.
+Реальное использование во время выполнения, наблюдаемое на узле.
 
-The scheduler does not use this value during scheduling decisions.
+Планировщик не использует это значение во время принятия решений по планированию.
 
 ---
 
-## Memory Pressure Mechanism
+## Механизм возникновения нехватки памяти
 
-Kubelet continuously monitors node health.
+Kubelet постоянно отслеживает состояние узла.
 
-When available memory drops below configured thresholds:
+Когда доступная память падает ниже настроенных пороговых значений:
 
 ```text
 MemoryPressure=True
 ```
 
-The Eviction Manager becomes active.
+Менеджер вытеснения становится активным.
 
-Typical flow:
+Типичный поток:
 
 ```text
-Memory Pressure
+Давление на память
         ↓
-Eviction Threshold Reached
+Достигнут порог вытеснения
         ↓
-Pod Selection
+Выбор Pod
         ↓
-Pod Eviction
+Вытеснение Pod
         ↓
-Memory Reclaimed
+Восстановлена память
 ```
 
-The objective is protecting node stability before the Linux kernel enters a global OOM state.
+Целью является защита стабильности узла до того, как ядро Linux перейдет в глобальное состояние OOM.
 
 ---
 
-## OOMKilled vs Evicted
+## Различия между OOMKilled и Evicted
 
 ### OOMKilled
 
-Triggered by:
+Инициируется:
 
-- Linux OOM Killer
-- cgroup memory limits
+- Linux Убийца ООМ
+- Ограничения памяти cgroup
 
-Scenario:
+Сценарий:
 
 ```text
-Container exceeds memory limit
+Контейнер превышает лимит памяти
         ↓
-Kernel terminates process
+Ядро завершает процесс
 ```
 
-Result:
+Результат:
 
 ```text
 OOMKilled
@@ -204,55 +204,55 @@ OOMKilled
 
 ### Evicted
 
-Triggered by kubelet.
+Запускается kubelet.
 
-Scenario:
+Сценарий:
 
 ```text
-Node memory becomes critically low
+Памяти узла становится критически мало
         ↓
-Kubelet selects victims
+Kubelet выбирает объекты Pod для вытеснения
         ↓
-Pods removed from node
+Объекты Pod удаляются с узла
 ```
 
-Result:
+Результат:
 
 ```text
 Evicted
 ```
 
-The node remains operational.
+Узел остается работоспособным.
 
 ---
 
-## QoS Classes
+## Классы QoS
 
-Kubernetes assigns every pod a Quality of Service class.
+Kubernetes присваивает каждому модульу класс качества обслуживания.
 
 ### BestEffort
 
-No requests and no limits.
+Никаких запросов и никаких ограничений.
 
-Highest eviction risk.
+Самый высокий риск вытеснения.
 
 ---
 
 ### Burstable
 
-Requests exist but limits differ or are absent.
+Запросы ресурсов заданы, но лимиты отличаются от них или отсутствуют.
 
-Most production workloads belong here.
+Сюда относится большинство рабочих рабочих нагрузок.
 
 ---
 
 ### Guaranteed
 
-Requests equal limits.
+Запрошенные ресурсы равны лимитам.
 
-Highest protection during node pressure.
+Высочайшая защита при повышении давления в узле.
 
-Example:
+Пример:
 
 ```yaml
 requests:
@@ -264,38 +264,38 @@ limits:
 
 ---
 
-## Victim Selection Logic
+## Логика выбора Pod для вытеснения
 
-Eviction decisions are not based solely on QoS.
+Решения о вытеснении не основаны исключительно на QoS.
 
-Within the same QoS class, kubelet also evaluates:
-
-```text
-Actual Usage vs Requested Resources
-```
-
-Pods consuming significantly more memory than requested become stronger eviction candidates.
-
-Example:
+В рамках того же класса QoS kubelet также оценивает:
 
 ```text
-Request: 128Mi
-Usage:   2Gi
+Фактическое использование по сравнению с запрошенными ресурсами
 ```
 
-Such workloads are likely targets during memory reclamation.
+Объекты Pod, значительно превышающие запрошенный объём памяти, становятся более вероятными кандидатами на вытеснение.
+
+Пример:
+
+```text
+Запрос: 128Mi
+Использование: 2Gi
+```
+
+Такие рабочие нагрузки, вероятно, являются целями во время восстановления памяти.
 
 ---
 
-## Investigation Process
+## Процесс расследования
 
-### Node Health
+### Состояние узла
 
 ```bash
 kubectl describe node <node>
 ```
 
-Check:
+Проверить:
 
 ```text
 MemoryPressure
@@ -305,7 +305,7 @@ PIDPressure
 
 ---
 
-### Resource Consumption
+### Потребление ресурсов
 
 ```bash
 kubectl top nodes
@@ -315,32 +315,32 @@ kubectl top nodes
 kubectl top pods -A --sort-by=memory
 ```
 
-Identify memory-heavy workloads.
+Определите рабочие нагрузки, требующие большого объема памяти.
 
 ---
 
-### Pod Inspection
+### Проверка Pod
 
 ```bash
 kubectl describe pod <pod>
 ```
 
-Review:
+Проверить:
 
 - Requests
 - Limits
-- Restart history
-- Eviction events
+- История перезапуска
+- События вытеснения
 
 ---
 
-### Cluster Events
+### События кластера
 
 ```bash
 kubectl get events --sort-by=.lastTimestamp
 ```
 
-Look for:
+Ищите:
 
 ```text
 Evicted
@@ -349,9 +349,9 @@ MemoryPressure
 
 ---
 
-### Kubelet Metrics
+### Метрики kubelet
 
-Monitor:
+Отслеживать:
 
 ```text
 kubelet_evictions_total
@@ -367,13 +367,13 @@ container_memory_working_set_bytes
 
 ---
 
-## Immediate Mitigation
+## Немедленное смягчение последствий
 
-### Define Memory Limits
+### Задать ограничения памяти
 
-Apply realistic memory limits for all services.
+Применяйте реалистичные ограничения памяти для всех служб.
 
-Example:
+Пример:
 
 ```yaml
 limits:
@@ -382,104 +382,104 @@ limits:
 
 ---
 
-### Add Cluster Capacity
+### Увеличить объём ресурсов кластера
 
-Increase available memory capacity by:
+Увеличить доступную емкость памяти путем:
 
-- Scaling node groups
-- Adding additional nodes
-
----
-
-### Identify Memory Hogs
-
-Temporarily restart or isolate workloads consuming excessive memory.
+- Масштабирование групп узлов
+- Добавление дополнительных узлов
 
 ---
 
-### Redistribute Workloads
+### Найти приложения с высоким потреблением памяти
 
-Reduce pressure on overloaded nodes while maintaining service availability.
+Временно перезапустите или изолируйте рабочие нагрузки, потребляющие чрезмерное количество памяти.
 
 ---
 
-## Long-Term Improvements
+### Перераспределение рабочих нагрузок
 
-### Resource Right-Sizing
+Уменьшите нагрузку на перегруженные узлы, сохраняя при этом доступность услуги.
 
-Adopt Vertical Pod Autoscaler recommendations.
+---
 
-Continuously align:
+## Долгосрочные улучшения
+
+### Подбор ресурсов по фактической нагрузке
+
+Примите рекомендации Vertical Pod Autoscaler.
+
+Непрерывное выравнивание:
 
 ```text
 Requests
 Limits
-Actual Usage
+Фактическое использование
 ```
 
 ---
 
 ### Goldilocks
 
-Use Goldilocks to analyze resource allocation efficiency.
+Используйте Goldilocks для анализа эффективности распределения ресурсов.
 
-Benefits:
+Преимущества:
 
-- Detect overcommit
-- Detect waste
-- Recommend requests and limits
+- Обнаружение превышения нагрузки
+- Обнаружение отходов
+- Рекомендовать запросы и ограничения
 
 ---
 
-### Enforce Resource Policies
+### Принудительное соблюдение политики использования ресурсов
 
-Implement:
+Реализовать:
 
 ```text
 LimitRanges
 ResourceQuotas
 ```
 
-to prevent deployments without resource definitions.
+Для предотвращения развертываний без определений ресурсов.
 
 ---
 
-### Java Memory Governance
+### Управление памятью Java
 
-Configure JVM parameters appropriately:
+Настройте параметры JVM соответствующим образом:
 
 ```text
 -Xms
 -Xmx
 ```
 
-Ensure JVM memory settings remain below container limits.
+Убедитесь, что настройки памяти JVM остаются ниже ограничений контейнера.
 
 ---
 
-### Capacity Planning
+### Планирование ресурсов
 
-Maintain node headroom.
+Поддерживать запас свободных ресурсов на узлах.
 
-Avoid running clusters near theoretical capacity.
+Избегайте запуска кластеров с емкостью, близкой к теоретической.
 
-Reserve space for:
+Зарезервировать место для:
 
 - Deployments
-- Failovers
-- Traffic spikes
-- Node failures
+- Отказоустойчивость
+- Пики трафика
+- Отказы узлов
 
 ---
 
-## Key Lessons
+## Ключевые уроки
 
-The cluster was not suffering from a lack of memory.
+Кластер не страдал от нехватки памяти.
 
-It was suffering from inaccurate scheduling assumptions.
+Он страдал от неточных предположений планирования.
 
-Kubernetes trusted declared requests, while workloads consumed significantly more resources than promised.
+Kubernetes доверял объявленным запросам, в то время как рабочие нагрузки потребляли значительно больше ресурсов, чем было обещано.
 
-This mismatch created node-level memory pressure, forcing kubelet to evict pods in order to preserve cluster stability.
+Это несоответствие создало нехватку памяти на уровне узла, вынудив kubelet удалить модули, чтобы сохранить стабильность кластера.
 
-Accurate resource requests and limits are essential for predictable scheduling and reliable platform operations.
+Точные запросы и ограничения ресурсов необходимы для предсказуемого планирования и надежной работы платформы.

@@ -1,28 +1,28 @@
 ## 2026-05-02
-- Learned resilience patterns (timeouts, retries, circuit breaker)
-- Understood impact of blocking external dependencies
-- Practiced designing systems that degrade gracefully
+- Изучил паттерны устойчивости: тайм-ауты, повторные попытки и предохранитель
+- Понятное влияние блокировки внешних зависимостей
+- Практикуется в проектировании систем, которые корректно деградируют.
 ## 2026-05-03
-- Learned about retry storm and its impact on system stability
-- Practiced designing controlled retry strategies
-- Understood importance of backoff, jitter, and retry limits
+- Изучил шторм повторных запросов и его влияние на устойчивость системы
+- Практиковался в разработке стратегий контролируемых повторов.
+- Понял важность увеличения задержек, их случайного разброса и ограничения числа повторных попыток
 ## 2026-05-04
-- Learned trade-off between latency and success rate
-- Practiced designing balanced retry strategies
-- Understood importance of fallback and async processing
+- Найден компромисс между задержкой и вероятностью успеха.
+- Практиковался в разработке сбалансированных стратегий повторных попыток.
+- Понимание важности резервной и асинхронной обработки.
 ## 2026-05-05
-- Learned importance of observability in distributed systems
-- Understood tail latency and its impact
-- Practiced structured logging and tracing concepts
+- Установленная важность наблюдаемости в распределенных системах
+- Понимание задержки в высоких перцентилях и ее влияние
+- Практикуемые концепции структурированной регистрации и отслеживания.
 ## 2026-05-06
-- Learned about alert fatigue and signal vs noise
-- Practiced designing actionable alerts
-- Understood SLO-based alerting and prioritization
+- Узнали об усталости от оповещения и соотношении сигнала и шума.
+- Практика разработки действенных оповещений
+- Понимание оповещений и определения приоритетов на основе SLO.
 ## 2026-05-07
-- Learned principles of blameless postmortems
-- Practiced root cause analysis using 5 Whys
-- Understood importance of corrective actions after incidents
+- Изучил принципы разбора инцидентов без поиска виноватых
+- Практиковался в анализе первопричин с использованием «5 почему».
+- Понимание важности корректирующих действий после инцидентов
 ## 2026-05-08
-- Learned principles of safe production deployment
-- Practiced canary and blue/green deployment strategies
-- Understood importance of rollback automation and deployment gates
+- Изучил принципы безопасного развёртывания в рабочей среде
+- Практикуемые стратегии развертывания «канареечных» и «синих/зеленых»
+- Понял важность автоматического отката и контрольных проверок перед развёртыванием

@@ -1,10 +1,10 @@
-# Target Roles
+# Целевые должности
 
-## 1. Application Support
-This role fits me because it requires system thinking, calm incident handling, documentation, and technical basics.
+## 1. Поддержка приложений
+Эта роль мне подходит, потому что она требует системного мышления, спокойного реагирования на инциденты, документирования и технических основ.
 
-## 2. Junior Project Coordinator
-This role fits me because I have a strong background in coordination, process control, discipline, and structured execution.
+## 2. Младший координатор проекта
+Эта роль мне подходит, потому что у меня есть большой опыт в координации, управлении процессами, дисциплине и структурированном исполнении.
 
-## 3. Office IT Support / Service Desk
-This role fits me because it requires order, user assistance, access management, onboarding support, and response to service requests.
+## 3. Поддержка офисной IT-инфраструктуры / служба поддержки
+Эта роль мне подходит, потому что она требует порядка, помощи пользователей, управления доступом, поддержки при адаптации и ответа на запросы на обслуживание.

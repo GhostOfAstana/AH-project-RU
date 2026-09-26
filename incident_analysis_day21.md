@@ -1,95 +1,95 @@
-# Incident Analysis — Week 6 Day 7
+# Разбор инцидента — неделя 6, день 7
 
-## Scenario
-User reports:
-"API sometimes responds in ~200ms, sometimes in 6–10 seconds, worse under load"
-
----
-
-## Observations
-
-- CPU usage fluctuates but is not constantly maxed
-- Database is generally fast but occasionally slows down (2–3 seconds)
-- External service latency varies (100ms → 3 seconds)
-- Cache hit rate is ~65% (below optimal)
-- Under low load: ~200ms
-- Under concurrency (20): 8–12 seconds
+## Сценарий
+Отчеты пользователей:
+«API иногда отвечает через ~200 мс, иногда через 6–10 секунд, хуже под нагрузкой»
 
 ---
 
-## What Is Happening
+## Наблюдения
 
-System experiences latency jitter that leads to cascading degradation under load.
-
-- Occasional slow operations (DB / external service)
-- Workers become blocked while waiting
-- Incoming requests are queued
-- Queueing delay grows with concurrency
-
-→ Result:
-Even fast operations are delayed due to waiting time
+- Загрузка ЦП колеблется, но не достигает максимального значения постоянно.
+- База данных обычно работает быстро, но иногда замедляется (2–3 секунды).
+- Задержка внешнего сервиса варьируется (100 мс → 3 секунды)
+- Частота попадания в кэш составляет ~65% (ниже оптимального).
+- При низкой нагрузке: ~200 мс.
+- При параллельном режиме (20): 8–12 секунд.
 
 ---
 
-## Core Mechanism
+## Что происходит
 
-Latency = Execution time + Queue wait time
+В системе наблюдается дрожание задержки, которое приводит к каскадному ухудшению качества под нагрузкой.
 
-Under load:
-- Execution time stays similar
-- Queue wait time grows rapidly
+- Периодические медленные операции (БД/внешняя служба)
+- Рабочие блокируются во время ожидания
+- Входящие запросы ставятся в очередь.
+- Задержка в очереди растет с увеличением параллелизма.
 
-→ Queueing dominates total latency
-
----
-
-## Contributing Factors
-
-- Low cache hit rate (~65%) → frequent slow-path execution
-- Unstable external dependency → blocking calls
-- Occasional DB slowdowns → increased contention
-- Lack of protective mechanisms (timeouts, fail-fast)
+→ Результат:
+Даже быстрые операции задерживаются из-за времени ожидания.
 
 ---
 
-## Validation
+## Основной механизм
 
-- Compare response time at low vs high concurrency
-- Analyze percentiles (p95, p99)
-- Correlate API latency with DB and external service timing
-- Inspect logs for slow requests (>500ms)
+Задержка = время выполнения + время ожидания в очереди
 
----
+Под нагрузкой:
+- Время выполнения остается прежним.
+- Время ожидания в очереди быстро растёт.
 
-## Actions
-
-### Priority 1 — Stabilization
-
-- Add timeouts for external service calls
-- Implement fail-fast behavior
-- Introduce circuit breaker pattern
+→ Очередь доминирует над общей задержкой
 
 ---
 
-### Priority 2 — Load Reduction
+## Способствующие факторы
 
-- Improve cache hit rate (target 90%+)
-- Implement cache warm-up
-- Prevent cache stampede
-
----
-
-### Priority 3 — Optimization
-
-- Optimize DB queries and indexing
-- Tune connection pool limits
-- Monitor slow queries
+- Низкая частота попадания в кэш (~65%) → частое выполнение по медленному пути.
+- Нестабильная внешняя зависимость → блокировка вызовов
+- Периодические замедления работы БД → усиление конфликтов
+- Отсутствие защитных механизмов (таймауты, отказоустойчивость)
 
 ---
 
-## Key Learning
+## Проверка гипотез
 
-- System instability is often caused by multiple small issues
-- Long-tail latency affects all users
-- Queueing is the main driver of degradation under load
-- Stabilization must come before optimization
+- Сравните время ответа при низком и высоком параллелизме.
+- Анализировать процентили (p95, p99)
+- Коррелируйте задержку API с БД и временем внешнего сервиса.
+- Проверка журналов на наличие медленных запросов (>500 мс)
+
+---
+
+## Действия
+
+### Приоритет 1 — Стабилизация
+
+- Добавлены таймауты для вызовов внешних служб.
+- Реализуйте отказоустойчивое поведение.
+- Представление схемы предохранителя
+
+---
+
+### Приоритет 2 — Снижение нагрузки
+
+- Улучшение частоты попадания в кэш (цель 90%+)
+- Реализация прогрева кэша
+- Предотвращение скопления кэша
+
+---
+
+### Приоритет 3 — Оптимизация
+
+- Оптимизация запросов и индексации БД
+- Настройка ограничений пула соединений
+- Мониторинг медленных запросов
+
+---
+
+## Основные выводы
+
+- Нестабильность системы часто вызвана множеством мелких проблем.
+- Длинная задержка влияет на всех пользователей.
+- Очереди являются основным фактором ухудшения качества под нагрузкой.
+- Стабилизация должна предшествовать оптимизации.

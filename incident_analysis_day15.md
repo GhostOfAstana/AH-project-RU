@@ -1,116 +1,116 @@
-# Incident Analysis — Week 6 Day 1
+# Разбор инцидента — неделя 6, день 1
 
-## Scenario
-User reports: "API sometimes responds slowly"
+## Сценарий
+Пользователь сообщает: «API иногда отвечает медленно»
 
-Environment:
-- Linux server access
-- No predefined logs provided
-
----
-
-## My Initial Approach
-
-I started with system-level diagnostics to identify performance bottlenecks.
-
-### 1. Quick System Check
-
-Command:
-uptime
-
-Purpose:
-- Check load average (1, 5, 15 minutes)
-- Detect overall system pressure
+Окружение:
+- Доступ к серверу Linux
+- Предопределенные журналы не предусмотрены.
 
 ---
 
-### 2. Process Monitoring
+## Мой первоначальный подход
 
-Command:
+Я начал с диагностики на уровне системы, чтобы выявить узкие места в производительности.
+
+### 1. Быстрая проверка системы
+
+Команда:
+время безотказной работы
+
+Назначение:
+- Проверка средней нагрузки (1, 5, 15 минут)
+- Определение общего давления в системе
+
+---
+
+### 2. Мониторинг процесса
+
+Команда:
 htop
 
-Purpose:
-- Identify processes consuming high CPU or memory
-- Observe system behavior in real time
+Назначение:
+- Идентификация процессов, потребляющих много ресурсов ЦП или памяти.
+- Наблюдайте за поведением системы в реальном времени.
 
 ---
 
-### 3. Resource Analysis
+### 3. Анализ ресурсов
 
-I focused on:
+Я сосредоточился на:
 
-- CPU usage (%CPU)
-- Memory usage (%MEM)
-- iowait (disk or DB latency indicator)
+- Использование ЦП (% ЦП)
+- Использование памяти (%MEM)
+- iowait (индикатор задержки диска или БД)
 
-Insights:
-- High CPU → heavy computation or loops
-- High memory → possible memory leaks
-- High iowait → waiting for disk or database
+Наблюдения:
+- Высокая загрузка ЦП → тяжелые вычисления или циклы
+- Высокая память → возможные утечки памяти
+- High iowait → ожидание диска или базы данных
 
 ---
 
-### 4. Disk / I/O Check
+### 4. Проверка диска/ввода-вывода
 
-Command:
+Команда:
 vmstat 1
 
-Purpose:
-- Monitor system performance in real time
-- Identify I/O bottlenecks
+Назначение:
+- Мониторинг производительности системы в режиме реального времени
+- Выявление узких мест ввода-вывода
 
 ---
 
-### 5. Log Investigation
+### 5. Анализ журналов
 
-Checked:
+Проверено:
 
 /var/log/nginx/error.log  
 /var/log/nginx/access.log  
 
-Command:
+Команда:
 tail -f /var/log/nginx/error.log
 
-Also used:
+Также используется:
 journalctl -u api.service --since "10 minutes ago"
 
-Purpose:
-- Identify errors and anomalies
-- Observe real-time behavior
+Назначение:
+- Выявление ошибок и аномалий
+- Наблюдайте за поведением в реальном времени.
 
 ---
 
-### 6. Log Filtering
+### 6. Фильтрация журналов
 
-Commands:
+Команды:
 grep ERROR /var/log/nginx/error.log  
 journalctl -u api.service | grep ERROR  
 
-Purpose:
-- Reduce noise
-- Focus on critical issues
+Назначение:
+- Снижение шума
+- Сосредоточьтесь на критических проблемах
 
 ---
 
-## Decision Strategy
+## Стратегия принятия решения
 
-1. Identify bottleneck (CPU / Memory / I/O)
-2. Correlate with logs
-3. Confirm root cause
-
----
-
-## Actions
-
-- If process is stuck → investigate before restart
-- If high load → analyze cause (not just scale)
-- If slow DB → log and escalate for optimization
+1. Определить узкое место (ЦП/Память/Ввод/Вывод)
+2. Корреляция с журналами
+3. Подтвердить основную причину
 
 ---
 
-## Key Learning
+## Действия
 
-- Must diagnose system before acting
-- Server performance issues require multi-level analysis
-- Logs + system metrics = full picture
-- Restart is a temporary fix, not a solution
+- Если процесс зависает → проверьте перед перезапуском
+- При высокой нагрузке → проанализировать причину, а не только увеличивать ресурсы
+- Если БД медленная → регистрируйте и передайте на рассмотрение для оптимизации.
+
+---
+
+## Основные выводы
+
+- Прежде чем действовать, необходимо диагностировать систему.
+- Проблемы с производительностью сервера требуют многоуровневого анализа.
+- Журналы + системные метрики = полная картина
+- Перезапуск — это временное исправление, а не решение.

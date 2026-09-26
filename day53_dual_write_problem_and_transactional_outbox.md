@@ -1,267 +1,267 @@
-# Day 53 — Dual Write Problem and Transactional Outbox Pattern
+# День 53 — проблема двойной записи и паттерн Transactional Outbox
 
-## Incident Summary
+## Краткое описание инцидента
 
-An e-commerce platform experienced inconsistent order processing.
+На платформе электронной коммерции наблюдалась непоследовательная обработка заказов.
 
-Observed symptoms:
+Наблюдаемые симптомы:
 
-- Orders existed in the database without corresponding Kafka events.
-- Some payments were processed twice.
-- Infrastructure dashboards appeared healthy.
-- Kafka brokers remained operational.
-- PostgreSQL showed no major performance degradation.
+- В базе данных существовали заказы без соответствующих событий Kafka.
+- Некоторые платежи обрабатывались дважды.
+- Панели мониторинга инфраструктуры выглядели работоспособными.
+- Брокеры Kafka продолжали работать.
+- PostgreSQL не показал существенного ухудшения производительности.
 
-The incident revealed a consistency failure between database transactions and event publication.
-
----
-
-## Root Cause
-
-The system performed two independent operations:
-
-1. Persisting business data in PostgreSQL.
-2. Publishing an event to Kafka.
-
-Example flow:
-
-```text
-INSERT order into database
-        ↓
-Publish event to Kafka
-```
-
-These operations were not atomic.
-
-Failure scenarios:
-
-### Scenario A
-
-```text
-Database commit succeeds
-        ↓
-Application crashes
-        ↓
-Kafka event never published
-```
-
-Result:
-
-- Order exists.
-- Downstream services never receive the event.
-
-### Scenario B
-
-```text
-Kafka event published
-        ↓
-Application crashes before transaction completion
-```
-
-Result:
-
-- Consumers receive an event referencing data that does not exist.
-
-This is the classic Dual Write Problem.
+Инцидент выявил нарушение согласованности между транзакциями базы данных и публикацией событий.
 
 ---
 
-## Why Duplicate Payments Occurred
+## Основная причина
 
-Kafka provides at-least-once delivery semantics.
+Система выполнила две независимые операции:
 
-Consumer flow:
+1. Сохранение бизнес-данных в PostgreSQL.
+2. Публикация события в Kafka.
 
-```text
-Receive message
-        ↓
-Process payment
-        ↓
-Commit offset
-```
-
-If the consumer crashes after processing the payment but before committing the offset:
+Пример последовательности действий:
 
 ```text
-Payment processed
+INSERT заказ в базу данных
         ↓
-Consumer crash
-        ↓
-Offset not committed
-        ↓
-Message redelivered
+Публикация события в Kafka
 ```
 
-Without idempotency protection, the payment is executed again.
+Эти операции не были атомарными.
+
+Сценарии отказа:
+
+### Сценарий А
+
+```text
+Фиксация базы данных прошла успешно
+        ↓
+Сбой приложения
+        ↓
+Событие Kafka никогда не публиковалось
+```
+
+Результат:
+
+- Порядок существует.
+- Нижестоящие службы никогда не получают это событие.
+
+### Сценарий Б
+
+```text
+Опубликовано событие Kafka
+        ↓
+Приложение аварийно завершает работу до завершения транзакции.
+```
+
+Результат:
+
+- Потребители получают событие, ссылающееся на данные, которые не существуют.
+
+Это классическая проблема двойной записи.
 
 ---
 
-## Delivery Semantics
+## Почему произошли дублирующие платежи
 
-### At-Most-Once
+Kafka обеспечивает семантику доставки по меньшей мере один раз.
 
-Pros:
-
-- No duplicates.
-
-Cons:
-
-- Message loss is possible.
-
-### At-Least-Once
-
-Pros:
-
-- No message loss.
-
-Cons:
-
-- Duplicates are possible.
-
-### Exactly-Once
-
-Exactly-once is only achievable within controlled boundaries.
-
-For external systems:
+Потребительский поток:
 
 ```text
-At-Least-Once Delivery
+Прием сообщения
+        ↓
+Обработка платежа
+        ↓
+Фиксированное смещение
+```
+
+Если у потребителя происходит сбой после обработки платежа, но до совершения компенсации:
+
+```text
+Платеж обработан
+        ↓
+Потребительский крах
+        ↓
+Смещение не зафиксировано
+        ↓
+Сообщение доставлено повторно
+```
+
+Без защиты идемпотентности платеж выполняется снова.
+
+---
+
+## Семантика доставки
+
+### Не более одного раза (at-most-once)
+
+Преимущества:
+
+- Никаких дубликатов.
+
+Недостатки:
+
+- Возможна потеря сообщения.
+
+### Не менее одного раза (at-least-once)
+
+Преимущества:
+
+- Отсутствие потери сообщения.
+
+Недостатки:
+
+- Возможны дубликаты.
+
+### Ровно один раз (exactly-once)
+
+Ровно один раз достижимо только в пределах контролируемых границ.
+
+Для внешних систем:
+
+```text
+По меньшей мере однократная доставка
 +
-Idempotent Consumers
+Идемпотентные потребители
 =
-Practical Exactly-Once Behavior
+Практическое поведение «точно один раз»
 ```
 
 ---
 
-## Transactional Outbox Pattern
+## Паттерн транзакционного исходящего журнала (Transactional Outbox)
 
-The recommended solution is the Transactional Outbox Pattern.
+Рекомендуемым решением является шаблон транзакционных исходящих сообщений.
 
-Instead of publishing directly to Kafka:
-
-```text
-Business Table
-Outbox Table
-```
-
-Within a single database transaction:
+Вместо публикации непосредственно в Kafka:
 
 ```text
-Insert Order
-Insert Outbox Event
-Commit
+Бизнес-стол
+Таблица исходящих сообщений
 ```
 
-If the transaction succeeds:
+В рамках одной транзакции базы данных:
 
-- Business data exists.
-- Outbox event exists.
+```text
+Вставить порядок
+Вставить событие «Исходящие»
+Зафиксировать
+```
 
-If the transaction fails:
+Если транзакция прошла успешно:
 
-- Neither exists.
+- Бизнес-данные существуют.
+- Событие «Исходящие» существует.
 
-Consistency is preserved.
+Если транзакция не удалась:
 
-A separate relay process publishes records from the outbox table to Kafka.
+- Ни того, ни другого не существует.
 
-Flow:
+Согласованность сохраняется.
+
+Отдельный процесс ретрансляции публикует записи из таблицы исходящих сообщений в Kafka.
+
+Последовательность:
 
 ```text
 PostgreSQL
       ↓
-Outbox Table
+Таблица исходящих сообщений
       ↓
-Relay Process
+Процесс реле
       ↓
 Kafka
 ```
 
 ---
 
-## CDC Alternative
+## Альтернатива CDC
 
-A common production implementation uses Change Data Capture (CDC).
+Обычная рабочая реализация использует систему отслеживания измененных данных (CDC).
 
-Flow:
+Последовательность:
 
 ```text
-PostgreSQL WAL
+PostgreSQL ВАЛ
       ↓
 Debezium
       ↓
 Kafka
 ```
 
-Benefits:
+Преимущества:
 
-- No custom polling service.
-- Reliable event extraction.
-- Better operational scalability.
+- Нет специальной службы опроса.
+- Надежное извлечение событий.
+- Улучшенная эксплуатационная масштабируемость.
 
 ---
 
-## Investigation Process
+## Процесс расследования
 
-### Database Verification
+### Проверка базы данных
 
-Find orders without corresponding events.
+Поиск заказов без соответствующих событий.
 
-Questions:
+Вопросы:
 
-- Which orders exist only in PostgreSQL?
-- Which events exist without valid orders?
+- Какие заказы существуют только в PostgreSQL?
+- Какие события существуют без соответствующих корректных заказов?
 
-### Kafka Analysis
+### Анализ Kafka
 
-Inspect:
+Исследовать:
 
-- Consumer offsets
-- Retry counts
-- Redelivery frequency
+- Потребительские компенсации
+- Число повторных попыток
+- Частота повторной доставки
 
-### Distributed Tracing
+### Распределенная трассировка
 
-Verify:
+Убедиться:
 
 ```text
-Order Service
+Сервис заказов
         ↓
-Database Commit
+Фиксация базы данных
         ↓
-Kafka Publish
+Kafka Опубликовать
 ```
 
-Measure failures between these steps.
+Измерьте отказы между этими этапами.
 
 ---
 
-## Immediate Mitigation
+## Немедленное смягчение последствий
 
-### Data Reconciliation
+### Сверка данных
 
-Create a reconciliation process that:
+Создать процесс согласования, который:
 
-- Finds missing events.
-- Verifies actual payment status.
-- Republishes only valid events.
+- Находит недостающие события.
+- Проверяет фактический статус платежа.
+- Повторно публикует только действительные события.
 
-### Retry Reduction
+### Уменьшение повторных попыток
 
-Temporarily reduce aggressive retry behavior until idempotency protections are implemented.
+Временно уменьшайте агрессивное поведение при повторных попытках до тех пор, пока не будут реализованы защиты от идемпотентности.
 
 ---
 
-## Long-Term Improvements
+## Долгосрочные улучшения
 
-### Transactional Outbox
+### Транзакционный исходящий журнал (Transactional Outbox)
 
-Mandatory for services performing database writes and event publication.
+Обязателен для служб, выполняющих запись в базу данных и публикацию событий.
 
-### Idempotency Keys
+### Ключи идемпотентности
 
-Every financial operation must contain:
+Каждая финансовая операция должна содержать:
 
 ```text
 payment_id
@@ -269,32 +269,32 @@ request_id
 order_id
 ```
 
-Duplicate requests must be safely ignored.
+Дублирующиеся запросы должны быть безопасно проигнорированы.
 
-### Unique Constraints
+### Ограничения уникальности
 
-Enforce idempotency at the database layer.
+Обеспечение идемпотентности на уровне базы данных.
 
-Example:
+Пример:
 
 ```sql
 UNIQUE(payment_id)
 ```
 
-### CDC Adoption
+### Внедрение CDC
 
-Use Debezium-based CDC pipelines where possible.
+По возможности используйте конвейеры CDC на основе Debezium.
 
 ---
 
-## Key Lessons
+## Ключевые уроки
 
-Distributed systems cannot guarantee consistency through independent transactions.
+Распределенные системы не могут гарантировать согласованность посредством независимых транзакций.
 
-Database writes and event publication must be coordinated through a reliable pattern.
+Запись в базу данных и публикация событий должны быть скоординированы посредством надежного шаблона.
 
-Transactional Outbox provides atomicity.
+Транзакционный исходящий ящик обеспечивает атомарность.
 
-Idempotent consumers provide safety against duplicate delivery.
+Идемпотентные потребители обеспечивают безопасность от двойной доставки.
 
-Together they form the foundation of reliable event-driven financial systems.
+Вместе они образуют основу надежных, управляемых событиями финансовых систем.

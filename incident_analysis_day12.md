@@ -1,11 +1,11 @@
-# Incident Analysis — Week 5 Day 5
+# Разбор инцидента — неделя 5, день 5
 
-## Scenario
-Users report: "Sometimes orders do not open, but later everything works"
+## Сценарий
+Пользователи сообщают: «Иногда заказы не открываются, но позже всё работает»
 
 ---
 
-## Log Samples
+## Примеры строк журналов
 
 ### orders.log
 
@@ -24,69 +24,69 @@ Users report: "Sometimes orders do not open, but later everything works"
 
 ---
 
-## My Initial Thinking
+## Мои первоначальные размышления
 
-- I focused on specific users (303, 305)
-- I assumed slow queries or cache issues
-- I suggested general optimizations (indexing, cache)
+- Я сосредоточился на конкретных пользователях (303, 305)
+- Я предположил, что медленные запросы или проблемы с кешем
+- Я предложил общие оптимизации (индексация, кэш)
 
-### Problem
-- Ignored clear signal in logs (connection pool limit)
-- Focused on symptoms (slow response) instead of root cause
-- Misidentified type of database issue
-
----
-
-## Corrected Approach
-
-### 1. What Is Happening
-
-- API responses are successful (200), but slow
-- Database logs indicate: connection pool limit reached
-- Requests are delayed while waiting for available DB connections
-
-→ This is not a query performance issue  
-→ This is a resource limitation issue  
+### Проблема
+- Я проигнорировал явный сигнал в журналах: достижение лимита пула соединений
+- Сосредоточение внимания на симптомах (медленный ответ), а не на первопричине.
+- Неверно идентифицирован тип проблемы с базой данных.
 
 ---
 
-### 2. First Step
+## Исправленный подход
 
-Check connection pool status:
-- Maximum pool size
-- Active connections
-- Waiting requests
+### 1. Что происходит
 
----
+- Ответы API успешны (200), но медленны
+- Журналы базы данных показывают: достигнут предел пула соединений.
+- Запросы задерживаются в ожидании свободного соединения с базой данных
 
-### 3. Root Cause
-
-- Database connection pool is exhausted
-- No free connections available
-- Requests must wait → increased response time
+→ Это не проблема с производительностью запроса.  
+→ Это проблема с ограничением ресурсов.  
 
 ---
 
-### 4. Validation
+### 2. Первый шаг
 
-- Monitor number of active DB connections
-- Check if pool usage reaches maximum
-- Identify long-lived or unclosed connections
-
----
-
-### 5. Actions
-
-- Increase connection pool size
-- Fix connection leaks (ensure proper closing)
-- Reduce connection holding time
-- Optimize queries to release connections faster
+Проверьте состояние пула соединений:
+- Максимальный размер пула
+- Активные соединения
+- Ожидающие запросы
 
 ---
 
-## Key Learning
+### 3. Основная причина
 
-- Not all DB issues are slow queries
-- Resource limits (connection pool) can cause delays
-- Must pay attention to explicit log messages
-- Always distinguish between performance and resource exhaustion
+- Пул соединений с базой данных исчерпан.
+- Свободных соединений нет.
+- Запросам приходится ждать → время ответа растёт
+
+---
+
+### 4. Проверка гипотез
+
+- Мониторинг количества активных соединений с БД
+- Проверьте, достигло ли использование пула максимального значения.
+- Идентифицировать долгоживущие или незамкнутые соединения.
+
+---
+
+### 5. Действия
+
+- Увеличение размера пула соединений
+- Устранить утечки в соединениях (обеспечить правильное закрытие)
+- Уменьшить время удержания соединения
+- Оптимизация запросов для более быстрого освобождения соединений.
+
+---
+
+## Основные выводы
+
+- Не все проблемы с БД связаны с медленными запросами.
+- Ограничения ресурсов (пул соединений) могут вызывать задержки.
+- Необходимо обратить внимание на явные сообщения журнала.
+- Всегда различайте производительность и исчерпание ресурсов.

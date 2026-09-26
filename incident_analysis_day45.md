@@ -1,753 +1,753 @@
-# Incident Analysis — Week 10 Day 3
+# Разбор инцидента — неделя 10, день 3
 
-## Scenario
+## Сценарий
 
-Production platform migrated toward event-driven architecture using Kafka.
+Рабочая платформа перешла на архитектуру, управляемую событиями, с использованием Kafka.
 
-Architecture:
+Архитектура:
 
 ```text
-API Services
+API-сервисы
    ↓
 Kafka
    ↓
-Consumers
+Потребители
    ↓
-PostgreSQL / Redis / Billing / Notifications
+PostgreSQL / Redis / Биллинг / Уведомления
 ```
 
-System processed:
-- payments
-- profile updates
-- inventory events
-- notifications
-- audit logs
+Система обработала:
+- платежи
+- обновления профиля
+- События инвентаризации
+- уведомления
+- журналы аудита
 
-After traffic surge:
-- notifications delayed
-- balances corrected hours later
-- duplicate emails observed
-- duplicate charges occurred
-- dashboards inconsistent
+После резкого увеличения трафика:
+- уведомления задерживаются
+- балансы исправлены через несколько часов
+- Обнаружены повторяющиеся электронные письма
+- Произошли дублированные платежи
+- Несогласованность информационных панелей
 
-Infrastructure remained:
-- healthy
-- brokers alive
-- Kubernetes operational
-- moderate CPU usage
+Инфраструктура осталась:
+- здоровый
+- брокеры живы
+- Kubernetes в рабочем состоянии
+- умеренное использование процессора
 
-Kafka metrics showed:
-- rapidly increasing consumer lag
-- excessive rebalance activity
-- retry growth
+Метрики Kafka показали:
+- быстро увеличивающееся отставание потребителей
+- чрезмерная активность по восстановлению баланса
+- повторная попытка роста
 
-Root cause involved:
-- rebalance storms
-- lag amplification
-- retry amplification
-- hot partitions
-- consumer coordination collapse
-- processing backpressure
+Основная причина:
+- перебалансировать штормы
+- Лаговое усиление
+- Усиление нагрузки из-за повторных запросов
+- горячие Разделы
+- Коллапс координации потребителей
+- обработка обратного давления
 
-rather than:
-- infrastructure failure.
-
----
-
-# Event-Driven Architecture
-
-Event-driven systems communicate through:
-- asynchronous event streams
-
-instead of:
-- direct synchronous calls
-
-Benefits:
-- decoupling
-- scalability
-- asynchronous processing
-- replay capability
-
-Tradeoff:
-- distributed coordination complexity
-
-Systems become:
-- eventually consistent
-- asynchronous
-- replay-sensitive
-
-rather than:
-- immediately synchronized.
+вместо:
+- Сбой инфраструктуры.
 
 ---
 
-# Kafka Architecture
+# Архитектура, управляемая событиями
 
-Kafka is:
-- distributed append-only log
+Управляемые событиями системы обмениваются данными посредством:
+- асинхронные потоки событий
 
-Core components:
-- brokers
-- topics
-- partitions
-- offsets
-- consumer groups
+вместо:
+- прямые синхронные вызовы
 
----
+Преимущества:
+- развязка
+- масштабируемость
+- асинхронная обработка
+- возможность воспроизведения
 
-# Brokers
+Компромисс:
+- сложность распределенной координации
 
-Kafka brokers store:
-- partition logs
+Системы становятся:
+- в конечном итоге соответствует
+- асинхронный
+- чувствительный к повторному воспроизведению
 
-Responsibilities:
-- replication
-- persistence
-- serving producers and consumers
-
----
-
-# Topics
-
-Topics represent:
-- logical event streams
-
-Examples:
-- payments
-- notifications
-- inventory-events
-
-Topics internally split into:
-- partitions.
+вместо:
+- Немедленно синхронизировались.
 
 ---
 
-# Partitions
+# Архитектура Kafka
 
-Partitions are:
-- ordered immutable event logs
+Kafka представляет собой:
+- распределенный журнал только для добавления
 
-Critical properties:
-- unit of parallelism
-- unit of ordering
-- unit of scalability
-
-Ordering guaranteed:
-- only within single partition
-
-not:
-- across entire topic.
+Основные компоненты:
+- брокеры
+- Топики
+- Разделы (партиции)
+- смещения
+- Группы потребителей
 
 ---
 
-# Offsets
+# Брокеры
 
-Offsets represent:
-- sequential event positions inside partition
+Kafka Брокерский магазин:
+- журналы разделов
 
-Consumers track:
-- processed position
-
-Kafka does not delete messages after consumption.
-
-Consumers simply:
-- advance offsets.
-
-This enables:
-- replay
-- recovery
-- reprocessing.
+Обязанности:
+- репликация
+- настойчивость
+- обслуживание производителей и потребителей
 
 ---
 
-# Consumer Groups
+# Топики
 
-Consumer groups provide:
-- horizontal processing scalability
+Темы представляют:
+- потоки логических событий
 
-Rule:
+Примеры:
+- платежи
+- уведомления
+- События инвентаризации
+
+Темы внутренне разделены на:
+- Разделы.
+
+---
+
+# Разделы (партиции)
+
+Разделами являются:
+- упорядоченные неизменяемые журналы событий
+
+Критические свойства:
+- единица параллелизма
+- Единица, в пределах которой гарантируется порядок
+- единица масштабируемости
+
+Гарантированный заказ:
+- только в пределах одного раздела
+
+А не:
+- по всей теме.
+
+---
+
+# Смещения
+
+Смещения представляют собой:
+- последовательные позиции событий внутри раздела
+
+Потребители отслеживают:
+- обработанная позиция
+
+Kafka не удаляет сообщения после использования.
+
+Потребители просто:
+- Предварительные смещения.
+
+Это позволяет:
+- повтор
+- восстановление
+- Повторная обработка.
+
+---
+
+# Группы потребителей
+
+Группы потребителей предоставляют:
+- масштабируемость горизонтальной обработки
+
+Правило:
 
 ```text
-one partition
-→ one active consumer within group
+один раздел
+→ один активный потребитель в группе
 ```
 
-Therefore:
+Поэтому:
 
 ```text
-maximum parallelism
+максимальный параллелизм
 =
-partition count
+количество разделов
 ```
 
-Adding more consumers than partitions:
-- provides no additional throughput.
+Добавление большего количества потребителей, чем разделов:
+- не обеспечивает никакой дополнительной пропускной способности.
 
 ---
 
-# Consumer Lag
+# Отставание потребителей
 
-Consumer lag equals:
+Потребительский лаг равен:
 
 ```text
-latest offset
+последнее смещение
 -
-committed consumer offset
+обязательство по возмещению ущерба потребителю
 ```
 
-Lag measures:
-- delay between production and processing
+Запаздывающие меры:
+- Задержка между созданием и обработкой сообщения
 
-High lag means:
-- system no longer operates in real time.
+Высокая задержка означает:
+- Система больше не работает в режиме реального времени.
 
-Consequences:
-- delayed notifications
-- stale balances
-- delayed reconciliation
-- inconsistent dashboards
-
----
-
-# Why Lag Dangerous
-
-Lag creates:
-- growing replay backlog
-
-As backlog increases:
-- consumers process larger batches
-- processing latency increases
-- retries accumulate
-- stale state propagates longer
-
-Large lag therefore amplifies:
-- recovery time
-- duplicate risk
-- operational instability.
+Последствия:
+- отложенные уведомления
+- просроченные остатки
+- отложенное согласование
+- Несогласованные информационные панели
 
 ---
 
-# Rebalancing
+# Чем опасно отставание
 
-Kafka consumer groups require:
-- partition ownership coordination
+Задержка создает:
+- Растущее отставание в воспроизведении
 
-When:
-- consumers join
-- consumers leave
-- heartbeat missed
+По мере увеличения отставания:
+- Потребители обрабатывают более крупные партии
+- Задержка обработки увеличивается
+- Повторные попытки накапливаются
+- устаревшее состояние распространяется дольше
 
-Kafka triggers:
-- rebalance
-
-Partitions reassigned across consumers.
-
----
-
-# Why Excessive Rebalancing Dangerous
-
-Traditional eager rebalance:
-- pauses all consumers temporarily
-
-This creates:
-- stop-the-world effect
-
-During repeated rebalances:
-- processing pauses repeatedly
-- lag increases rapidly
-- throughput collapses
-
-This becomes:
-# rebalance storm
+Таким образом, большое запаздывание усиливает:
+- время восстановления
+- риск дублирования
+- Эксплуатационная нестабильность.
 
 ---
 
-# Why Autoscaling Made Incident Worse
+# Ребалансировка
 
-Autoscaling added:
-- new consumer Pods
+Группы потребителей Kafka требуют:
+- Координация владения разделами
 
-Every new consumer triggered:
-- another rebalance
+Когда:
+- потребители присоединяются
+- потребители уходят
+- пропало сердцебиение
 
-Flow:
+Триггеры Kafka:
+- ребалансировка
+
+Разделы переназначаются между потребителями.
+
+---
+
+# Почему чрезмерная ребалансировка опасна
+
+Традиционный стремительный ребаланс:
+- временно приостанавливает всех потребителей
+
+Это создает:
+- Эффект остановки мира
+
+Во время повторных ребалансировок:
+- обработка неоднократно приостанавливается
+- Лаг быстро увеличивается
+- Падает пропускная способность
+
+Это становится:
+# Шторм ребалансировок
+
+---
+
+# Почему автомасштабирование ухудшило ситуацию
+
+Добавлено автомасштабирование:
+- Новые объекты Pod с потребителями
+
+Каждый новый потребитель запускал:
+- еще один ребаланс
+
+Последовательность:
 
 ```text
-lag increases
-→ autoscaler adds Pods
-→ rebalance triggered
-→ processing pauses
-→ lag grows more
-→ autoscaler scales further
+Увеличение задержки
+→ автомасштабирование добавляет объекты Pod
+→ запущена ребалансировка
+→ паузы обработки
+→ лаг увеличивается еще больше
+→ автомасштабирование дальше
 ```
 
-Positive feedback loop caused:
-- coordination collapse.
+Положительная обратная связь вызвала:
+- Координационный коллапс.
 
 ---
 
-# Delivery Semantics
+# Семантика доставки
 
-## At-Most-Once
+## Не более одного раза (at-most-once)
 
-Message may be:
-- lost
+Сообщение может быть:
+- потерялся
 
-but:
-- never duplicated
+Но:
+- никогда не дублировался
 
-Offset committed:
-- before processing.
-
----
-
-# At-Least-Once
-
-Message guaranteed processed:
-- one or more times
-
-Duplicates possible.
-
-Most common production model.
-
-Requires:
-- idempotent consumers.
+Смещение зафиксировано:
+- Перед обработкой.
 
 ---
 
-# Exactly-Once
+# Не менее одного раза (at-least-once)
 
-Kafka supports transactional guarantees:
-- primarily within Kafka ecosystem
+Сообщение гарантированно обработано:
+- один или несколько раз
 
-Example:
+Возможны дубликаты.
+
+Наиболее распространенная серийная модель.
+
+Требует:
+- Идемпотентные потребители.
+
+---
+
+# Ровно один раз (exactly-once)
+
+Kafka поддерживает транзакционные гарантии:
+- преимущественно в экосистеме Kafka
+
+Пример:
 
 ```text
-Kafka topic
-→ Kafka topic
+Kafka тема
+→ Тема Kafka
 ```
 
-Once external systems involved:
+После задействования внешних систем:
 - PostgreSQL
-- payment gateways
-- REST APIs
+- платежные шлюзы
+- REST API
 
-exactly-once semantics become:
-- extremely difficult
+Точно однократная семантика становится:
+- чрезвычайно сложно
 
-or:
-- practically impossible.
+Или:
+- Практически невозможно.
 
-Exactly-once therefore often functions as:
-- constrained guarantee
-- not universal reality.
+Таким образом, «точно один раз» часто действует как:
+- ограниченная гарантия
+- Не универсальная реальность.
 
 ---
 
-# Why Duplicate Events Occurred
+# Почему произошли повторяющиеся события
 
-Consumer processed event:
+Обработанное потребителем событие:
 
 ```text
-process payment
-→ external side effect succeeds
-→ consumer crashes before offset commit
+обработка платежа
+→ внешний побочный эффект успешен
+→ Потребитель аварийно завершает работу перед фиксацией смещения
 ```
 
-After restart:
-- event replayed
+После перезапуска:
+- событие повторено
 
-Result:
-- duplicate charges
-- duplicate notifications
+Результат:
+- дублирующиеся платежи
+- дублирующиеся уведомления
 
-This is expected under:
-- at-least-once delivery.
-
----
-
-# Idempotent Consumers
-
-Consumers must safely handle:
-- duplicate delivery
-
-Typical strategy:
-- unique event_id
-- durable deduplication storage
-- unique constraints
-
-Without idempotency:
-- retries create corrupted business state.
-
-Critical for:
-- payments
-- billing
-- inventory mutations.
+Это ожидается при:
+- По меньшей мере однократная доставка.
 
 ---
 
-# Event Ordering Problems
+# Идемпотентные потребители
 
-Ordering guaranteed:
-- only per partition
+Потребители должны безопасно обращаться с:
+- дублированная доставка
 
-If related events distributed across partitions:
-- processing order may diverge
+Типичная стратегия:
+- уникальный event_id
+- Долговременное хранилище с дедупликацией
+- Ограничения уникальности
 
-Consequences:
-- stale state
-- incorrect projections
-- invalid business transitions
+Без идемпотентности:
+- Повторные попытки создают искаженное бизнес-состояние.
 
-Ordering-sensitive systems require:
-- careful partition key design.
+Критично для:
+- платежи
+- выставление счетов
+- Инвентарные мутации.
 
 ---
 
-# Hot Partitions
+# Проблемы с упорядочением событий
 
-Bad partition keys may create:
-- uneven traffic distribution
+Гарантированный заказ:
+- только для каждого раздела
 
-Example:
+Если связанные события распределены по разделам:
+- порядок обработки может отличаться
+
+Последствия:
+- устаревшее состояние
+- неправильные прогнозы
+- Недействительные бизнес-переходы
+
+Системы, чувствительные к заказу, требуют:
+- Тщательная конструкция ключа раздела.
+
+---
+
+# Горячие разделы
+
+Неверные ключи раздела могут привести к:
+- неравномерное распределение трафика
+
+Пример:
 
 ```text
-large enterprise customer
-→ all events hash into one partition
+крупный корпоративный клиент
+→ все события хэшируются в один раздел
 ```
 
-Result:
-- one overloaded consumer
-- remaining consumers idle
+Результат:
+- один перегруженный потребитель
+- оставшиеся потребители простаивают
 
-This creates:
-# partition skew
+Это создает:
+# Неравномерное распределение по разделам
 
-and throughput collapse.
-
----
-
-# Retry Topics
-
-Retry topics isolate:
-- transient failures
-
-Instead of:
-- blocking main consumer flow
-
-Messages moved into:
-- delayed retry streams
-
-Useful for:
-- temporary downstream failures.
+и коллапс пропускной способности.
 
 ---
 
-# Retry Storms
+# Топики для повторной обработки
 
-Unbounded retries dangerous.
+Топики повторной обработки изолируют:
+- Временные сбои
 
-Flow:
+Вместо:
+- блокирование основного потребительского потока
+
+Сообщения перемещены в:
+- потоки с задержкой повтора
+
+Полезно для:
+- Временные сбои зависимых сервисов.
+
+---
+
+# Штормы повторных запросов
+
+Неограниченные повторные попытки опасны.
+
+Последовательность:
 
 ```text
-slow downstream dependency
-→ retries increase
-→ consumer slows further
-→ lag increases
-→ more retries generated
+Медленный зависимый сервис
+→ количество повторных попыток увеличивается
+→ потребитель еще больше замедляется
+→ увеличение задержки
+→ создано больше повторных попыток
 ```
 
-Creates:
-- amplification loop
-- throughput collapse.
+Создаёт:
+- Контур усиления
+- Коллапс пропускной способности.
 
 ---
 
-# Poison Pill Events
+# Проблемные события (poison pills)
 
-Poison pill:
-- malformed or permanently failing message
+Проблемное сообщение:
+- неправильно сформированное или постоянно ошибочное сообщение
 
-Without protection:
-- consumer repeatedly crashes on same offset
+Без защиты:
+- Потребитель неоднократно аварийно завершает работу с одним и тем же смещением
 
-Entire partition stalls indefinitely.
+Весь раздел зависает на неопределенный срок.
 
-Mitigation:
-- DLQ (Dead Letter Queue).
-
----
-
-# Dead Letter Queues (DLQ)
-
-DLQ stores:
-- permanently failing events
-
-Purpose:
-- isolate bad messages
-- preserve stream progress
-- enable later inspection
-
-Without DLQ:
-- poison messages may halt processing pipeline.
+Снижение последствий:
+- DLQ (очередь недоставленных писем).
 
 ---
 
-# Backpressure Collapse
+# Очереди сообщений, не прошедших обработку (DLQ)
 
-Slow downstream dependencies create:
-- consumer slowdown
+DLQ сохраняет:
+- Постоянно сбойные события
 
-Flow:
+Назначение:
+- изолировать плохие сообщения
+- сохранять ход потока
+- включить последующую проверку
+
+Без DLQ:
+- Отравляющие сообщения могут остановить конвейер обработки.
+
+---
+
+# Коллапс из-за обратного давления
+
+Медленные зависимые сервисы вызывают:
+- Спад потребления
+
+Последовательность:
 
 ```text
-slow DB
-→ slow processing
-→ lag growth
-→ larger batches
-→ heartbeat delays
-→ rebalance
-→ processing pauses
-→ more lag
+медленная БД
+→ медленная обработка
+→ отставание роста
+→ большие партии
+→ задержки сердцебиения
+→ ребалансировка
+→ паузы обработки
+→ больше лагов
 ```
 
-This becomes:
-# backpressure amplification loop
+Это становится:
+# Цикл усиления обратного давления
 
-Distributed systems often collapse through:
-- queue growth
-not:
-- immediate crashes.
+Распределенные системы часто разрушаются из-за:
+- рост очереди
+А не:
+- Немедленные сбои.
 
 ---
 
-# Offset Commit Semantics
+# Семантика фиксации смещения
 
-Critical ordering:
+Критический порядок:
 
 ```text
-process message
-→ durable side effect
-→ commit offset
+Обработать сообщение
+→ длительный побочный эффект
+→ зафиксировать смещение
 ```
 
-If offset committed too early:
-- message loss possible
+Если смещение зафиксировано слишком рано:
+- Возможна потеря сообщения
 
-If committed too late:
-- duplicate replay possible
+Если совершено слишком поздно:
+- Возможно дублированное воспроизведение
 
-Offset timing therefore defines:
-- reliability semantics.
-
----
-
-# Replay Safety
-
-Kafka retention enables:
-- replaying historical events
-
-Useful for:
-- rebuilding projections
-- disaster recovery
-- bug correction
-- reprocessing logic
-
-Consumers therefore must be:
-- replay-safe
-- idempotent
-- duplicate tolerant.
+Таким образом, время смещения определяет:
+- Семантика надежности.
 
 ---
 
-# Batching Tradeoffs
+# Безопасность воспроизведения
 
-Large batches improve:
-- throughput
-- network efficiency
+Удержание Kafka позволяет:
+- воспроизведение исторических событий
 
-But increase:
-- replay size
-- processing latency
-- rebalance disruption
-- duplicate amplification
+Полезно для:
+- восстановление прогнозов
+- Аварийное восстановление
+- исправление ошибки
+- Логика повторной обработки
 
-Batching therefore represents:
-- throughput vs latency tradeoff.
-
----
-
-# Cooperative Sticky Assignor
-
-Cooperative rebalance strategy:
-- minimizes partition movement
-
-Benefits:
-- avoids full stop-the-world rebalance
-- reduces disruption
-- stabilizes processing
-
-Preferred for:
-- large-scale consumer groups.
+Таким образом, потребители должны:
+- безопасное воспроизведение
+- идемпотент
+- Устойчивость к дублированию.
 
 ---
 
-# Investigation Process
+# Компромиссы пакетирования
 
-## Consumer Lag Analysis
+Большие партии улучшают:
+- пропускная способность
+- эффективность сети
 
-Inspect:
-- lag growth rate
-- partition-specific lag
-- skewed partitions
+Но увеличение:
+- размер повтора
+- задержка обработки
+- нарушение баланса
+- Двойная амплификация
 
-Identify:
-- hot partitions
-- stalled consumers.
-
----
-
-# Rebalance Logs
-
-Search logs for:
-- rebalance frequency
-- membership churn
-- heartbeat failures
-
-Indicators:
-- coordination instability.
+Таким образом, группирование представляет собой:
+- Компромисс между пропускной способностью и задержкой.
 
 ---
 
-# Poison Message Detection
+# Кооперативное назначение разделов с сохранением привязок (Cooperative Sticky Assignor)
 
-Inspect:
-- repeatedly failing offsets
-- parsing exceptions
-- infinite retry loops
+Совместная стратегия ребалансировки:
+- минимизирует перемещение Разделы
 
-Purpose:
-- isolate poison pills.
+Преимущества:
+- позволяет избежать полной остановки мира
+- уменьшает помехи
+- стабилизирует обработку
 
----
-
-# Consumer Throughput Analysis
-
-Measure:
-- processing latency
-- poll frequency
-- batch duration
-
-Critical for:
-- heartbeat survivability.
+Предпочтительно для:
+- Крупные группы потребителей.
 
 ---
 
-# Partition Distribution
+# Процесс расследования
 
-Validate:
-- partition utilization balance
-- key distribution quality
+## Анализ потребительского отставания
 
-Detect:
-- skew collapse.
+Исследовать:
+- Задержка темпа роста
+- задержка, специфичная для раздела
+- перекошенные Разделы
 
----
-
-# Production Mitigation Plan
-
-## Short-Term Stabilization
-
-- disable autoscaling
-- reduce batch sizes
-- increase poll intervals
-- isolate poison messages
-- enable DLQ
-- reduce retry aggressiveness
-
-Goal:
-- stop rebalance storm.
+Определить:
+- горячие Разделы
+- Застопорились потребители.
 
 ---
 
-# Long-Term Improvements
+# Журналы ребалансировки
 
-## Strong Idempotency
+Поиск журналов для:
+- Частота ребалансировки
+- Частые изменения состава участников
+- сбои сердечного ритма
 
-Implement:
-- event_id tracking
-- durable deduplication
-- replay-safe consumers
-
-Critical for:
-- financial operations.
+Признаки:
+- Координационная нестабильность.
 
 ---
 
-# Better Partitioning Strategy
+# Обнаружение подозрительных сообщений
 
-Design:
-- balanced partition keys
+Исследовать:
+- неоднократно неудачные смещения
+- Анализ исключений
+- бесконечные циклы повторов
 
-Avoid:
-- hot partitions.
-
----
-
-# Cooperative Rebalancing
-
-Adopt:
-- cooperative-sticky assignor
-
-Reduce:
-- stop-the-world pauses.
+Назначение:
+- Изолировать проблемные сообщения.
 
 ---
 
-# Backpressure-Aware Consumers
+# Анализ пропускной способности потребителей
 
-Consumers should:
-- regulate intake rate
-- isolate downstream slowness
-- avoid unbounded retries
+Измерить:
+- задержка обработки
+- частота опроса
+- продолжительность партии
 
-Prevent:
-- lag amplification loops.
-
----
-
-# Architectural Lessons
-
-Distributed event systems fail not because:
-- events stop moving
-
-but because:
-- coordination collapses under pressure
-
-Critical failure modes emerge from:
-- rebalance storms
-- lag amplification
-- duplicate replay
-- hot partitions
-- retry loops
-- processing backpressure
-
-Reliable event-driven systems require:
-- idempotent consumers
-- replay-safe processing
-- bounded retries
-- balanced partitioning
-- stable consumer coordination
+Критично для:
+- Выживаемость сердечного ритма.
 
 ---
 
-# Key Learning
+# Распределение по разделам
 
-- Kafka partitions define both ordering and scalability
-- consumer lag represents delayed distributed state propagation
-- rebalance storms can fully halt stream processing
-- autoscaling consumers may worsen instability
-- exactly-once guarantees are limited in real distributed systems
-- idempotent consumers are mandatory for at-least-once delivery
-- hot partitions create throughput collapse
-- retries and lag amplify each other through feedback loops
+Проверить:
+- баланс использования раздела
+- Качество распределения ключей
+
+Выявить:
+- Косой коллапс.
+
+---
+
+# План снижения последствий инцидента в рабочей среде
+
+## Кратковременная стабилизация
+
+- отключить автомасштабирование
+- уменьшить размеры партий
+- увеличить интервалы опроса
+- изолировать подозрительные сообщения
+- включить DLQ
+- уменьшить агрессивность повторных попыток
+
+Цель:
+- Остановить шторм ребалансировки.
+
+---
+
+# Долгосрочные улучшения
+
+## Сильная идемпотентность
+
+Реализовать:
+- event_id отслеживание
+- надежная дедупликация
+- потребители, безопасные для повторного воспроизведения
+
+Критично для:
+- Финансовые операции.
+
+---
+
+# Улучшенная стратегия разделения
+
+Спроектировать:
+- сбалансированные ключи раздела
+
+Избегать:
+- Горячие Разделы.
+
+---
+
+# Совместная ребалансировка
+
+Внедрить:
+- кооперативно-липкий цедент
+
+Уменьшить:
+- Паузы в режиме остановки мира.
+
+---
+
+# Потребители с учётом обратного давления
+
+Потребители должны:
+- регулировать скорость поступления
+- Изолировать влияние медленной работы зависимых сервисов
+- избегать неограниченных повторов
+
+Предотвращать:
+- Петли запаздывающего усиления.
+
+---
+
+# Архитектурные уроки
+
+Распределенные системы событий терпят неудачу не потому, что:
+- События перестают двигаться
+
+но потому что:
+- координация разрушается под давлением
+
+Критические режимы отказа возникают в результате:
+- перебалансировать штормы
+- Лаговое усиление
+- дублированный повтор
+- горячие Разделы
+- повторные циклы
+- обработка обратного давления
+
+Надежные системы, управляемые событиями, требуют:
+- идемпотентные потребители
+- обработка, безопасная для повторного воспроизведения
+- ограниченные повторы
+- сбалансированное разделение
+- стабильная координация потребителей
+
+---
+
+# Основные выводы
+
+- Разделы Kafka определяют как порядок, так и масштабируемость.
+- Задержка потребителя представляет собой задержку распространения распределенного состояния.
+- Штормы ребалансировки могут полностью остановить обработку потока
+- Потребители автомасштабирования могут ухудшить нестабильность
+- Гарантии ровно одного раза ограничены в реальных распределенных системах
+- Идемпотентные потребители обязательны для хотя бы однократной доставки
+- Горячие разделы приводят к коллапсу пропускной способности
+- Повторные попытки и задержка усиливают друг друга через петли обратной связи.

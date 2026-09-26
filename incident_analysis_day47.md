@@ -1,36 +1,36 @@
-# Incident Analysis — Week 10 Day 5
+# Разбор инцидента — неделя 10, день 5
 
-## Scenario
+## Сценарий
 
-Traffic increased ~12x during major marketing campaign.
+Во время крупной маркетинговой кампании трафик увеличился примерно в 12 раз.
 
-Architecture:
+Архитектура:
 
 ```text
-Internet
+Интернет
    ↓
-Cloud Load Balancer
+Облачный балансировщик нагрузки
    ↓
 NGINX Ingress
    ↓
-API Gateway
+API-шлюз
    ↓
-Microservices
+Микросервисы
 ```
 
-Symptoms:
+Симптомы:
 
-- random connection timeouts
-- intermittent 502/504
-- latency spikes
-- retries amplifying traffic
-- Pods healthy but unreachable
-- SYN backlog overflow
-- conntrack table near exhaustion
--大量 TIME_WAIT sockets
-- ephemeral port allocation failures
+- Таймауты случайных соединений
+- прерывистый 502/504
+- Пики задержки
+- повторные попытки усиления трафика
+- Объекты Pod исправны, но недоступны по сети
+- Переполнение очереди SYN backlog
+- Таблица conntrack близка к истощению
+Большое количество сокетов TIME_WAIT
+- эфемерные сбои выделения портов
 
-Kernel logs:
+Журналы ядра:
 
 ```text
 possible SYN flooding
@@ -38,35 +38,35 @@ nf_conntrack: table full
 TCP: out of memory -- consider tuning
 ```
 
-Applications were healthy.
+Приложения были работоспособными.
 
-Infrastructure coordination layer was collapsing.
+Уровень координации инфраструктуры разрушался.
 
 ---
 
-# Root Cause
+# Основная причина
 
-The platform entered connection lifecycle meltdown.
+Платформа вступила в сбой жизненного цикла соединения.
 
-System failure happened at:
-- Linux TCP stack
-- kernel networking coordination layer
-- NAT state tracking
-- socket lifecycle management
+Системный сбой произошел в:
+- Linux TCP-стек
+- Уровень координации сети ядра
+- Отслеживание состояния NAT
+- Управление жизненным циклом сокетов
 
-The incident was NOT caused by:
-- application CPU
-- Kubernetes orchestration
+Причиной инцидента НЕ были:
+- ЦП приложения
+- Оркестровка Kubernetes
 - PostgreSQL
-- business logic
+- бизнес-логика
 
-The infrastructure failed because the kernel could no longer coordinate enormous amounts of short-lived TCP connections.
+Инфраструктура вышла из строя, поскольку ядро больше не могло координировать огромное количество кратковременных TCP-соединений.
 
 ---
 
-# TCP Connection Lifecycle
+# Жизненный цикл TCP-соединения
 
-TCP establishes connections using 3-way handshake:
+TCP устанавливает соединения с использованием трехстороннего установления связи:
 
 ```text
 SYN
@@ -74,13 +74,13 @@ SYN-ACK
 ACK
 ```
 
-Connection then enters:
+Затем соединение вводит:
 
 ```text
 ESTABLISHED
 ```
 
-Termination:
+Завершение работы:
 
 ```text
 FIN
@@ -89,486 +89,486 @@ FIN
 ACK
 ```
 
-After close:
-- active closer enters TIME_WAIT state
+После закрытия:
+- активный доводчик переходит в состояние TIME_WAIT
 
-Purpose:
-- prevent delayed packet corruption
-- ensure old packets expire safely
+Назначение:
+- Предотвращение повреждения пакетов с задержкой
+- обеспечить безопасное истечение срока действия старых пакетов
 
-TIME_WAIT may persist for tens of seconds.
+TIME_WAIT может сохраняться в течение десятков секунд.
 
-At massive scale:
-- millions of closed connections accumulate
-- socket exhaustion begins
-
----
-
-# SYN Backlog
-
-SYN backlog stores:
-- half-open TCP connections
-
-Meaning:
-- SYN received
-- SYN-ACK sent
-- waiting for final ACK
-
-Connection not fully established yet.
-
-If SYN backlog overflows:
-- kernel drops new SYN packets
-- clients experience timeouts
-- retries increase traffic pressure
-
-Kernel may enable:
-- SYN cookies
-
-Purpose:
-- mitigate queue exhaustion
+В массовом масштабе:
+- Накапливаются миллионы закрытых соединений
+- начинается истощение сокетов
 
 ---
 
-# Accept Queue
+# Очередь незавершённых TCP-соединений (SYN backlog)
 
-Accept queue differs from SYN backlog.
+В очереди SYN backlog хранятся:
+- полуоткрытые TCP-соединения
 
-Accept queue stores:
-- fully established connections
+Значение:
+- Получен SYN
+- SYN-ACK отправлен
+- ожидание окончательного подтверждения
 
-Handshake completed,
-but application has not yet accepted socket using:
+Соединение еще не полностью установлено.
+
+Если очередь SYN backlog переполнена:
+- Ядро отбрасывает новые пакеты SYN
+- у клиентов возникают тайм-ауты
+- повторные попытки увеличивают нагрузку на трафик
+
+Ядро может включать:
+- Файлы cookie SYN
+
+Назначение:
+- Смягчение исчерпания очереди
+
+---
+
+# Очередь соединений, ожидающих accept()
+
+Очередь принятых соединений отличается от очереди незавершённых соединений SYN backlog.
+
+Очередь принятия сохраняет:
+- полностью установленные соединения
+
+Квитирование завершено,
+но приложение еще не приняло сокет, используя:
 
 ```c
 accept()
 ```
 
-If accept queue overflows:
-- application cannot consume sockets fast enough
-- kernel starts rejecting new connections
+Если очередь приема переполняется:
+- приложение не может использовать сокеты достаточно быстро
+- ядро начинает отклонять новые соединения
 
-This becomes:
-- application-to-kernel coordination bottleneck
+Это становится:
+- Узкое место в координации приложения с ядром
 
 ---
 
-# Conntrack Table
+# Таблица Conntrack
 
-Kubernetes networking heavily depends on conntrack.
+Сеть Kubernetes сильно зависит от conntrack.
 
-Conntrack is:
-- stateful packet coordination system
+Conntrack представляет собой:
+- Система координации пакетов с отслеживанием состояния
 
-Purpose:
-- track NAT mappings
-- route return packets correctly
-- maintain connection state
+Назначение:
+- отслеживать сопоставления NAT
+- Правильно маршрутизировать обратные пакеты
+- поддерживать состояние соединения
 
-Kubernetes uses conntrack for:
-- ClusterIP
-- NodePort
+Kubernetes использует conntrack для:
+- ClusterIP — внутренний IP-адрес сервиса
+- NodePort — доступ через порт узла
 - kube-proxy
 - SNAT/DNAT
-- overlay networking
+- Оверлейная сеть
 
-Every connection consumes conntrack entries.
+Каждое соединение использует записи conntrack.
 
-At high scale:
-- conntrack table becomes exhausted
+В большом масштабе:
+- Таблица conntrack исчерпывается
 
-Kernel then drops:
-- new packets
-- new connections
+Затем ядро удаляется:
+- новые пакеты
+- новые связи
 
-Result:
-- random failures
-- intermittent reachability
-- partial outages
+Результат:
+- случайные сбои
+- периодическая достижимость
+- частичные отключения
 
 ---
 
-# Why Kubernetes Amplifies Networking Pressure
+# Почему Kubernetes усиливает сетевое давление
 
-Each packet may traverse:
+Каждый пакет может проходить:
 
 ```text
-veth
-bridge
+Вет
+мост
 iptables
 conntrack
-overlay encapsulation
-routing tables
-reverse NAT
+Наложение инкапсуляции
+Таблицы маршрутизации
+обратный NAT
 ```
 
-This creates enormous:
-- coordination overhead
-- packet processing overhead
-- NAT amplification
+Это создает огромные:
+- Накладные расходы на координацию
+- Накладные расходы на обработку пакетов
+- NAT-усиление
 
-Short-lived connections become extremely expensive.
-
----
-
-# TIME_WAIT Explosion
-
-TIME_WAIT protects TCP correctness.
-
-But high connection churn causes:
-- socket accumulation
-- ephemeral port exhaustion
-- kernel memory pressure
-
-Important nuance:
-- TIME_WAIT burden falls on active closer
-
-If ingress aggressively closes upstream connections:
-- ingress itself dies from TIME_WAIT explosion
+Кратковременные соединения становятся чрезвычайно дорогими.
 
 ---
 
-# Ephemeral Port Exhaustion
+# Резкий рост числа соединений в TIME_WAIT
 
-Outgoing connections require temporary local ports.
+TIME_WAIT защищает корректность TCP.
 
-Typical range:
+Но высокая текучесть соединений приводит к:
+- Накопление сокетов
+- Исчерпание диапазона временных портов
+- Нехватка памяти ядра
+
+Важный нюанс:
+- Нагрузка TIME_WAIT приходится на активный доводчик
+
+Если Ingress слишком активно закрывает соединения с целевыми серверами:
+- Ингресс сам погибает от взрыва TIME_WAIT
+
+---
+
+# Исчерпание диапазона временных портов
+
+Исходящие соединения требуют временных локальных портов.
+
+Типичный диапазон:
 
 ```text
 32768–60999
 ```
 
-Under massive churn:
-- ports consumed rapidly
-- TIME_WAIT prevents immediate reuse
+При интенсивном создании и закрытии соединений:
+- порты быстро расходуются
+- TIME_WAIT предотвращает немедленное повторное использование
 
-Eventually:
+В конечном итоге:
 
 ```text
 connect() → EADDRNOTAVAIL
 ```
 
-Meaning:
-- no ports available
+Значение:
+- Нет доступных портов
 
-New outbound connections fail completely.
-
----
-
-# Retry Amplification
-
-Retries massively amplify kernel pressure.
-
-Every retry creates:
-
-- new SYN packets
-- new sockets
-- new conntrack entries
-- new NAT states
-- new retransmissions
-- new queues
-- new buffers
-
-Retries amplify:
-- coordination structures
-not:
-- business logic
-
-This creates positive feedback loop.
+Новые исходящие соединения полностью терпят неудачу.
 
 ---
 
-# TCP Retransmissions
+# Усиление нагрузки из-за повторных запросов
 
-Packet loss triggers retransmissions.
+Повторные попытки значительно усиливают нагрузку на ядро.
 
-TCP guarantees ordered delivery.
+Каждая повторная попытка создает:
 
-Example:
+- новые пакеты SYN
+- Новые сокеты
+- новые записи conntrack
+- новые состояния NAT
+- новые повторные передачи
+- новые очереди
+- новые буферы
+
+Повторные попытки усиливают:
+- Координационные структуры
+А не:
+- бизнес-логика
+
+Это создает петлю положительной обратной связи.
+
+---
+
+# Повторные передачи TCP
+
+Потеря пакетов запускает повторные передачи.
+
+TCP гарантирует упорядоченную доставку.
+
+Пример:
 
 ```text
-50 received
-51 lost
-52 received
-53 received
+50 получено
+51 потеряно
+52 получено
+53 получено
 ```
 
-Application cannot process:
+Приложение не может обработать:
 - 52
 - 53
 
-until:
-- 51 retransmitted
+До:
+- 51 повторно передано
 
-This creates:
-- Head-of-Line Blocking
+Это создает:
+- Блокировка очереди первым запросом (head-of-line blocking)
 
 ---
 
-# Head-of-Line Blocking
+# Блокировка очереди первым запросом (head-of-line blocking)
 
-TCP enforces strict ordering.
+TCP обеспечивает строгий порядок.
 
-Single lost packet stalls:
-- entire stream
+Задержки при одиночной потере пакета:
+- весь поток
 
-Under congestion:
-- retransmits grow
-- RTT increases
-- queues expand
+В условиях перегруженности:
+- Ретрансляции растут
+- Увеличение RTT
+- очереди расширяются
 - tail latency explodes
 
-This explains:
-- healthy averages
-- catastrophic p99 latency
+Это объясняет:
+- здоровые средние показатели
+- катастрофическая задержка p99
 
 ---
 
-# Why CPU Stayed Normal
+# Почему ЦП остался в норме
 
-Infrastructure was not compute-bound.
+Инфраструктура не была привязана к вычислениям.
 
-System failed due to:
-- queue contention
-- lock contention
-- socket coordination
-- kernel memory pressure
-- softirq saturation
-- networking state explosion
+Система вышла из строя из-за:
+- конфликт в очереди
+- Конфликт блокировки
+- Координация сокетов
+- Нехватка памяти ядра
+- насыщение программного прерывания
+- Взрыв состояния сети
 
-Processes waited on coordination structures rather than performing computations.
+Процессы ожидали координационных структур, а не выполняли вычисления.
 
-Applications appeared healthy while networking layer collapsed.
+Приложения выглядели работоспособными, хотя сетевой уровень рухнул.
 
 ---
 
-# Connection Churn
+# Частое создание и закрытие соединений
 
-Large systems often fail because of:
+Большие системы часто выходят из строя из-за:
 
 ```text
-too many short-lived connections
+слишком много кратковременных связей
 ```
 
-not:
-- heavy requests
+А не:
+- тяжелые запросы
 
-Connection lifecycle coordination becomes dominant bottleneck.
+Координация жизненного цикла соединения становится доминирующим узким местом.
 
-This is why:
-- HTTP keep-alive
-- HTTP/2 multiplexing
-- connection reuse
-- connection pooling
-are critical production optimizations.
+Вот почему:
+- Повторное использование HTTP-соединений (Keep-Alive)
+- Мультиплексирование HTTP/2
+- повторное использование соединения
+- пул соединений
+Это критически важные меры оптимизации рабочей среды.
 
 ---
 
-# Investigation Process
+# Процесс расследования
 
-## Socket Statistics
+## Статистика сокетов
 
 ```bash
 ss -s
 ```
 
-Purpose:
-- analyze socket states
-- TIME_WAIT growth
-- connection pressure
+Назначение:
+- анализировать состояния сокетов
+- Рост TIME_WAIT
+- Давление соединения
 
 ---
 
-## SYN Queue Analysis
+## Анализ очереди SYN
 
 ```bash
 netstat -ant | grep SYN_RECV
 ```
 
-Purpose:
-- detect half-open connection accumulation
+Назначение:
+- обнаружение скопления полуоткрытых соединений
 
 ---
 
-## Conntrack Analysis
+## Анализ Conntrack
 
 ```bash
 sysctl net.netfilter.nf_conntrack_count
 sysctl net.netfilter.nf_conntrack_max
 ```
 
-Purpose:
-- detect table exhaustion
+Назначение:
+- обнаружение исчерпания таблицы
 
 ---
 
-## Kernel Logs
+## Журналы ядра
 
 ```bash
 dmesg | grep conntrack
 ```
 
-Purpose:
-- identify kernel packet drops
+Назначение:
+- идентифицировать отбрасывание пакетов ядра
 
 ---
 
-## Packet Capture
+## Захват пакета
 
 ```bash
 tcpdump
 ```
 
-Purpose:
-- analyze retransmits
-- packet loss
-- SYN floods
-- reset storms
+Назначение:
+- анализировать повторные передачи
+- потеря пакетов
+- SYN-наводнения
+- сброс штормов
 
 ---
 
-# Production Mitigation Plan
+# План снижения последствий инцидента в рабочей среде
 
-# Short-Term Stabilization
+# Кратковременная стабилизация
 
-## Increase Conntrack Limits
+## Увеличение лимитов conntrack
 
 ```bash
 sysctl -w net.netfilter.nf_conntrack_max=1048576
 ```
 
-Purpose:
-- reduce packet drops
+Назначение:
+- уменьшить потери пакетов
 
 ---
 
-## Expand Ephemeral Port Range
+## Расширение диапазона эфемерных портов
 
 ```bash
 sysctl -w net.ipv4.ip_local_port_range="1024 65535"
 ```
 
-Purpose:
-- delay port exhaustion
+Назначение:
+- Задержка истощения порта
 
 ---
 
-## Enable TIME_WAIT Reuse
+## Включение повторного использования TIME_WAIT
 
 ```bash
 sysctl -w net.ipv4.tcp_tw_reuse=1
 ```
 
-Purpose:
-- reduce socket pressure
+Назначение:
+- Снизить нагрузку на сокеты
 
 ---
 
-## Enable SYN Cookies
+## Включение SYN cookies
 
 ```bash
 sysctl -w net.ipv4.tcp_syncookies=1
 ```
 
-Purpose:
-- protect SYN backlog
+Назначение:
+- Защитить очередь SYN backlog
 
 ---
 
-## Aggressive Load Shedding
+## Активный сброс избыточной нагрузки
 
-Reject excess traffic early.
+Досрочное отклонение избыточного трафика.
 
-Purpose:
-- preserve core platform stability
-
----
-
-# Long-Term Architecture
-
-## HTTP Keep-Alive
-
-Avoid creating new TCP connection per request.
-
-Purpose:
-- reduce connection churn
+Назначение:
+- сохранение стабильности базовой платформы
 
 ---
 
-## Connection Pooling
+# Долгосрочная архитектура
 
-Use:
+## Повторное использование HTTP-соединений (Keep-Alive)
+
+Избегайте создания нового TCP-соединения для каждого запроса.
+
+Назначение:
+- Сократить частоту создания и закрытия соединений
+
+---
+
+## Пул соединений
+
+Использовать:
 - Envoy
 - NGINX
-- pooled upstream sockets
+- Сокеты соединений с целевыми серверами, объединённые в пул
 
-Purpose:
-- reuse hot connections
-
----
-
-## HTTP/2 Multiplexing
-
-Multiple requests share:
-- single TCP connection
-
-Purpose:
-- drastically reduce socket pressure
+Назначение:
+- повторное использование горячих соединений
 
 ---
 
-## Migrate kube-proxy to IPVS
+## Мультиплексирование HTTP/2
 
-iptables scales poorly.
+Множественные запросы совместно используют:
+- одно TCP-соединение
 
-IPVS uses:
-- efficient hash-based routing
-
-Purpose:
-- reduce packet processing overhead
+Назначение:
+- Резко снизить нагрузку на сокеты
 
 ---
 
-## Reduce NAT Amplification
+## Миграция kube-proxy на IPVS
 
-Prefer:
-- direct routing
-- eBPF dataplanes
-- Cilium
+iptables плохо масштабируется.
 
-Purpose:
-- reduce conntrack dependence
+IPVS использует:
+- эффективная маршрутизация на основе хэша
 
----
-
-## Backpressure
-
-System must slow traffic producers before queues collapse.
-
-Purpose:
-- prevent retry storms
+Назначение:
+- уменьшить накладные расходы на обработку пакетов
 
 ---
 
-## QUIC / HTTP3
+## Уменьшение усиления NAT
 
-QUIC operates over UDP.
+Предпочитать:
+- прямая маршрутизация
+- Плоскости данных eBPF
+- Ресничка
 
-Advantages:
-- independent streams
-- reduced head-of-line blocking
-- better mobile performance
-
-Loss in one stream:
-- does not stall others
+Назначение:
+- уменьшить зависимость conntrack
 
 ---
 
-# Key Learning
+## Обратное давление (backpressure)
 
-Large-scale systems often fail because:
-- connections become impossible to coordinate
+Система должна замедлить работу производителей трафика, прежде чем очереди рухнут.
 
-before:
-- applications become computationally overloaded
+Назначение:
+- Предотвращение повторных попыток
 
-Kernel networking coordination is often the real scalability limit.
+---
+
+## QUIC/HTTP3
+
+QUIC работает через UDP.
+
+Преимущества:
+- независимые потоки
+- Уменьшение блокировки начала строки
+- Улучшенная мобильная производительность
+
+Потери в одном потоке:
+- не останавливает других
+
+---
+
+# Основные выводы
+
+Крупномасштабные системы часто терпят неудачу, потому что:
+- соединения становятся невозможными для координации
+
+Перед:
+- приложения становятся вычислительно перегруженными
+
+Координация сети ядра часто является реальным пределом масштабируемости.

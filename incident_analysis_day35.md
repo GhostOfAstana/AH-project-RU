@@ -1,268 +1,268 @@
-# Incident Analysis — Week 8 Day 7
+# Разбор инцидента — неделя 8, день 7
 
-## Scenario
+## Сценарий
 
-Team successfully deployed API into Kubernetes.
+Команда успешно развернула API в Kubernetes.
 
-After several weeks, operational problems appeared:
-- PostgreSQL password was hardcoded inside GitHub repository
-- developers rebuilt Docker image after every .env change
-- staging environment accidentally connected to production database
-- some Pods continued using outdated credentials after token rotation
-- junior developer received unintended access to production API keys
-- configurations between environments became inconsistent
+Через несколько недель появились эксплуатационные проблемы:
+- Пароль PostgreSQL был жестко запрограммирован внутри репозитория GitHub.
+- разработчики перестраивали образ Docker после каждого изменения .env.
+- Промежуточная среда случайно подключилась к рабочей базе данных
+- некоторые Pod продолжали использовать устаревшие учетные данные после ротации токенов
+- Младший разработчик получил непреднамеренный доступ к рабочим ключам API
+- Конфигурации между средами стали противоречивыми
 
-CTO concluded that the team does not understand separation between code, configuration, and secrets.
-
----
-
-## What Problem Is Happening
-
-The core architectural problem is configuration hardcoding.
-
-Application code and runtime configuration became tightly coupled.
-
-This violates:
-- Twelve-Factor App principles
-- immutable infrastructure philosophy
-- production deployment best practices
-
-A production-ready Docker image must remain immutable.
-
-Correct workflow:
-1. image is built once
-2. same image passes through environments
-3. runtime configuration changes externally
-
-If image rebuild is required for changing:
-- database host
-- API endpoint
-- credentials
-- feature flags
-
-then deployment architecture is fundamentally broken.
+Технический директор пришел к выводу, что команда не понимает разделения между кодом, конфигурацией и секретами.
 
 ---
 
-## Why Secrets Inside Git Or Docker Images Are Dangerous
+## В чём заключается проблема
 
-### Git History Persistence
+Основная архитектурная проблема заключается в жестком кодировании конфигурации.
 
-Git permanently stores commit history.
+Код приложения и конфигурация среды выполнения стали тесно связанными.
 
-Even if secret is deleted later:
-- previous commits still contain credentials
-- repository clones preserve leaked data
-- attackers can recover historical secrets
+Это нарушает:
+- Принципы приложения «Двенадцать факторов»
+- Философия неизменной инфраструктуры
+- Лучшие практики рабочего развертывания
 
-Once secret enters Git:
-- it must be considered compromised
-- immediate rotation becomes mandatory
+Готовый к эксплуатации образ Docker должен оставаться неизменным.
+
+Правильный рабочий процесс:
+1. образ создается один раз
+2. Один и тот же образ проходит через разные окружения
+3. Конфигурация времени выполнения изменяется извне
+
+Если для изменения требуется перестроение образа:
+- хост базы данных
+- Конечная точка API
+- полномочия
+- Флаги функций
+
+Тогда архитектура развертывания фундаментально нарушена.
 
 ---
 
-## Docker Layer Exposure
+## Чем опасно хранение секретов в Git и образах Docker
 
-Docker images are layered and immutable.
+### Сохранение истории Git
 
-Secrets copied during build process may remain accessible through:
+Git постоянно хранит историю коммитов.
+
+Даже если секрет будет удален позже:
+- предыдущие коммиты все еще содержат учетные данные
+- Клоны репозитория сохраняют утекшие данные
+- Злоумышленники могут восстановить исторические тайны
+
+Как только секрет попадает в Git:
+- его следует считать скомпрометированным
+- немедленная ротация становится обязательной
+
+---
+
+## Раскрытие секретов через слои Docker
+
+Образы Docker являются многоуровневыми и неизменяемыми.
+
+Secrets, скопированный в процессе сборки, может оставаться доступным через:
 - docker history
-- image layers
-- build cache
-- container registry artifacts
+- Слои образа
+- построить кэш
+- Артефакты реестра контейнеров
 
-Even if secret file is deleted later:
-- previous layers may still expose sensitive data
-
----
-
-## Operational Consequences
-
-Hardcoded secrets create:
-- forced image rebuilds
-- difficult secret rotation
-- deployment delays
-- inconsistent environments
-- security exposure
-
-Infrastructure loses:
-- flexibility
-- reproducibility
-- operational safety
+Даже если секретный файл позже будет удален:
+- предыдущие уровни все еще могут раскрывать конфиденциальные данные
 
 ---
 
-## What ConfigMap Is
+## Эксплуатационные последствия
 
-ConfigMap is a Kubernetes object for storing non-sensitive runtime configuration.
+Жестко закодированные секреты создают:
+- принудительная перестройка образа
+- сложная секретная ротация
+- Задержки развертывания
+- Несовместимые среды
+- Нарушение безопасности
 
-Typical contents:
-- application settings
-- feature flags
-- service endpoints
-- ports
-- non-sensitive environment variables
-
-ConfigMaps store data as:
-- key-value pairs
-- configuration files
+Инфраструктура теряет:
+- гибкость
+- воспроизводимость
+- Эксплуатационная безопасность
 
 ---
 
-## How ConfigMap Works
+## Что такое ConfigMap
 
-Kubernetes injects ConfigMap data into Pods during runtime.
+ConfigMap представляет собой объект Kubernetes для хранения неконфиденциальной конфигурации времени выполнения.
 
-Injection methods:
-- environment variables
-- mounted files
-- mounted directories
+Типичное содержание:
+- Настройки приложения
+- Флаги функций
+- Конечные точки службы
+- порты
+- нечувствительные переменные среды
 
-Application code reads configuration dynamically:
+ConfigMaps сохраняет данные как:
+- пары ключ-значение
+- Конфигурационные файлы
+
+---
+
+## Как работает ConfigMap
+
+Kubernetes вводит данные ConfigMap в Pod во время выполнения.
+
+Способы инъекции:
+- Переменные среды
+- смонтированные файлы
+- смонтированные каталоги
+
+Код приложения считывает конфигурацию динамически:
 - os.getenv()
-- configuration files
-- mounted runtime paths
+- Конфигурационные файлы
+- смонтированные пути выполнения
 
-Result:
-- application image remains unchanged
-- environment-specific behavior becomes externalized
-
----
-
-## What Secret Is
-
-Secret is a Kubernetes object for sensitive information.
-
-Typical contents:
-- passwords
-- API tokens
-- certificates
-- encryption keys
-- authentication credentials
-
-Secrets support:
-- RBAC access control
-- restricted visibility
-- runtime injection
+Результат:
+- Образ приложения остается неизменным
+- поведение, специфичное для окружающей среды, становится внешним
 
 ---
 
-## Secret vs ConfigMap
+## Что такое Secret
 
-| Characteristic | ConfigMap | Secret |
+Secret представляет собой объект Kubernetes для конфиденциальной информации.
+
+Типичное содержание:
+- пароли
+- Токены API
+- сертификаты
+- ключи шифрования
+- учетные данные аутентификации
+
+Поддержка Secrets:
+- Управление доступом RBAC
+- ограниченная видимость
+- Внедрение во время выполнения
+
+---
+
+## Сравнение Secret и ConfigMap
+
+| Характеристика | ConfigMap | Secret |
 |---|---|---|
-| Purpose | Non-sensitive config | Sensitive credentials |
-| Typical Usage | Ports, flags, URLs | Passwords, API keys |
-| Visibility | Broad | Restricted |
-| Access Control | Minimal | RBAC-controlled |
-| Storage Format | Plain text | Base64 encoded |
-| Security Goal | Configuration management | Secret isolation |
+| Цель | Неконфиденциальная конфигурация | Конфиденциальные учетные данные |
+| Типичное использование | Порты, флаги, URL-адреса | Пароли, API-ключи |
+| Видимость | Широкий | Ограничено |
+| Контроль доступа | Минимальный | RBAC-управляемый |
+| Формат хранения | Простой текст | Кодировка Base64 |
+| Цель безопасности | Управление конфигурацией | Изоляция Secret |
 
-Important:
-- Base64 encoding is NOT encryption
-- Kubernetes Secrets are not полноценный vault solution by default
-
----
-
-## RBAC And Least Privilege
-
-Production infrastructure must enforce:
-- role isolation
-- minimal permissions
-- controlled secret access
-
-Junior developers should not have permission to:
-- read production secrets
-- access sensitive namespaces
-- retrieve cluster-wide credentials
-
-RBAC limits blast radius during:
-- mistakes
-- credential leaks
-- compromised accounts
+Важно:
+- Кодирование Base64 НЕ является шифрованием
+- Kubernetes Secrets по умолчанию не являются полноценным хранилищем.
 
 ---
 
-## Immutable Infrastructure Principle
+## RBAC и минимальные привилегии
 
-Production images should:
-- build once
-- deploy everywhere unchanged
+Рабочая инфраструктура должна обеспечивать:
+- изоляция ролей
+- минимальные разрешения
+- контролируемый секретный доступ
 
-Environment differences must be injected dynamically through:
+Младшие разработчики не должны иметь разрешения на:
+- Читать секреты рабочей среды
+- доступ к конфиденциальным пространствам имен
+- получить учетные данные всего кластера
+
+RBAC ограничивает радиус взрыва во время:
+- ошибки
+- Утечка учетных данных
+- взломанные аккаунты
+
+---
+
+## Принцип неизменяемой инфраструктуры
+
+Рабочие образы должны:
+- построить один раз
+- развернуть везде без изменений
+
+Различия в окружающей среде должны вноситься динамически посредством:
 - ConfigMaps
 - Secrets
-- environment variables
-- external secret providers
+- Переменные среды
+- Внешние секретные поставщики
 
-Result:
-- reproducible deployments
-- safer rollbacks
-- consistent staging/production behavior
+Результат:
+- воспроизводимое развертывание
+- Более безопасные откаты
+- Одинаковое поведение в тестовой и рабочей средах
 
 ---
 
-## Advanced Production Secret Management
+## Управление секретами в зрелой рабочей инфраструктуре
 
-Mature infrastructure often uses external secret systems:
+Зрелая инфраструктура часто использует внешние секретные системы:
 - HashiCorp Vault
 - AWS Secrets Manager
 - Azure Key Vault
 - GCP Secret Manager
 
-Kubernetes retrieves secrets dynamically during runtime.
+Kubernetes динамически извлекает секреты во время выполнения.
 
-Benefits:
-- centralized secret management
-- rotation automation
-- audit logging
-- stronger isolation
-
----
-
-## Secret Rotation
-
-Production systems must support credential rotation without downtime.
-
-Modern systems reload:
-- certificates
-- API keys
-- access tokens
-
-during runtime.
-
-Goal:
-- replace compromised credentials
-- avoid full redeployment
-- minimize operational disruption
+Преимущества:
+- централизованное секретное управление
+- Автоматизация вращения
+- регистрация аудита
+- более сильная изоляция
 
 ---
 
-## Environment Isolation
+## Ротация секретов
 
-Staging and production environments must remain strictly isolated.
+Рабочие системы должны поддерживать ротацию учетных данных без простоев.
 
-Isolation mechanisms:
-- separate namespaces
-- separate clusters
-- separate IAM permissions
-- separate secret stores
+Современные системы перезагрузки:
+- сертификаты
+- Ключи API
+- токены доступа
 
-Purpose:
-- prevent accidental cross-environment access
-- reduce blast radius
-- improve operational safety
+во время выполнения.
+
+Цель:
+- заменить скомпрометированные учетные данные
+- избежать полного перераспределения
+- Минимизировать сбои в работе
 
 ---
 
-## Key Learning
+## Изоляция окружений
 
-- code and configuration must remain separated
-- Docker images should stay immutable
-- secrets must never be hardcoded into Git or images
-- ConfigMaps manage runtime configuration
-- Secrets manage sensitive credentials
-- Base64 is not encryption
-- RBAC enforces least privilege access
-- mature systems support runtime secret rotation
-- production environments require strict isolation
+Промежуточная и рабочая среды должны оставаться строго изолированными.
+
+Механизмы изоляции:
+- отдельные пространства имен
+- отдельные кластеры
+- отдельные разрешения IAM
+- отдельные секретные хранилища
+
+Назначение:
+- Предотвращение случайного межсредового доступа
+- уменьшить радиус взрыва
+- Повышение эксплуатационной безопасности
+
+---
+
+## Основные выводы
+
+- Код и конфигурация должны оставаться разделенными
+- Образы Docker должны оставаться неизменяемыми.
+- Секреты никогда не должны быть жестко запрограммированы в Git или образах.
+- ConfigMaps управляет конфигурацией времени выполнения
+- Secrets управляет конфиденциальными учетными данными
+- Base64 не является шифрованием.
+- RBAC обеспечивает доступ с наименьшими привилегиями.
+- Зрелые системы поддерживают ротацию секретов во время выполнения
+- Рабочие среды требуют строгой изоляции

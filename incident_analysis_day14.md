@@ -1,11 +1,11 @@
-# Incident Analysis — Week 5 Day 7
+# Разбор инцидента — неделя 5, день 7
 
-## Scenario
-Users report: "Sometimes orders load slowly, sometimes they do not appear immediately, sometimes everything works fine"
+## Сценарий
+Пользователи сообщают: «Иногда заказы загружаются медленно, иногда они появляются не сразу, иногда все работает нормально»
 
 ---
 
-## Log Samples
+## Примеры строк журналов
 
 ### orders.log
 
@@ -30,82 +30,82 @@ Users report: "Sometimes orders load slowly, sometimes they do not appear immedi
 
 ---
 
-## My Initial Thinking
+## Мои первоначальные размышления
 
-- I identified cache issues and slow database queries
-- I suggested improving caching and indexing
+- Я обнаружил проблемы с кэшем и медленные запросы к базе данных.
+- Я предложил улучшить кэширование и индексацию
 
-### Problem
-- I treated cache and DB as separate issues
-- I did not fully connect them into a single chain
-- My reasoning lacked structured correlation across logs
-
----
-
-## Corrected Approach
-
-### 1. What Is Happening
-
-- Cache miss occurs for specific users
-- Request falls back to database
-- Database query is slow
-- API response time increases significantly
-
-→ Full chain:
-
-Cache miss → DB slow query → API delay
+### Проблема
+- Я рассматривал кэш и БД как отдельные проблемы.
+- Я не до конца соединил их в единую цепочку
+- Моим рассуждениям не хватало структурированной корреляции между журналами.
 
 ---
 
-### 2. First Step
+## Исправленный подход
 
-Confirm correlation across all layers:
-- Cache logs (miss)
-- DB logs (slow query)
-- API logs (response time)
+### 1. Что происходит
 
----
+- Промах кэша происходит у конкретных пользователей.
+- Запрос возвращается в базу данных.
+- Запрос к базе данных выполняется медленно.
+- Время отклика API значительно увеличивается
 
-### 3. Root Cause
+→ Полная цепочка:
 
-Combined issue:
-
-- Inefficient caching strategy (high cache miss rate)
-- Slow database queries
-
-→ Problem arises from interaction of both layers
+Промах в кэше → медленный запрос к базе данных → задержка API
 
 ---
 
-### 4. Validation
+### 2. Первый шаг
 
-- Extract all cache miss entries
-- Match them with DB slow query logs
-- Match both with API response_time spikes
-- Identify repeating patterns
-
----
-
-### 5. Actions
-
-#### Improve Database Performance
-- Optimize queries
-- Add indexes
-
-#### Improve Cache Efficiency
-- Reduce cache miss rate
-- Increase TTL if appropriate
-- Implement cache warming
-
-#### Improve System Behavior
-- Update cache after write operations
-- Reduce dependency on DB for frequent reads
+Подтвердите корреляцию между всеми слоями:
+- Журналы кэша (промах)
+- Журналы БД (медленный запрос)
+- Журналы API (время отклика)
 
 ---
 
-## Key Learning
+### 3. Основная причина
 
-- Real-world issues often involve multiple system layers
-- Must correlate logs across cache, DB, and API
-- Cache inefficiency + slow DB = critical performance degradation
-- Systems fail due to interaction of components, not isolated issues
+Комбинированная проблема:
+
+- Неэффективная стратегия кэширования (высокая частота промахов кэша)
+- Медленные запросы к базе данных
+
+→ Проблема возникает из-за взаимодействия обоих слоев.
+
+---
+
+### 4. Проверка гипотез
+
+- Извлечение всех промахов кэша.
+- Сопоставьте их с журналами медленных запросов БД.
+- Совместимы с шипами API response_time.
+- Идентификация повторяющихся шаблонов
+
+---
+
+### 5. Действия
+
+#### Улучшение производительности базы данных
+- Оптимизация запросов
+- Добавление индексов
+
+#### Повышение эффективности кэша
+- Уменьшение частоты промахов кэша.
+- При необходимости увеличьте TTL.
+- Реализация подогрева кэша
+
+#### Улучшение поведения системы
+- Обновление кэша после операций записи
+- Уменьшение зависимости от БД при частом чтении.
+
+---
+
+## Основные выводы
+
+- Реальные проблемы часто затрагивают несколько системных уровней.
+- Необходимо коррелировать журналы между кешем, базой данных и API.
+- Неэффективность кэша + медленная БД = критическое снижение производительности
+- Системы выходят из строя из-за взаимодействия компонентов, а не из-за отдельных проблем.

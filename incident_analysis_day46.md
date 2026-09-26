@@ -1,784 +1,784 @@
-# Incident Analysis — Week 10 Day 4
+# Разбор инцидента — неделя 10, день 4
 
-## Scenario
+## Сценарий
 
-Large production Kubernetes cluster experienced severe instability after major deployment activity.
+Крупный рабочий кластер Kubernetes испытывал серьезную нестабильность после масштабной деятельности по развертыванию.
 
-Cluster profile:
+Профиль кластера:
 
 ```text
-~700 nodes
-~25,000 Pods
-multi-tenant workloads
-autoscaling enabled
-service mesh enabled
-high CI/CD activity
-many custom operators
+~700 узлов
+~25 000 Pod
+Многопользовательские рабочие нагрузки
+Автомасштабирование включено
+Сервисная сетка включена
+Высокая активность CI/CD
+множество пользовательских операторов
 ```
 
-Symptoms:
+Симптомы:
 
-- Pods stuck in Pending
-- deployments extremely slow
+- Объекты Pod застряли в состоянии Pending
+- Развертывание чрезвычайно медленное
 - kubectl timing out
-- HPA delayed
-- CoreDNS instability
-- intermittent NotReady nodes
-- operator failures
-- API requests hanging
+- Задержка HPA
+- Нестабильность CoreDNS
+- Прерывистые узлы NotReady
+- Сбои оператора
+- Запросы API зависают
 
-Infrastructure itself remained mostly operational:
-- worker nodes alive
-- applications partially serving traffic
-- networking mostly functional
+Сама инфраструктура оставалась в основном работоспособной:
+- рабочие узлы живы
+- Приложения, частично обслуживающие трафик
+- Сеть в основном функциональна
 
-Control plane metrics showed:
-- API server latency increase
-- exploding watch counts
-- etcd fsync latency spikes
-- reconciliation delays
+Метрики плоскости управления показали:
+- Увеличение задержки API-сервера
+- Взрывное количество часов
+- etcd fsync Скачки задержки
+- Задержки согласования
 
-Root cause involved:
-- control plane saturation
+Основная причина:
+- Насыщение плоскости управления
 - watch storms
-- reconciliation amplification
-- etcd write pressure
-- API server overload
-- coordination instability
+- усиление согласования
+- etcd давление записи
+- Перегрузка сервера API
+- нестабильность координации
 
-rather than:
-- node failure
-- application crash
-- network partition.
+вместо:
+- отказ узла
+- Сбой приложения
+- Сетевой раздел.
 
 ---
 
-# Kubernetes Control Plane
+# Плоскость управления Kubernetes
 
-Kubernetes functions as:
-- distributed desired-state coordination system
+Kubernetes функционирует как:
+- распределенная система координации желаемого состояния
 
-Core control plane components:
-- API Server
+Основные компоненты плоскости управления:
+- API-сервер
 - etcd
-- scheduler
-- controller-manager
+- планировщик
+- Контроллер-менеджер
 
-All cluster coordination flows through:
-- control plane state synchronization.
+Вся координация кластера осуществляется через:
+- Синхронизация состояний плоскости управления.
 
 ---
 
-# API Server
+# API-сервер
 
-API Server is:
-- central coordination gateway
+Сервер API представляет собой:
+- Центральный координационный шлюз
 
-Responsibilities:
-- authentication
-- authorization
-- admission control
-- object persistence
+Обязанности:
+- аутентификация
+- авторизация
+- Контроль допуска
+- постоянство объекта
 - watch distribution
-- API validation
+- Проверка API
 
-All components communicate through:
-- API Server
+Все компоненты взаимодействуют посредством:
+- API-сервер
 
-including:
-- kubelets
-- scheduler
-- controllers
-- operators
+В том числе:
+- кубельца
+- планировщик
+- Контроллеры
+- операторы
 - kubectl
-- GitOps systems
-- service mesh controllers
+- Системы GitOps
+- Сервисные контроллеры Mesh
 
-API Server therefore becomes:
-# critical coordination bottleneck
+Таким образом, API-сервер становится:
+# критическое узкое место в координации
 
-in large clusters.
+в больших кластерах.
 
 ---
 
 # etcd
 
-etcd stores:
-- authoritative cluster state
+etcd хранит:
+- авторитетное состояние кластера
 
-Examples:
+Примеры:
 - Pods
 - Deployments
-- Services
+- Услуги
 - Secrets
-- CRDs
-- Leases
+- CRD
+- Аренда
 - EndpointSlices
 
-etcd is:
-- distributed strongly consistent KV store
+etcd представляет собой:
+- распределенное строго согласованное хранилище KV
 
-Consensus implemented through:
-- Raft protocol.
+Консенсус реализован посредством:
+- Протокол Raft.
 
-All writes require:
-- WAL append
+Для всех операций записи требуется:
+- Добавление WAL
 - fsync
-- quorum replication
-- commit acknowledgement
+- Репликация кворума
+- подтверждение подтверждения
 
-Storage latency directly impacts:
-- cluster coordination latency.
-
----
-
-# Scheduler
-
-Scheduler assigns:
-- unscheduled Pods
-to:
-- worker nodes
-
-Scheduling involves:
-- resource fitting
-- affinity rules
-- anti-affinity
-- taints
-- tolerations
-- topology constraints
-- storage locality
-
-At large scale scheduling itself becomes:
-- computationally expensive.
+Задержка хранения напрямую влияет на:
+- Задержка координации кластера.
 
 ---
 
-# Controller Manager
+# Планировщик
 
-Controllers continuously reconcile:
-- actual cluster state
-toward:
-- desired state
+Планировщик назначает:
+- Объекты Pod, которые планировщик ещё не разместил
+К:
+- рабочие узлы
 
-Examples:
-- Deployment controller
-- ReplicaSet controller
-- Node controller
-- EndpointSlice controller
+Планирование включает в себя:
+- Подбор ресурсов
+- Правила сходства
+- антиаффинность
+- Ограничения узлов (taints)
+- Допуски
+- Ограничения топологии
+- место хранения
 
-Kubernetes fundamentally operates through:
-# reconciliation loops
-
-rather than:
-- direct imperative execution.
+При крупномасштабном планировании само по себе становится:
+- Вычислительно дорогостоящий.
 
 ---
 
-# Reconciliation Loop
+# Менеджер контроллеров
 
-Core Kubernetes model:
+Контроллеры постоянно согласовывают:
+- фактическое состояние кластера
+В сторону:
+- желаемое состояние
+
+Примеры:
+- Контроллер Deployment
+- Контроллер ReplicaSet
+- Контроллер узла
+- Контроллер EndpointSlice
+
+Kubernetes в основном работает посредством:
+# Циклы согласования состояния
+
+вместо:
+- Прямое императивное исполнение.
+
+---
+
+# Цикл согласования
+
+Базовая модель Kubernetes:
 
 ```text
-desired state
+желаемое состояние
 ≠
-actual state
+фактическое состояние
 ```
 
-Controllers repeatedly:
-- observe state
-- compare state
-- attempt convergence
+Контроллеры неоднократно:
+- наблюдать за состоянием
+- состояние сравнения
+- попытка сближения
 
-This creates:
-- asynchronous eventual consistency system
+Это создает:
+- асинхронная система конечной согласованности
 
-not:
-- immediate consistency system.
+А не:
+- Система немедленной согласованности.
 
-Controllers rely heavily on:
-- watches
-- work queues
-- retries
-- cached state.
-
----
-
-# Watch Mechanism
-
-Kubernetes components avoid:
-- aggressive polling
-
-Instead:
-- long-lived watch streams used
-
-Components subscribe to:
-- object changes
-
-Examples:
-- Pod updates
-- Endpoint changes
-- Lease renewals
-- CRD modifications
-
-This allows:
-- near real-time coordination.
+Контроллеры в значительной степени полагаются на:
+- часы
+- рабочие очереди
+- повторные попытки
+- Кэшированное состояние.
 
 ---
 
-# Watch Storm
+# Механизм наблюдения за изменениями (watch)
 
-Massive deployment activity triggered:
-- huge object churn
+Компоненты Kubernetes позволяют избежать:
+- агрессивный опрос
 
-Each Pod lifecycle event generated:
+Вместо этого:
+- используются долгоживущие потоки просмотра
+
+Компоненты подписываются на:
+- Изменения объекта
+
+Примеры:
+- Обновления Pod
+- Изменения конечной точки
+- Продление аренды
+- Модификации CRD
+
+Это позволяет:
+- Координация практически в реальном времени.
+
+---
+
+# Шторм событий наблюдения
+
+Активность массового развертывания инициируется:
+- Огромный поток объектов
+
+Каждое событие жизненного цикла Pod генерирует:
 - watch notifications
-- cache invalidations
-- reconciliation triggers
+- Аннулирование кэша
+- Триггеры согласования
 
-Thousands of watchers received:
-- continuous event streams
+Тысячи зрителей получили:
+- непрерывные потоки событий
 
-This produced:
+Это привело к:
 # watch storm
 
-Effects:
-- serialization overhead
-- network fanout
-- API server CPU pressure
-- memory pressure
-- queue amplification.
+Последствия:
+- Накладные расходы на сериализацию
+- разветвление сети
+- Давление процессора сервера API
+- давление памяти
+- Усиление очереди.
 
 ---
 
-# Reconciliation Amplification
+# Усиление согласования
 
-One object change triggered:
-- many independent controllers
+Сработало одно изменение объекта:
+- множество независимых контроллеров
 
-Examples:
-- HPA
-- service mesh controllers
-- GitOps systems
-- custom operators
-- EndpointSlice controllers
-- admission systems
+Примеры:
+- ГПА
+- Сервисные контроллеры Mesh
+- Системы GitOps
+- пользовательские операторы
+- Контроллеры EndpointSlice
+- Системы допуска
 
-This created:
-# thundering herd problem
+Это создало:
+# Проблема одновременного всплеска запросов (thundering herd)
 
-Flow:
+Последовательность:
 
 ```text
-one Pod update
-→ many watchers triggered
-→ many reconcile loops start
-→ many API writes generated
-→ more events emitted
-→ further reconciliations triggered
+одно обновление Pod
+→ сработало много наблюдателей
+→ начинается множество циклов согласования
+→ генерируется много операций записи API
+→ генерируется больше событий
+→ запущены дальнейшие сверки
 ```
 
-Positive feedback loop amplified:
-- API pressure
-- etcd writes
-- coordination instability.
+Усиление цепи положительной обратной связи:
+- Давление API
+- etcd пишет
+- Координационная нестабильность.
 
 ---
 
-# Informer Cache
+# Кэш информера
 
-Well-designed controllers use:
-- informer caches
+Хорошо спроектированные контроллеры используют:
+- Тайники информера
 
-Informer cache:
-- local memory mirror of cluster state
+Кэш информера:
+- зеркало локальной памяти состояния кластера
 
-Updated asynchronously through:
-- watches
+Обновление асинхронно посредством:
+- часы
 
-Purpose:
-- reduce direct API queries
-- lower API server pressure
+Назначение:
+- Уменьшить количество прямых запросов API
+- снижение нагрузки на сервер API
 
-Controllers without informers may:
-- continuously query API server
+Контролеры без информаторов могут:
+- постоянно запрашивать сервер API
 
-creating:
-# API amplification collapse
+Создавая:
+# Коллапс из-за многократного роста нагрузки на API
 
-at scale.
+В масштабе.
 
 ---
 
-# etcd fsync Latency
+# Задержка fsync в etcd
 
-Every etcd write requires:
-- durable WAL persistence
+Каждая запись etcd требует:
+- длительное сохранение WAL
 
-Critical path:
+Критический путь:
 
 ```text
-write
-→ WAL append
+написать
+→ Добавление WAL
 → fsync
-→ Raft replication
-→ commit
+→ Репликация Raft
+→ зафиксировать
 ```
 
-As write volume increased:
-- disk subsystem saturated
+По мере увеличения объема записи:
+- Дисковая подсистема насыщена
 
-Result:
-- fsync latency increased
+Результат:
+- Задержка fsync увеличена.
 
-Consequences:
-- slower writes
-- delayed consensus
-- leader instability
-- API request blocking
+Последствия:
+- медленнее пишет
+- запоздалый консенсус
+- нестабильность лидера
+- Блокировка API-запросов
 
-High etcd fsync latency is dangerous because:
-- Kubernetes coordination depends on write responsiveness.
-
----
-
-# Leader Election Instability
-
-Many Kubernetes components use:
-- leader election
-
-Examples:
-- controller-manager
-- scheduler
-- operators
-
-Leadership coordinated through:
-- Lease objects stored in etcd
-
-When API latency increased:
-- lease renewals delayed
-
-Components falsely assumed:
-- leader failure
-
-This triggered:
-- election churn
-- controller instability
-- coordination disruption.
+Высокая задержка etcd fsync опасна, потому что:
+- Координация Kubernetes зависит от скорости реакции записи.
 
 ---
 
-# Why kubectl Hung
+# Нестабильность выборов лидера
+
+Многие компоненты Kubernetes используют:
+- Выборы лидера
+
+Примеры:
+- Контроллер-менеджер
+- планировщик
+- операторы
+
+Лидерство координируется посредством:
+- Объекты аренды, хранящиеся в etcd
+
+Когда задержка API увеличилась:
+- Продление аренды задерживается
+
+Ошибочно предполагалось, что компоненты:
+- провал лидера
+
+Это вызвало:
+- Частые перевыборы лидера
+- Нестабильность контроллера
+- Нарушение координации.
+
+---
+
+# Почему kubectl завис
 
 kubectl communicates through:
-- API server
+- API-сервер
 
-During saturation:
-- API requests queued
-- reads delayed
-- watches stalled
-- writes blocked by etcd latency
+Во время насыщения:
+- Запросы API поставлены в очередь
+- Чтение задерживается
+- часы остановились
+- запись заблокирована задержкой etcd
 
 kubectl therefore appeared:
-- frozen
-- timing out
+- замороженный
+- Тайм-аут
 
-even though:
-- worker nodes remained alive.
+хотя:
+- Рабочие узлы остались живы.
 
 ---
 
-# CoreDNS Degradation
+# Деградация CoreDNS
 
-CoreDNS depends on:
-- API watches
+CoreDNS зависит от:
+- Часы API
 
-CoreDNS watches:
-- Services
+CoreDNS отслеживает:
+- Услуги
 - EndpointSlices
-- Pod networking data
+- Сетевые данные Pod
 
-When API propagation delayed:
-- DNS state became stale
+При задержке распространения API:
+- Состояние DNS устарело
 
-Consequences:
-- failed service discovery
-- intermittent DNS resolution
-- stale endpoint routing
+Последствия:
+- неудачное обнаружение службы
+- прерывистое разрешение DNS
+- устаревшая маршрутизация конечной точки
 
-This created:
-- apparent network instability
+Это создало:
+- очевидная нестабильность сети
 
-despite:
-- underlying network mostly healthy.
+Несмотря на:
+- Базовая сеть в основном работоспособна.
 
 ---
 
-# Service Mesh Amplification
+# Усиление сервисной сети
 
-Service mesh sidecars dramatically increased:
-- control plane pressure
+Вспомогательные контейнеры сервисной сети резко увеличили:
+- Давление в плоскости управления
 
-Each injected sidecar required:
-- additional config
-- certificates
-- xDS updates
-- endpoint awareness
-- policy synchronization
+Каждый добавляемый вспомогательный контейнер требовал:
+- дополнительная конфигурация
+- сертификаты
+- Обновления xDS
+- Осведомленность о конечной точке
+- политика синхронизации
 
-Admission webhooks added:
-- synchronous API dependencies
+Добавлены вебхуки для доступа:
+- синхронные зависимости API
 
-Pod creation path became:
+Путь создания Pod стал:
 
 ```text
-Pod request
-→ admission webhook
-→ mutation
-→ API persistence
+Запрос Pod
+→ входной вебхук
+→ мутация
+→ Постоянство API
 ```
 
-At large scale:
-- sidecar injection amplified API load multiplicatively.
+В больших масштабах:
+- Добавление вспомогательных контейнеров многократно увеличивало нагрузку на API.
 
 ---
 
-# Admission Webhooks
+# Вебхуки допуска (admission webhooks)
 
-Admission webhooks execute:
-- synchronous request interception
+Веб-перехватчики доступа выполняют:
+- синхронный перехват запроса
 
-Danger:
-- webhook latency blocks API requests
+Опасность:
+- Задержка вебхука блокирует запросы API
 
-If webhook overloaded:
-- Pod creation stalls
-- deployments freeze
-- API latency cascades
+Если вебхук перегружен:
+- Создание Pod останавливается
+- развертывание зависает
+- Каскады задержки API
 
-Webhooks become:
-# hidden critical dependencies
+Вебхуки становятся:
+# скрытые критические зависимости
 
-inside control plane.
-
----
-
-# CRD Explosion
-
-Custom Resource Definitions expand:
-- Kubernetes API surface
-
-Each CRD introduces:
-- new objects
-- new watches
-- new caches
-- new reconciliation loops
-
-Poorly designed operators can generate:
-- excessive reconciliation traffic
-- API storms
-- etcd object bloat
-
-Large CRD ecosystems therefore increase:
-- coordination complexity
-- control plane pressure.
+внутри плоскости управления.
 
 ---
 
-# Event Storms
+# Резкий рост числа CRD
 
-Kubernetes Events generate:
-- additional writes into etcd
+Определения пользовательских ресурсов расширяются:
+- Поверхность API Kubernetes
 
-Large-scale failures may create:
-- massive event churn
+Каждый CRD представляет:
+- новые объекты
+- новые часы
+- новые кэши
+- новые циклы согласования
 
-Events themselves can:
-- amplify storage pressure
-- increase API latency.
+Плохо спроектированные операторы могут генерировать:
+- чрезмерный трафик сверки
+- Штормы API
+- Раздувание объекта etcd
 
----
-
-# Autoscaling Destabilization
-
-Aggressive autoscaling dangerous because:
-- scaling creates object churn
-
-Each scaling event triggers:
-- Pod creation
-- scheduling
-- endpoint updates
-- mesh updates
-- DNS updates
-- reconciliation loops
-
-At scale:
-- autoscaling itself may destabilize control plane.
+Таким образом, крупные экосистемы CRD увеличивают:
+- сложность координации
+- Контроль давления в плоскости.
 
 ---
 
-# Kubelet Amplification
+# Буря событий
 
-Each kubelet continuously reports:
-- node heartbeats
-- PodStatus updates
-- resource metrics
+Kubernetes События генерируют:
+- дополнительная запись в etcd
 
-At 700 nodes:
-- kubelet traffic alone becomes significant
+Крупномасштабные отказы могут привести к:
+- Интенсивный поток изменений и событий
 
-Under instability:
-- retries amplify load further.
-
----
-
-# API Priority and Fairness (APF)
-
-API Priority and Fairness protects:
-- critical control plane traffic
-
-Allows:
-- request isolation
-- fairness queues
-- concurrency shares
-
-Prevents:
-- noisy controllers starving critical systems.
-
-Without APF:
-- low-priority systems may exhaust API capacity.
+Сами события могут:
+- Усиление давления хранения
+- Увеличение задержки API.
 
 ---
 
-# Eventual Consistency Inside Kubernetes
+# Дестабилизация автомасштабирования
 
-Kubernetes internally operates under:
-- eventual consistency
+Агрессивное автомасштабирование опасно, потому что:
+- масштабирование приводит к смене объектов
 
-Controllers observe:
-- delayed cached state
+Каждое событие масштабирования запускает:
+- Создание Pod
+- планирование
+- Обновления конечных точек
+- Обновления сетки
+- Обновления DNS
+- Циклы согласования состояния
 
-Implications:
-- temporary inconsistencies normal
-- stale reads expected
-- races unavoidable
-
-Large clusters amplify:
-- coordination lag.
-
----
-
-# Control Plane Backpressure
-
-Healthy clusters require:
-- bounded reconciliation
-- bounded retries
-- bounded watches
-- bounded event fanout
-
-Without backpressure:
-- positive feedback loops emerge
-
-Result:
-# distributed coordination collapse
-
-rather than:
-- immediate infrastructure crash.
+В масштабе:
+- Само автомасштабирование может дестабилизировать плоскость управления.
 
 ---
 
-# Investigation Process
+# Усиление нагрузки со стороны kubelet
 
-## API Server Metrics
+Каждый kubelet постоянно сообщает:
+- Сердцебиение узла
+- Обновления PodStatus
+- Ресурсные метрики
 
-Inspect:
-- request latency
-- inflight requests
-- request queue depth
-- slow endpoints
+На 700 узлах:
+- Сам по себе трафик kubelet становится значимым
 
-Critical metrics:
+В условиях нестабильности:
+- Повторные попытки еще больше увеличивают нагрузку.
+
+---
+
+# Приоритет и справедливость API (APF)
+
+Приоритет и справедливость API защищает:
+- Критический трафик плоскости управления
+
+Позволяет:
+- запросить изоляцию
+- очереди справедливости
+- параллельные доли
+
+Предотвращает:
+- Шумные контроллеры, вызывающие голодание критически важных систем.
+
+Без APF:
+- Системы с низким приоритетом могут исчерпать возможности API.
+
+---
+
+# Согласованность в конечном счёте внутри Kubernetes
+
+Kubernetes внутренне работает под:
+- Согласованность в конечном счёте
+
+Контролеры отмечают:
+- задержанное кэшированное состояние
+
+Следствия:
+- временные несоответствия в норме
+- Ожидается устаревшее чтение
+- гонки неизбежны
+
+Большие кластеры усиливают:
+- Координационная задержка.
+
+---
+
+# Обратное давление в плоскости управления
+
+Здоровые кластеры требуют:
+- ограниченное согласование
+- ограниченные повторы
+- ограниченные часы
+- ограниченное разветвление событий
+
+Без обратного давления:
+- Появляются петли положительной обратной связи
+
+Результат:
+# Коллапс распределенной координации
+
+вместо:
+- Немедленный сбой инфраструктуры.
+
+---
+
+# Процесс расследования
+
+## Метрики API-сервера
+
+Исследовать:
+- задержка запроса
+- запросы в полете
+- глубина очереди запроса
+- медленные конечные точки
+
+Критические показатели:
 - apiserver_request_duration_seconds
 - apiserver_current_inflight_requests
 
 ---
 
-# etcd Health
+# Работоспособность etcd
 
-Inspect:
-- WAL fsync latency
-- Raft commit latency
-- leader stability
-- backend database size
+Исследовать:
+- Задержка WAL fsync
+- Задержка фиксации Raft
+- Стабильность лидера
+- Размер внутренней базы данных
 
-Critical metrics:
+Критические показатели:
 - etcd_disk_wal_fsync_duration_seconds
 - etcd_server_leader_changes_seen_total
 
 ---
 
-# Watch Counts
+# Количество наблюдателей
 
-Analyze:
-- watcher counts
-- high-frequency clients
-- noisy controllers
+Проанализировать:
+- Подсчет наблюдателей
+- высокочастотные клиенты
+- шумные контроллеры
 
-Identify:
+Определить:
 - watch amplification sources.
 
 ---
 
-# Controller Queues
+# Очереди контроллера
 
-Inspect:
-- reconciliation queue depth
-- retry rates
-- processing latency
+Исследовать:
+- глубина очереди сверки
+- Частота повторных попыток
+- задержка обработки
 
-Detect:
-- reconciliation backlog.
-
----
-
-# Scheduler Latency
-
-Measure:
-- scheduling duration
-- pending Pod growth
-- scheduling retries
-
-Purpose:
-- detect scheduling saturation.
+Выявить:
+- Отставание в выверке.
 
 ---
 
-# Admission Webhook Analysis
+# Задержка планировщика
 
-Inspect:
-- webhook latency
-- timeout rates
-- mutation overhead
+Измерить:
+- Продолжительность планирования
+- Растёт число объектов Pod, ожидающих размещения
+- Планирование повторных попыток
 
-Detect:
-- synchronous admission bottlenecks.
-
----
-
-# Production Mitigation Plan
-
-## Short-Term Stabilization
-
-- freeze deployments
-- disable aggressive autoscaling
-- pause GitOps reconciliation
-- reduce controller concurrency
-- restart unstable operators
-- limit watch-heavy systems
-- enable API Priority and Fairness
-- reduce sidecar injection scope
-
-Goal:
-- stop amplification loops.
+Назначение:
+- Обнаруживают насыщение планирования.
 
 ---
 
-# etcd Emergency Stabilization
+# Анализ веб-перехватчика допуска
 
-- isolate etcd onto dedicated NVMe storage
-- reduce write amplification
-- compact stale objects
-- remove unnecessary CRDs
-- reduce event retention
+Исследовать:
+- задержка вебхука
+- Скорость тайм-аута
+- Накладные расходы на мутацию
 
-Goal:
-- restore low fsync latency.
-
----
-
-# Long-Term Improvements
-
-## Informer-Only Controllers
-
-Require:
-- informer cache usage
-
-Ban:
-- aggressive API polling.
+Выявить:
+- Узкие места синхронного приема.
 
 ---
 
-# Cluster Sharding
+# План снижения последствий инцидента в рабочей среде
 
-Large clusters increase:
-- blast radius
-- coordination pressure
+## Кратковременная стабилизация
+
+- заморозить развертывание
+- отключить агрессивное автомасштабирование
+- приостановить сверку GitOps
+- Уменьшите параллелизм контроллера
+- перезапуск нестабильных операторов
+- Ограничить системы с тяжелым наблюдением
+- Включить приоритет и справедливость API
+- Сократить область автоматического добавления вспомогательных контейнеров
+
+Цель:
+- Остановка контуров усиления.
+
+---
+
+# Экстренная стабилизация etcd
+
+- изолировать etcd на выделенном хранилище NVMe.
+- уменьшить усиление записи
+- Компактные устаревшие объекты
+- удалить ненужные CRD
+- уменьшить сохранение событий
+
+Цель:
+- Восстановить низкую задержку fsync.
+
+---
+
+# Долгосрочные улучшения
+
+## Контроллеры, использующие только кэш информеров
+
+Требовать:
+- Использование кэша информера
+
+Запретить:
+- Агрессивный опрос API.
+
+---
+
+# Шардинг кластера
+
+Большие кластеры увеличивают:
+- радиус взрыва
+- Координационное давление
 - watch fanout
 
-Preferred strategy:
-- multiple smaller clusters
+Предпочтительная стратегия:
+- несколько более мелких кластеров
 
-instead of:
-- one massive cluster.
+вместо:
+- Один массивный кластер.
 
 ---
 
-# Operator Governance
+# Управление оператором
 
-Audit:
-- reconciliation frequency
-- API behavior
-- retry logic
+Проверить:
+- частота сверки
+- Поведение API
+- Логика повторной попытки
 - watch usage
 
-Prevent:
-- poorly designed operators from overwhelming cluster.
+Предотвращать:
+- Плохо спроектированные операторы из подавляющего кластера.
 
 ---
 
-# Service Mesh Optimization
+# Оптимизация сервисной сети
 
-Reduce:
-- global config fanout
-- sidecar scope
-- unnecessary watches
+Уменьшить:
+- разветвление глобальной конфигурации
+- Область применения вспомогательных контейнеров
+- ненужные часы
 
-Limit:
-- mesh visibility domains.
+Ограничить:
+- Области видимости сетки.
 
 ---
 
-# Architectural Lessons
+# Архитектурные уроки
 
-Large Kubernetes clusters fail not because:
-- containers crash
+Большие кластеры Kubernetes выходят из строя не потому, что:
+- Контейнеры разбиваются
 
-but because:
-- control plane can no longer coordinate desired state
+но потому что:
+- Плоскость управления больше не может координировать желаемое состояние
 
-Critical failure modes emerge from:
+Критические режимы отказа возникают в результате:
 - watch storms
-- reconciliation amplification
-- etcd write pressure
-- admission bottlenecks
-- event fanout
-- autoscaling churn
-- control loop instability
+- усиление согласования
+- etcd давление записи
+- узкие места при приеме
+- разветвление событий
+- Частые изменения масштаба системы
+- Нестабильность контура управления
 
-Kubernetes is fundamentally:
-- distributed coordination system
+Kubernetes по своей сути:
+- распределенная система координации
 
-and coordination scalability defines:
-- cluster reliability.
+и масштабируемость координации определяет:
+- Надежность кластера.
 
 ---
 
-# Key Learning
+# Основные выводы
 
-- Kubernetes control plane is distributed coordination infrastructure
-- API server becomes bottleneck under large-scale event churn
-- etcd storage latency directly impacts cluster stability
+- Плоскость управления Kubernetes представляет собой инфраструктуру распределенной координации.
+- API-сервер становится узким местом при крупномасштабной смене событий.
+- Задержка хранения данных etcd напрямую влияет на стабильность кластера.
 - watch storms amplify reconciliation pressure
-- service mesh and CRDs multiply control plane load
-- eventual consistency creates coordination lag
-- poorly designed controllers can destabilize entire clusters
-- large clusters require strict control plane governance
+- Сервисная сетка и CRD умножают нагрузку плоскости управления
+- согласованность в конечном счёте создает задержку в координации
+- плохо спроектированные контроллеры могут дестабилизировать целые кластеры
+- Большие кластеры требуют строгого управления плоскостью управления.

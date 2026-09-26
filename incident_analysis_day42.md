@@ -1,550 +1,550 @@
-# Incident Analysis — Week 9 Day 7
+# Разбор инцидента — неделя 9, день 7
 
-## Scenario
+## Сценарий
 
-Production Kubernetes platform using Service Mesh architecture experienced severe user-facing latency degradation.
+Рабочая платформа Kubernetes, использующая архитектуру Service Mesh, испытывала серьезное ухудшение задержки, связанной с пользователем.
 
-Architecture:
+Архитектура:
 
 ```text
-Clients
+Клиенты
   ↓
-Ingress
+Вход
   ↓
-Service Mesh (Envoy sidecars)
+Сервисная сеть (вспомогательные прокси-контейнеры Envoy)
   ↓
-Microservices
+Микросервисы
   ↓
 PostgreSQL
 ```
 
-Observed symptoms:
-- application feels slow
-- random freezes
-- partial page loading
-- intermittent reconnects
-- requests hanging for multiple seconds
+Наблюдаемые симптомы:
+- Приложение работает медленно
+- случайные зависания
+- частичная загрузка страницы
+- прерывистые переподключения
+- запросы зависают на несколько секунд
 
-Infrastructure dashboards appeared mostly healthy:
-- CPU normal
-- memory normal
-- Pods healthy
-- readiness probes passing
-- node health normal
-- database healthy
+Панели мониторинга инфраструктуры выглядели в основном здоровыми:
+- Процессор в норме
+- память в норме
+- Объекты Pod исправны
+- Прохождение проб готовности
+- Состояние узла в норме
+- база данных исправна
 
-However latency metrics showed severe degradation:
+Однако показатели задержки показали серьезное ухудшение:
 
 ```text
-P95 latency:
-300ms → 9s
+Задержка P95:
+300 мс → 9 с
 
-P99 latency:
-500ms → 25s
+Задержка P99:
+500 мс → 25 с
 ```
 
-Mesh telemetry showed:
-- upstream request timeout
-- upstream reset before response
-- downstream disconnect
+Телеметрия сервисной сети показала:
+- Превышение времени ожидания ответа целевого сервиса
+- Сброс соединения с целевым сервисом до получения ответа
+- Отключение клиента
 
-Root cause involved:
-- latency amplification
-- timeout propagation
-- retry amplification
-- service mesh retry behavior
+Основная причина:
+- Усиление задержки
+- Распространение тайм-аута
+- Усиление нагрузки из-за повторных запросов
+- Поведение повторных попыток сервисной сетки
 
-rather than:
-- hard infrastructure failure.
+вместо:
+- Сбой аппаратной инфраструктуры.
 
 ---
 
-# Service Mesh Architecture
+# Архитектура сервисной сети (Service Mesh)
 
-Service Mesh introduces dedicated network layer between services.
+Service Mesh вводит выделенный сетевой уровень между услугами.
 
-Common implementations:
+Общие реализации:
 - Istio
-- Linkerd
+- Линкерд
 
-Mesh uses:
-- sidecar proxies
+Сетка использует:
+- Вспомогательные прокси-контейнеры
 
-typically:
+Как правило:
 - Envoy
 
-Each Pod receives:
-- local proxy container
+Каждый Pod получает:
+- локальный прокси-контейнер
 
-Traffic flow becomes:
+Транспортный поток становится:
 
 ```text
-Service A
-→ Envoy sidecar
-→ network
-→ destination sidecar
-→ Service B
+Услуга А
+→ вспомогательный прокси-контейнер Envoy
+→ сеть
+→ вспомогательный прокси-контейнер на стороне получателя
+→ Сервис Б
 ```
 
-This architecture enables:
-- traffic policies
-- retries
-- TLS
-- observability
-- circuit breaking
-- traffic shaping
+Эта архитектура позволяет:
+- Политика трафика
+- повторные попытки
+- ТЛС
+- наблюдаемость
+- срабатывание предохранителя
+- формирование трафика
 
-Mesh primarily controls:
-- east-west traffic
+Сетка в первую очередь контролирует:
+- движение с востока на запад
 
-meaning:
-- service-to-service communication inside cluster.
+Это означает:
+- Межсервисная связь внутри кластера.
 
 ---
 
-# Why Dashboards Appeared Healthy
+# Почему дашборды показывали нормальное состояние
 
-Infrastructure health does not equal user experience.
+Состояние инфраструктуры не равносильно пользовательскому опыту.
 
-Dashboards commonly emphasize:
-- averages
-- infrastructure availability
-- resource consumption
+На информационных панелях обычно подчеркивается:
+- средние значения
+- доступность инфраструктуры
+- потребление ресурсов
 
-while missing:
+пока отсутствует:
 - tail latency
-- queueing delay
-- degraded responsiveness
-- retry amplification
+- Задержка в очереди
+- Ухудшенная чувствительность
+- Усиление нагрузки из-за повторных запросов
 
-System may appear:
-- operational internally
+В системе может появиться:
+- работоспособность внутри
 
-while users experience:
-- unusable application behavior.
+в то время как пользователи испытывают:
+- Непригодное для использования поведение приложения.
 
 ---
 
-# P95 and P99 Latency
+# Задержка P95 и P99
 
-Latency percentiles describe:
-- worst-case request behavior.
+Процентили задержки описывают:
+- Наихудшее поведение запроса.
 
 P95:
-- 95% requests faster than value
-- 5% slower
+- 95% запросов быстрее, чем значение
+- На 5% медленнее
 
 P99:
-- 99% requests faster than value
-- 1% slower
+- 99% запросов быстрее, чем значение
+- На 1% медленнее
 
-Tail latency critical because:
-- users experience slowest requests directly
+Задержка в высоких перцентилях является критической, поскольку:
+- пользователи напрямую сталкиваются с самыми медленными запросами
 
-Averages often hide production degradation.
+Средние показатели часто скрывают ухудшение работы системы.
 
-Example:
+Пример:
 
 ```text
-95 requests = 50ms
-5 requests = 25s
+95 запросов = 50 мс
+5 запросов = 25 с
 ```
 
-Average remains deceptively acceptable.
+Среднее значение остается обманчиво приемлемым.
 
-User experience already severely degraded.
+Пользовательский опыт уже сильно ухудшился.
 
 ---
 
-# Timeout Propagation
+# Распространение тайм-аута
 
-Microservice chains create:
-- distributed waiting dependencies
+Цепочки микросервисов создают:
+- распределенные зависимости ожидания
 
-Example:
-
-```text
-Frontend
-→ Service A
-→ Service B
-→ Service C
-→ Database
-```
-
-Latency at lower layer propagates upward.
-
-Poor timeout hierarchy creates:
-- zombie requests
-- wasted compute
-- queue growth
-- unnecessary resource occupation
-
-Correct timeout structure requires:
-- shorter downstream deadlines
-
-Example:
+Пример:
 
 ```text
-Frontend = 30s
-Service A = 25s
-Service B = 20s
-Database = 10s
+Внешний интерфейс
+→ Сервис А
+→ Сервис Б
+→ Сервис С
+→ База данных
 ```
 
-Timeout budgets must shrink deeper into dependency chain.
+Задержка на нижнем уровне распространяется вверх.
+
+Плохая иерархия тайм-аутов приводит к:
+- Зомби-запросы
+- потраченные впустую вычисления
+- рост очереди
+- ненужное занятие ресурсов
+
+Правильная структура тайм-аута требует:
+- Более короткие сроки реализации
+
+Пример:
+
+```text
+Интерфейс = 30 с.
+Сервис А = 25 с.
+Сервис B = 20 с
+База данных = 10 с.
+```
+
+Бюджеты тайм-аутов должны сжиматься глубже в цепочке зависимостей.
 
 ---
 
-# Retry Amplification
+# Усиление нагрузки из-за повторных запросов
 
-Retries multiply traffic volume during degradation.
+Повторные попытки увеличивают объем трафика во время деградации.
 
-Example:
+Пример:
 
 ```text
-Request fails
-→ service retries 3x
-→ downstream retries 3x
-→ mesh retries 3x
+Запрос не выполнен
+→ повторные попытки обслуживания 3 раза
+→ зависимый сервис повторяет запрос 3 раза
+→ повторная попытка сетки 3 раза
 ```
 
-Traffic amplification becomes multiplicative.
+Усиление трафика становится мультипликативным.
 
-Small latency problem transforms into:
-- large concurrency explosion
+Проблема небольшой задержки трансформируется в:
+- Большой взрыв параллелизма
 
-Retries commonly worsen partially degraded systems.
+Повторные попытки обычно ухудшают частично ухудшенные системы.
 
 ---
 
-# Positive Feedback Loop
+# Петля положительной обратной связи
 
-Distributed systems frequently collapse through self-amplifying latency loops.
+Распределенные системы часто разрушаются из-за самоусиливающихся петель задержки.
 
-Flow:
+Последовательность:
 
 ```text
-slow dependency
-→ retries
-→ more traffic
-→ queue growth
-→ higher latency
-→ more retries
-→ cascading degradation
+медленная зависимость
+→ повторы
+→ больше трафика
+→ рост очереди
+→ более высокая задержка
+→ больше повторов
+→ каскадная деградация
 ```
 
-This creates:
-- nonlinear failure escalation.
+Это создает:
+- Нелинейное нарастание отказов.
 
 ---
 
-# Tail Latency Collapse
+# Резкий рост высоких перцентилей задержки
 
-Small latency increases produce:
-- queue accumulation
+Небольшое увеличение задержки приводит к:
+- накопление очереди
 
-Queueing increases:
-- request waiting time
+Увеличение очереди:
+- Время ожидания запроса
 
-Waiting time triggers:
-- retries
-- additional concurrency
+Триггеры времени ожидания:
+- повторные попытки
+- дополнительный параллелизм
 
-Additional concurrency further increases:
-- queue pressure
+Дополнительный параллелизм дополнительно увеличивает:
+- давление очереди
 
-Eventually:
-- latency explodes exponentially
+В конечном итоге:
+- задержка растет экспоненциально
 
-This phenomenon called:
+Это явление называется:
 - tail latency collapse
 
-Distributed systems often fail through:
-- latency amplification
+Распределенные системы часто выходят из строя из-за:
+- Усиление задержки
 
-rather than:
-- hard crashes.
-
----
-
-# Sidecar Proxy Overhead
-
-Service mesh sidecars introduce:
-- additional network hops
-- TLS overhead
-- proxy processing
-- buffering
-- queueing
-- retry coordination
-
-Request path becomes significantly longer.
-
-Each proxy may maintain:
-- worker pools
-- connection pools
-- retry queues
-- timeout policies
-
-Mesh abstraction therefore introduces:
-- operational overhead
-- latency sensitivity
-
-especially under degraded conditions.
+вместо:
+- сильные сбои.
 
 ---
 
-# Head-of-Line Blocking
+# Накладные расходы прокси-сервера Sidecar
 
-Slow requests occupy:
-- worker threads
-- queue slots
-- connections
-- stream capacity
+Вспомогательные прокси-контейнеры сервисной сети добавляют:
+- дополнительные сетевые переходы
+- Накладные расходы TLS
+- обработка прокси
+- буферизация
+- очередь
+- Координация повторных попыток
 
-Fast requests arriving later become blocked behind:
-- stalled requests
+Путь запроса становится значительно длиннее.
 
-This phenomenon called:
-- head-of-line blocking
+Каждый прокси-сервер может поддерживать:
+- Рабочие пулы
+- пулы соединений
+- очереди повторов
+- политика тайм-аута
 
-Shared queues amplify latency spread across entire system.
+Таким образом, абстракция сетки вводит:
+- операционные накладные расходы
+- чувствительность к задержке
 
----
-
-# Retry Budgets
-
-Unlimited retries dangerous during degradation.
-
-Retry budgets define:
-- maximum retry allowance
-
-Purpose:
-- prevent retry storms
-- avoid traffic amplification
-- preserve downstream stability
-
-Production systems should:
-- aggressively limit retries during incidents.
+особенно в ухудшенных условиях.
 
 ---
 
-# Circuit Breaking Inside Service Mesh
+# Блокировка очереди первым запросом (head-of-line blocking)
 
-Circuit breakers protect downstream services.
+Медленные запросы занимают:
+- рабочие потоки
+- слоты очереди
+- соединения
+- пропускная способность потока
 
-Instead of:
-- endlessly retrying slow upstreams
+Быстрые запросы, пришедшие позже, блокируются после:
+- остановленные запросы
 
-proxy temporarily:
-- stops forwarding traffic
+Это явление называется:
+- Блокировка очереди первым запросом (head-of-line blocking)
 
-Benefits:
-- protects overloaded services
-- prevents retry amplification
-- stabilizes latency
-
-Mesh-level circuit breaking critical for:
-- distributed survivability.
+Общие очереди усиливают разброс задержки по всей системе.
 
 ---
 
-# Why Logs Were Mostly Empty
+# Бюджеты повторных попыток
 
-Many latency failures occur:
-- before application logic executes
+Неограниченное количество повторных попыток опасно во время деградации.
 
-Problems may happen inside:
-- proxy queues
-- connection pools
-- sidecar timeouts
-- mesh retries
+Бюджеты повторных попыток определяют:
+- Максимальное разрешение повторных попыток
 
-Application therefore:
-- never sees explicit failure
+Назначение:
+- Предотвращение повторных попыток
+- избежать увеличения трафика
+- сохранять стабильность на выходе
 
-This creates:
-- observability blind spots
-
-Infrastructure appears healthy while:
-- users experience severe degradation.
+Рабочие системы должны:
+- агрессивно ограничивать повторные попытки во время инцидентов.
 
 ---
 
-# Why Readiness Probes Failed To Detect Issue
+# Предохранители внутри сервисной сети
 
-Readiness probes typically verify:
-- process alive
-- port responsive
-- basic endpoint availability
+Предохранители защищают нижестоящие услуги.
 
-They rarely measure:
-- queue depth
-- latency saturation
-- retry amplification
-- degraded responsiveness
+Вместо:
+- Бесконечные повторные обращения к медленным целевым сервисам
 
-System may remain:
-- technically ready
+прокси временно:
+- прекращает пересылку трафика
 
-while operationally overloaded.
+Преимущества:
+- защищает перегруженные службы
+- Предотвращает повторную амплификацию
+- стабилизирует задержку
 
----
-
-# Observability Blind Spots
-
-Traditional monitoring often measures:
-- infrastructure metrics
-
-instead of:
-- end-user latency
-- queueing delay
-- distributed retries
-- timeout propagation
-
-Critical production failures may remain invisible if:
-- observability focuses only on resource usage.
+Срабатывание предохранителя на уровне сети критически важен для:
+- Распределенная живучесть.
 
 ---
 
-# Investigation Process
+# Почему журналы в основном были пусты
 
-## Mesh Telemetry
+Возникает множество сбоев задержки:
+- перед выполнением логики приложения
 
-Inspect:
-- retry rates
-- timeout counts
-- upstream latency
-- downstream resets
+Проблемы могут возникнуть внутри:
+- Прокси-очереди
+- пулы соединений
+- Тайм-ауты вспомогательных прокси-контейнеров
+- Повторные попытки сетки
 
-Important Envoy metrics:
+Таким образом, применение:
+- никогда не видит явного сбоя
+
+Это создает:
+- Слепые зоны наблюдаемости
+
+Инфраструктура выглядит здоровой, пока:
+- Пользователи испытывают серьезную деградацию.
+
+---
+
+# Почему проверки готовности не выявили проблему
+
+Пробы готовности обычно проверяют:
+- процесс живой
+- Адаптивный порт
+- базовая доступность конечной точки
+
+Они редко измеряют:
+- глубина очереди
+- насыщение задержки
+- Усиление нагрузки из-за повторных запросов
+- Ухудшенная чувствительность
+
+Система может оставаться:
+- технически готов
+
+при эксплуатационной перегрузке.
+
+---
+
+# Слепые зоны наблюдаемости
+
+Традиционный мониторинг часто измеряет:
+- Показатели инфраструктуры
+
+вместо:
+- задержка конечного пользователя
+- Задержка в очереди
+- распределенные повторы
+- Распространение тайм-аута
+
+Критические рабочие сбои могут остаться незамеченными, если:
+- Наблюдаемость фокусируется только на использовании ресурсов.
+
+---
+
+# Процесс расследования
+
+## Телеметрия сервисной сети
+
+Исследовать:
+- Частота повторных попыток
+- Тайм-аут подсчитывается
+- Задержка ответа целевого сервиса
+- Сбросы соединений со стороны клиентов
+
+Важные показатели Envoy:
 - upstream_rq_timeout
 - upstream_rq_retry
 - upstream_cx_overflow
 
 ---
 
-# Distributed Tracing
+# Распределенная трассировка
 
-Use:
-- Jaeger
-- Tempo
+Использовать:
+- Джагер
+- Темп
 - OpenTelemetry
 
-Purpose:
-- identify slow spans
-- locate latency accumulation
-- visualize timeout propagation
+Назначение:
+- выявление медленных пролетов
+- Обнаружение накопления задержки
+- Визуализация распространения тайм-аута
 
-Tracing essential for:
-- distributed latency debugging.
+Отслеживание необходимо для:
+- Отладка с распределенной задержкой.
 
 ---
 
-# Tail Latency Monitoring
+# Мониторинг высоких перцентилей задержки
 
-Prioritize:
+Отдавать приоритет:
 - P95
 - P99
-- queue duration
-- retry metrics
+- продолжительность очереди
+- Метрики повторных попыток
 
-Avoid relying exclusively on:
-- averages.
-
----
-
-# Production Mitigation Plan
-
-## Short-Term Stabilization
-
-- reduce retry counts
-- shorten timeout windows
-- disable aggressive mesh retries
-- activate circuit breaking
-- reduce queue sizes
-- shed excess traffic
-
-Goal:
-- stop latency amplification loops.
+Избегайте полагаться исключительно на:
+- Средние значения.
 
 ---
 
-# Long-Term Improvements
+# План снижения последствий инцидента в рабочей среде
 
-## Timeout Hierarchy
+## Кратковременная стабилизация
 
-Design:
-- strict deadline propagation
-- shrinking downstream timeouts
+- Уменьшить количество повторных попыток
+- сократить окна тайм-аута
+- отключить агрессивные попытки сетки
+- активировать срабатывание предохранителя
+- уменьшить размеры очереди
+- избавиться от лишнего трафика
 
-Avoid:
-- orphaned background requests.
-
----
-
-# Retry Governance
-
-Implement:
-- retry budgets
-- adaptive retry policies
-- retry jitter
-
-Prevent:
-- self-generated overload amplification.
+Цель:
+- Остановка контуров усиления задержки.
 
 ---
 
-# Queue Isolation
+# Долгосрочные улучшения
 
-Separate:
-- critical traffic
-- expensive requests
-- latency-sensitive operations
+## Иерархия тайм-аутов
 
-Reduce:
-- head-of-line blocking.
+Спроектировать:
+- строгое соблюдение сроков
+- Уменьшение тайм-аутов по мере продвижения по цепочке зависимых сервисов
+
+Избегать:
+- Потерянные фоновые запросы.
 
 ---
 
-# Observability Improvements
+# Управление повторными попытками
 
-Monitor:
+Реализовать:
+- Бюджеты повторных попыток
+- Адаптивная политика повторных попыток
+- Случайный разброс задержек перед повторными попытками
+
+Предотвращать:
+- Самогенерируемое усиление перегрузки.
+
+---
+
+# Изоляция очереди
+
+Разделить:
+- критический трафик
+- дорогие запросы
+- Операции, чувствительные к задержке
+
+Уменьшить:
+- Блокировка начала строки.
+
+---
+
+# Улучшения наблюдаемости
+
+Отслеживать:
 - tail latency
-- distributed tracing
-- queue depth
-- retry amplification
-- timeout propagation
+- распределенная трассировка
+- глубина очереди
+- Усиление нагрузки из-за повторных запросов
+- Распространение тайм-аута
 
-Focus on:
-- user experience metrics
+Сосредоточьтесь на:
+- метрики пользовательского опыта
 
-not only:
-- infrastructure health.
-
----
-
-# Architectural Lessons
-
-Distributed systems frequently degrade through:
-- latency amplification
-- retry multiplication
-- queue saturation
-- timeout propagation
-
-rather than:
-- immediate crashes.
-
-Healthy infrastructure metrics do not guarantee:
-- healthy user experience.
+не только:
+- Здоровье инфраструктуры.
 
 ---
 
-# Key Learning
+# Архитектурные уроки
 
-- averages hide tail latency collapse
-- retries amplify distributed failures
-- latency propagates across dependency chains
-- service meshes introduce operational overhead
-- readiness probes do not measure responsiveness
-- observability blind spots hide degraded UX
-- distributed systems often fail progressively through queues and retries
+Распределенные системы часто ухудшаются из-за:
+- Усиление задержки
+- Многократное увеличение числа повторных запросов
+- насыщение очереди
+- Распространение тайм-аута
+
+вместо:
+- Немедленные сбои.
+
+Показатели работоспособности инфраструктуры не гарантируют:
+- Здоровый пользовательский опыт.
+
+---
+
+# Основные выводы
+
+- средние значения скрывают коллапс задержки в высоких перцентилях
+- повторные попытки усиливают распределенные сбои
+- Задержка распространяется по цепочкам зависимостей
+- Сервисные сетки вносят эксплуатационные накладные расходы
+- Пробы готовности не измеряют оперативность
+- Слепые зоны наблюдаемости скрывают ухудшенный UX
+- Распределенные системы часто постепенно выходят из строя из-за очередей и повторных попыток.

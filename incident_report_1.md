@@ -1,31 +1,31 @@
-# Incident Report 1
+# Отчет об инциденте 1
 
-## Issue
-User reports: "I created data, but I don’t see it in the system"
+## Проблема
+Пользователь сообщает: «Я создал данные, но не вижу их в системе»
 
-## Steps to Reproduce
-1. Send POST request to create data
-2. Send GET request to retrieve data
-3. Observe that data is missing in response
+## Этапы воспроизведения
+1. Отправьте запрос POST для создания данных.
+2. Отправьте запрос GET для получения данных.
+3. Обратите внимание, что данные в ответе отсутствуют.
 
-## Observed Result
-- POST request returns 200 OK
-- GET request does not return created data
+## Наблюдаемый результат
+- Запрос POST возвращает 200 OK
+- Запрос GET не возвращает созданные данные.
 
-## Expected Result
-- Data created via POST should be available in GET response
+## Ожидаемый результат
+- Данные, созданные с помощью POST, должны быть доступны в ответе GET.
 
-## Initial Analysis
-- POST request seems successful
-- Data may not be stored in database
-- Possible issue in backend or storage layer
+## Первоначальный анализ
+- Запрос POST кажется успешным
+- Возможно, данные не сохраняются в базе данных
+- Возможная проблема на внутреннем уровне или уровне хранения.
 
-## Possible Causes
-- Data is not saved after POST
-- Backend does not persist data
-- GET endpoint does not retrieve stored data
+## Возможные причины
+- Данные не сохраняются после POST.
+- Серверная часть не сохраняет данные
+- Конечная точка GET не извлекает сохраненные данные
 
-## Next Actions
-- Verify if data is stored in database
-- Check backend logic for data persistence
-- Escalate to backend team if needed
+## Следующие действия
+- Проверьте, сохранены ли данные в базе данных.
+- Проверка внутренней логики на предмет сохранности данных.
+- При необходимости эскалация в бэкэнд-группу.

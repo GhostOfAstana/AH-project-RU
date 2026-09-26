@@ -1,34 +1,34 @@
-# Incident Report 5
+# Отчет об инциденте 5
 
-## Issue
-User reports: "The system is very slow"
+## Проблема
+Пользователь сообщает: «Система работает очень медленно».
 
-## Steps to Reproduce
-1. User opens the application
-2. Actions take a long time to load (5–10 seconds)
-3. No errors are shown
+## Этапы воспроизведения
+1. Пользователь открывает приложение
+2. Действия загружаются долго (5–10 секунд)
+3. Никаких ошибок не показано.
 
-## Observed Result
-- Requests are slow
-- Pages load with delay
-- No error messages
+## Наблюдаемый результат
+- Запросы выполняются медленно
+- Страницы загружаются с задержкой
+- Никаких сообщений об ошибках.
 
-## Expected Result
-- System should respond quickly (1–2 seconds)
+## Ожидаемый результат
+- Система должна реагировать быстро (1–2 секунды).
 
-## Initial Analysis
-- System is working but slow
-- Could be performance issue
-- Not a direct error, but degraded experience
+## Первоначальный анализ
+- Система работает, но медленно
+- Возможно, проблема с производительностью.
+- Не прямая ошибка, а ухудшенный опыт
 
-## Possible Causes
-- Slow database queries
-- High server load
-- Network latency
-- Inefficient backend processing
+## Возможные причины
+- Медленные запросы к базе данных
+- Высокая нагрузка на сервер
+- Задержка в сети
+- Неэффективная внутренняя обработка
 
-## Next Actions
-- Check response time in API (Postman)
-- Identify slow endpoints
-- Check if issue affects all users or specific ones
-- Escalate to backend or infrastructure team
+## Следующие действия
+- Проверка времени ответа в API (Postman)
+- Идентификация медленных конечных точек
+- Проверьте, затрагивает ли проблема всех пользователей или конкретных.
+- Эскалация в бэкэнд или инфраструктурную команду

@@ -1,101 +1,101 @@
-# Incident Analysis — Week 4 Day 4
+# Разбор инцидента — неделя 4, день 4
 
-## Scenario
-User reports: "I uploaded a file, but it does not appear in the system"
-
----
-
-## My Initial Thinking
-
-### Questions
-- When was the file uploaded?
-- Was there a confirmation message?
-- Is the issue only with this file?
-- Do other files appear normally?
-
-### First Steps
-- Check API behavior via DevTools
-- Verify if upload request is processed
-
-### Problem
-- I did not consider file type/size limitations
-- I did not explicitly include storage layer in analysis
-- Some assumptions were too general
+## Сценарий
+Пользователь сообщает: «Я загрузил файл, но он не отображается в системе»
 
 ---
 
-## Corrected Approach
+## Мои первоначальные размышления
 
-### 1. Questions to User
-- When did you upload the file?
-- Did you receive a success message?
-- Does the issue happen with other files?
-- What is the file type and size?
+### Вопросы
+- Когда был загружен файл?
+- Было ли подтверждающее сообщение?
+- Проблема только с этим файлом?
+- Другие файлы отображаются нормально?
 
----
+### Первые шаги
+- Проверка поведения API через DevTools
+- Проверьте, обработан ли запрос на загрузку.
 
-### 2. First Step (Frontend - DevTools)
-
-Open DevTools → Network:
-- Trigger file upload
-- Check:
-  - upload request
-  - status code
-  - response body
+### Проблема
+- Я не учел ограничения типа/размера файла.
+- Я не включил явным образом уровень хранения в анализ.
+- Некоторые предположения были слишком общими
 
 ---
 
-### 3. Diagnostic Flow
+## Исправленный подход
 
-#### If NO request:
-→ Frontend issue (upload not triggered)
-
-#### If request fails:
-→ Check error (validation, size, format)
-
-#### If request succeeds (200 OK):
-→ Continue investigation
+### 1. Вопросы пользователю
+- Когда вы загрузили файл?
+- Вы получили сообщение об успехе?
+- Возникает ли проблема с другими файлами?
+- Каков тип и размер файла?
 
 ---
 
-### 4. If 200 OK but file not visible:
+### 2. Первый шаг (интерфейс — DevTools)
 
-Step 1:
-- Check API response (file ID, metadata)
-
-Step 2:
-- Verify via API (Postman) if file exists
-
-Step 3:
-- Check backend processing
-
-Step 4:
-- Check storage layer (file saving)
+Откройте DevTools → Сеть:
+- Запуск загрузки файла
+- Проверить:
+  - запрос на загрузку
+  - код состояния
+  - Тело ответа
 
 ---
 
-### 5. Possible Causes
+### 3. Последовательность диагностики
 
-- File upload not triggered (frontend issue)
-- File rejected due to size/type limit
-- Backend does not store file
-- Storage issue (file not saved or lost)
-- API does not return uploaded file
-- Frontend does not display file
+#### Если НЕТ запроса:
+→ Проблема с интерфейсом (загрузка не инициируется)
 
----
+#### Если запрос не удался:
+→ Ошибка проверки (проверка, размер, формат)
 
-### 6. Escalation
-
-- Frontend → if request is not sent or UI does not show file
-- Backend → if upload API fails or does not process file
-- Storage → if file is not saved or missing after upload
+#### Если запрос успешен (200 ОК):
+→ Продолжить расследование
 
 ---
 
-## Key Learning
+### 4. Если 200 ОК, но файл не виден:
 
-- Include storage layer in file-related issues
-- Check file validation (size/type) early
-- Follow full system flow: frontend → API → backend → storage
-- Do not assume success based only on UI confirmation
+Шаг 1:
+- Проверка ответа API (идентификатор файла, метаданные)
+
+Шаг 2:
+- Проверка через API (Postman), существует ли файл.
+
+Этап 3:
+- Проверка внутренней обработки
+
+Шаг 4:
+- Проверка уровня хранения (сохранение файлов)
+
+---
+
+### 5. Возможные причины
+
+- Загрузка файла не запускается (проблема с интерфейсом)
+- Файл отклонен из-за ограничения размера/типа.
+- Серверная часть не сохраняет файл
+- Проблема с хранилищем (файл не сохранен или потерян)
+- API не возвращает загруженный файл
+- Интерфейс не отображает файл
+
+---
+
+### 6. Эскалация
+
+- Интерфейс → если запрос не отправлен или пользовательский интерфейс не отображает файл
+- Серверная часть → если API загрузки не удался или не обрабатывает файл
+- Хранилище → если файл не сохранен или отсутствует после загрузки
+
+---
+
+## Основные выводы
+
+- Включите уровень хранения в проблемы, связанные с файлами.
+- Заблаговременно проверьте проверку файла (размер/тип).
+- Следуйте полному потоку системы: интерфейс → API → серверная часть → хранилище.
+- Не предполагайте успех, основываясь только на подтверждении UI.

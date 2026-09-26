@@ -1,94 +1,94 @@
-# Incident Analysis — Week 7 Day 2
+# Разбор инцидента — неделя 7, день 2
 
-## Scenario
-User reports:
-"After adding retry logic, API performance degraded significantly under load"
-
----
-
-## Observations
-
-- External service is slow or unstable
-- Retry mechanism triggers multiple repeated requests
-- Under load, system becomes unresponsive
-- Increased number of outgoing requests to external service
+## Сценарий
+Отчеты пользователей:
+«После добавления логики повтора производительность API значительно ухудшилась под нагрузкой»
 
 ---
 
-## What Is Happening
+## Наблюдения
 
-- Each failed request triggers multiple retries
-- Total number of external calls increases exponentially
-- Workers remain occupied longer due to repeated attempts
-- System experiences retry storm
-
-→ Result:
-System overloads itself while trying to recover from failures
+- Внешний сервис работает медленно или нестабильно.
+- Механизм повторной попытки запускает несколько повторных запросов.
+- Под нагрузкой система перестает отвечать на запросы.
+- Увеличено количество исходящих запросов к внешнему сервису.
 
 ---
 
-## Core Problem
+## Что происходит
 
-- Retry logic is uncontrolled
-- No delay or spreading between retry attempts
-- System amplifies load during external failure
+- Каждый неудачный запрос запускает несколько повторных попыток.
+- Общее количество внешних вызовов увеличивается в геометрической прогрессии.
+- Работники дольше остаются занятыми из-за неоднократных попыток
+- Система испытывает повторный штурм
 
----
-
-## Solutions
-
-### 1. Controlled Retry (Critical)
-
-- Limit number of retries (e.g., max 2–3 attempts)
-- Ensure total request time remains bounded
+→ Результат:
+Система перегружается при попытке восстановления после сбоев.
 
 ---
 
-### 2. Exponential Backoff
+## Основная проблема
 
-- Increase delay between retries:
-  - attempt 1 → immediate
-  - attempt 2 → delay
-  - attempt 3 → longer delay
-
-Result:
-- Reduces pressure on external service
-- Gives time for recovery
+- Логика повторных попыток не контролируется.
+- Никакой задержки или разброса между повторными попытками.
+- Система усиливает нагрузку во время внешнего отказа.
 
 ---
 
-### 3. Jitter
+## Решения
 
-- Add randomness to retry delay
+### 1. Управляемые повторные попытки (критически важно)
 
-Result:
-- Prevents synchronized retry bursts
-- Smooths traffic spikes
-
----
-
-### 4. Circuit Breaker
-
-- Stop retrying after repeated failures
-- Allow cooldown period before retrying
-
-Result:
-- Prevents cascading failures
+- Ограничить количество повторных попыток (например, максимум 2–3 попытки).
+- Обеспечить, чтобы общее время запроса оставалось ограниченным.
 
 ---
 
-### 5. Retry Budget (Advanced)
+### 2. Экспоненциальное увеличение задержки перед повтором
 
-- Limit total number of retries across system
+- Увеличение задержки между повторными попытками:
+  - попытка 1 → немедленно
+  - попытка 2 → задержка
+  - попытка 3 → более длительная задержка
 
-Result:
-- Prevents retry from consuming all resources
+Результат:
+- Снижает нагрузку на внешние службы.
+- Дает время для восстановления.
 
 ---
 
-## Key Learning
+### 3. Случайный разброс задержек (jitter)
 
-- Retry can amplify failures if uncontrolled
-- Load must decrease during degradation, not increase
-- Proper retry strategy requires delay, limits, and randomness
-- Resilience patterns must work together, not independently
+- Добавить случайность к задержке повторной попытки.
+
+Результат:
+- Предотвращает синхронизированные пакеты повторных попыток
+- Сглаживает скачки трафика.
+
+---
+
+### 4. Предохранитель (Circuit Breaker)
+
+- Прекращение повторных попыток после повторных неудач.
+- Перед повторной попыткой дайте время на восстановление.
+
+Результат:
+- Предотвращает каскадные сбои
+
+---
+
+### 5. Бюджет повторных попыток (расширенный)
+
+- Ограничить общее количество попыток в системе.
+
+Результат:
+- Предотвращает использование всех ресурсов при повторной попытке.
+
+---
+
+## Основные выводы
+
+- Повторная попытка может усилить сбои, если ее не контролировать.
+- Во время деградации нагрузка должна уменьшаться, а не увеличиваться.
+- Правильная стратегия повторных попыток требует задержки, ограничений и случайности.
+- Модели устойчивости должны работать вместе, а не независимо.

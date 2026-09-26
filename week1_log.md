@@ -1,40 +1,40 @@
-# Week 1 Log
+# Журнал первой недели
 
 ## 2026-03-21
-- Created the repository
-- Added README
-- Added target roles
-- Started my IT track toward Astana Hub
+- Создан репозиторий
+- Добавлен README.
+- Добавлены целевые роли
+- Начал свой ИТ-курс по направлению к Astana Hub.
 ## 2026-03-22
-- Added sql_day_1.sql
-- Wrote 10 basic SQL queries
-- Added notes for SELECT, FROM, WHERE, ORDER BY
-- Improved the SQL file with comments
-- Added sql_cheat_sheet.md
+- Добавлен sql_day_1.sql
+- Написал 10 базовых SQL-запросов.
+- Добавлены примечания для SELECT, FROM, WHERE, ORDER BY.
+- Улучшен SQL-файл с комментариями.
+- Добавлен sql_cheat_sheet.md
 ## 2026-03-23
-- Added http_notes.md
-- Learned request and response basics
-- Added HTTP methods: GET, POST, PUT, DELETE
-- Added status codes: 200, 201, 400, 401, 403, 404, 500
-- Added http_cheat_sheet.md
+- Добавлен http_notes.md
+- Изучены основы запросов и ответов.
+- Добавлены методы HTTP: GET, POST, PUT, DELETE.
+- Добавлены коды состояния: 200, 201, 400, 401, 403, 404, 500.
+- Добавлен http_cheat_sheet.md
 ## 2026-03-24
-- Started Postman
-- Sent first GET request
-- Got 200 OK response
-- Added query parameter: city=Astana
-- Sent second GET request with params
-- Sent request to status/404
-- Got 404 response
-- Added postman_day_1/notes.md
+- Запущен Postman
+- Отправлен первый запрос GET.
+- Получил ответ 200 ОК
+- Добавил параметр запроса: city=Astana
+- Отправлен второй запрос GET с параметрами.
+- Отправлен запрос на статус/404
+- Получил ответ с кодом 404
+- Добавлен postman_day_1/notes.md
 ## 2026-03-25
-- Added sql_day_2.sql
-- Learned LIKE, IN, COUNT
-- Wrote 10 SQL queries for pattern search, multiple values, and row counting
+- Добавлен sql_day_2.sql
+- Изучено LIKE, IN, COUNT
+- Написал 10 SQL-запросов для поиска по шаблону, множественных значений и подсчета строк.
 ## 2026-03-26
-- Added support_notes.md
-- Learned core support terms: incident, bug, priority, escalation, workaround
-- Added first support case: user cannot log in
+- Добавлен support_notes.md
+- Изучены основные термины поддержки: инцидент, ошибка, приоритет, эскалация, обходной путь.
+- Добавлен первый случай поддержки: пользователь не может войти в систему.
 ## 2026-03-27
-- Added mini_resume.md
-- Completed first week of IT transition
-- Built GitHub foundation with SQL, HTTP, Postman, and support basics
+- Добавлен mini_resume.md
+- Завершена первая неделя перехода на ИТ.
+- Построена основа GitHub с SQL, HTTP, Postman и основами поддержки.

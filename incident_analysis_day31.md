@@ -1,218 +1,218 @@
-# Incident Analysis — Week 8 Day 3
+# Разбор инцидента — неделя 8, день 3
 
-## Scenario
+## Сценарий
 
-Team moved API and PostgreSQL into Docker containers.
+Команда переместила API и PostgreSQL в контейнеры Docker.
 
-After deployment:
-- API could not connect to database
-- localhost connections failed
-- PostgreSQL data disappeared after redeploy
-- containers had internet access but could not communicate with each other
-- developers manually exposed random ports
+После развертывания:
+- API не удалось подключиться к базе данных
+- Не удалось установить соединение localhost.
+- Данные PostgreSQL исчезли после повторного развертывания.
+- Контейнеры имели доступ в Интернет, но не могли связываться друг с другом
+- разработчики вручную выставили случайные порты
 
-CTO concluded that the team misunderstood container networking and storage.
-
----
-
-## What Problem Is Happening
-
-The team treats containers like lightweight virtual machines instead of isolated processes.
-
-Two core container properties were misunderstood:
-- network isolation
-- ephemeral filesystem behavior
-
-Each container:
-- has its own network namespace
-- has its own filesystem layer
-- runs independently from other containers
-
-Without proper networking and storage configuration:
-- services cannot communicate reliably
-- data becomes temporary
+Технический директор пришел к выводу, что команда неправильно поняла работу контейнерной сети и хранилища.
 
 ---
 
-## Why localhost Inside Container Is a Trap
+## В чём заключается проблема
 
-Inside container:
+Команда рассматривает контейнеры как облегченные виртуальные машины, а не как изолированные процессы.
+
+Два свойства основного контейнера были неправильно поняты:
+- сетевая изоляция
+- Поведение эфемерной файловой системы
+
+Каждый контейнер:
+- имеет собственное сетевое пространство имен
+- имеет собственный уровень файловой системы
+- работает независимо от других контейнеров
+
+Без надлежащей конфигурации сети и хранилища:
+- Сервисы не могут надежно взаимодействовать
+- данные становятся временными
+
+---
+
+## Почему localhost внутри контейнера является ловушкой
+
+Внутри контейнера:
 - localhost
 - 127.0.0.1
 
-refer only to the current container itself.
+относятся только к самому текущему контейнеру.
 
-Example:
+Пример:
 
 localhost:5432
 
-tries to find PostgreSQL inside API container.
+пытается найти PostgreSQL внутри API-контейнера.
 
-Result:
-- connection failure
+Результат:
+- сбой соединения
 
-Each container has:
-- separate loopback interface
-- isolated network stack
+Каждый контейнер содержит:
+- отдельный интерфейс обратной связи
+- изолированный сетевой стек
 
 ---
 
-## How Container Networking Works
+## Как работает сеть контейнеров
 
-Docker commonly uses bridge networking.
+Docker обычно использует мостовую сеть.
 
-Containers connected to same Docker network can communicate internally.
+Контейнеры, подключенные к одной и той же сети Docker, могут обмениваться внутренними данными.
 
-Docker provides:
-- internal DNS-based service discovery
+Docker обеспечивает:
+- Внутреннее обнаружение службы на основе DNS
 
-Containers should communicate using:
-- service names
+Контейнеры должны взаимодействовать с помощью:
+- Названия служб
 
-Example:
+Пример:
 
 db:5432
 
-instead of:
-- hardcoded IP addresses
+вместо:
+- жестко закодированные IP-адреса
 
-because container IPs are temporary and change frequently.
+поскольку IP-адреса контейнеров являются временными и часто меняются.
 
 ---
 
-## Why PostgreSQL Data Disappears
+## Почему данные PostgreSQL исчезают
 
-By default PostgreSQL stores data inside container writable layer.
+По умолчанию PostgreSQL хранит данные внутри записываемого слоя контейнера.
 
-Writable layer exists only while container exists.
+Доступный для записи слой существует только пока существует контейнер.
 
-Important distinction:
+Важное различие:
 
-| Action | Data Persistence |
+| Действие | Сохранение данных |
 |---|---|
-| docker restart | data survives |
-| docker rm + recreate | data lost |
+| docker restart | данные сохраняются |
+| docker rm + recreate | данные потеряны |
 
-During redeploy:
-- old container removed
-- new clean container created
+Во время передислокации:
+- Старый контейнер удален
+- Создан новый чистый контейнер
 
-Result:
-- database files disappeared
-
----
-
-## Volumes vs Bind Mounts
-
-### Bind Mounts
-
-Host directory mapped directly into container.
-
-Useful for:
-- development
-- hot reload
-- debugging
-
-Example:
-- local source code synchronization
+Результат:
+- файлы базы данных исчезли
 
 ---
 
-### Docker Volumes
+## Тома и монтирование каталогов хоста
 
-Docker-managed persistent storage.
+### Монтирование каталогов хоста (bind mounts)
 
-Useful for:
-- production databases
-- long-term persistence
-- portable deployments
+Каталог хоста отображается непосредственно в контейнере.
 
-Volumes survive:
-- container deletion
-- container recreation
+Полезно для:
+- развитие
+- горячая перезагрузка
+- отладка
 
-This makes them suitable for PostgreSQL persistence.
+Пример:
+- синхронизация локального исходного кода
 
 ---
 
-## Stateless vs Stateful Containers
+### Тома Docker
 
-### Stateless Containers
+Постоянное хранилище, управляемое Docker.
 
-Examples:
+Полезно для:
+- рабочие базы данных
+- долговременная стойкость
+- Портативные развертывания
+
+Сохранились тома:
+- удаление контейнера
+- Пересоздание контейнера
+
+Это делает их подходящими для устойчивости PostgreSQL.
+
+---
+
+## Контейнеры без сохранения состояния и контейнеры с сохранением состояния
+
+### Контейнеры без сохранения состояния
+
+Примеры:
 - API
 - Nginx
-- workers
+- рабочие
 
-Can be recreated safely without losing important data.
+Может быть безопасно воссоздано без потери важных данных.
 
 ---
 
-### Stateful Containers
+### Контейнеры с сохранением состояния
 
-Examples:
+Примеры:
 - PostgreSQL
-- Redis persistence
+- Постоянство Redis
 - Kafka
 
-Require:
-- persistent storage
-- backup strategy
-- recovery planning
+Требовать:
+- Постоянное хранилище
+- стратегия резервного копирования
+- планирование восстановления
 
 ---
 
-## Production Networking and Storage Approach
+## Организация сети и хранения данных в рабочей среде
 
-### 1. Internal Docker Network
+### 1. Внутренняя сеть Docker
 
-Services communicate through shared internal network.
+Службы взаимодействуют через общую внутреннюю сеть.
 
-Database should not be publicly exposed.
+База данных не должна быть публичной.
 
-Only required public ports should be published externally.
+Только необходимые общедоступные порты должны публиковаться снаружи.
 
 ---
 
-### 2. Service Discovery
+### 2. Обнаружение сервисов
 
-Containers communicate using service names:
+Контейнеры взаимодействуют, используя имена сервисов:
 - api
 - db
 - redis
 
-instead of static IP addresses.
+вместо статических IP-адресов.
 
 ---
 
-### 3. Persistent Volumes
+### 3. Постоянные тома
 
-Production databases must use Docker volumes.
+Рабочие базы данных должны использовать тома Docker.
 
-Data must exist independently from container lifecycle.
+Данные должны существовать независимо от жизненного цикла контейнера.
 
 ---
 
 ### 4. Docker Compose
 
-Compose defines:
+Состав определяет:
 - networks
 - services
 - volumes
-- environment configuration
+- Конфигурация среды
 
-in declarative form.
+в декларативной форме.
 
-Result:
-- predictable infrastructure
-- reproducible local and staging environments
+Результат:
+- предсказуемая инфраструктура
+- воспроизводимые локальные и промежуточные среды
 
 ---
 
-## Key Learning
+## Основные выводы
 
-- Containers are isolated processes, not virtual machines
-- localhost inside container refers only to itself
-- Container filesystems are temporary by default
-- Persistent data requires volumes
-- Production container systems rely on internal networking and service discovery
+- Контейнеры — это изолированные процессы, а не виртуальные машины.
+- localhost внутри контейнера относится только к самому себе.
+- Контейнерные файловые системы по умолчанию являются временными.
+- Для постоянных данных требуются тома
+- Рабочие контейнерные системы полагаются на внутреннюю сеть и обнаружение сервисов.

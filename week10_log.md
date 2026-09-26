@@ -1,57 +1,57 @@
 ## 2026-05-23
-- Studied Redis cache architecture and cache-aside pattern
-- Learned stale reads and eventual consistency behavior
-- Understood inconsistency windows and async invalidation risks
-- Studied race conditions and distributed ordering failures
-- Learned cache stampede and dogpile effect mechanics
-- Compared cache-aside, write-through and write-behind strategies
-- Analyzed read-after-write consistency and cache versioning
+- Изучил архитектуру кэша Redis и паттерн загрузки кэша по запросу
+- Изучил чтение устаревших данных и согласованность в конечном счёте
+- Разобрался с интервалами рассогласования и рисками асинхронной инвалидации
+- Изучил состояния гонки и нарушения порядка событий в распределённых системах
+- Изучил механизмы лавины одновременных запросов при промахе кэша
+- Сравнил загрузку кэша по запросу, сквозную и отложенную запись
+- Проанализировал согласованность чтения после записи и версионирование кэша
 ## 2026-05-24
-- Studied PostgreSQL MVCC and transactional concurrency
-- Learned row-level locking and lock queue amplification
-- Understood deadlocks and transaction coordination collapse
-- Studied isolation levels and consistency tradeoffs
-- Learned connection pool exhaustion mechanics
-- Analyzed hot row contention and optimistic locking
-- Studied retry amplification at database layer
+- Изучил MVCC в PostgreSQL и параллельное выполнение транзакций
+- Изучил блокировки строк и рост очередей ожидания блокировок
+- Разобрался с взаимоблокировками и коллапсом координации транзакций
+- Изучил уровни изоляции и компромиссы согласованности
+- Изучил механизм исчерпания пула соединений
+- Проанализировал конкуренцию за часто изменяемые строки и оптимистические блокировки
+- Изучил усиление нагрузки из-за повторных запросов к базе данных
 ## 2026-05-25
-- Studied Kafka architecture and distributed event streams
-- Learned partitions, offsets and consumer group coordination
-- Understood consumer lag and rebalance storm mechanics
-- Studied delivery semantics and exactly-once limitations
-- Learned idempotent consumer design and replay safety
-- Analyzed hot partitions and backpressure amplification
-- Studied retry storms and DLQ isolation patterns
+- Изучил архитектуру Kafka и распределённые потоки событий
+- Изучил разделы, смещения и координацию групп потребителей
+- Разобрался с отставанием потребителей и штормами ребалансировки
+- Изучил семантику доставки и ограничения гарантии «ровно один раз»
+- Изучил проектирование идемпотентных потребителей и безопасность повторной обработки
+- Проанализировал перегруженные разделы и усиление обратного давления
+- Изучил штормы повторных попыток и изоляцию проблемных сообщений в DLQ
 ## 2026-05-26
-- Studied Kubernetes control plane architecture
-- Learned API server and etcd coordination mechanics
-- Understood reconciliation loops and watch storms
-- Studied informer caches and controller amplification
-- Learned etcd fsync latency and Raft coordination risks
-- Analyzed service mesh control plane amplification
-- Studied admission webhooks and CRD scalability risks
-- Learned control plane backpressure and cluster instability patterns
+- Изучил архитектуру плоскости управления Kubernetes
+- Изучил координацию API-сервера и etcd
+- Разобрался с циклами согласования состояния и штормами событий наблюдения
+- Изучил кэши информеров и усиление нагрузки со стороны контроллеров
+- Изучил задержки fsync в etcd и риски координации Raft
+- Проанализировал усиление нагрузки на плоскость управления со стороны сервисной сети
+- Изучил вебхуки допуска и риски масштабирования CRD
+- Изучил обратное давление в плоскости управления и типичные причины нестабильности кластера
 ## 2026-05-27
-- Studied Linux TCP connection lifecycle and kernel networking limits
-- Learned SYN backlog and accept queue behavior
-- Studied conntrack table exhaustion and NAT amplification
-- Learned TIME_WAIT mechanics and ephemeral port exhaustion
-- Understood retry amplification at kernel networking layer
-- Studied head-of-line blocking and TCP retransmissions
-- Learned Kubernetes networking overhead and connection churn problems
-- Studied production mitigation strategies for large-scale TCP overload
+- Изучил жизненный цикл TCP-соединений в Linux и сетевые ограничения ядра
+- Изучил поведение очередей SYN backlog и accept queue
+- Изучил исчерпание таблицы conntrack и усиление нагрузки из-за NAT
+- Изучил состояние TIME_WAIT и исчерпание временных портов
+- Разобрался с усилением нагрузки из-за повторов на сетевом уровне ядра
+- Изучил блокировку очереди первым запросом и повторную передачу TCP-пакетов
+- Изучил сетевые накладные расходы Kubernetes и частое создание и закрытие соединений
+- Изучил меры по снижению последствий масштабной перегрузки TCP в рабочей среде
 ## 2026-05-28
-- Studied distributed consensus and split-brain failure modes
-- Learned CAP theorem tradeoffs under network partition
-- Studied quorum, leader election and fencing tokens
-- Learned dangers of active-active financial architectures
-- Studied asynchronous replication and replay storms
-- Learned why last-write-wins breaks causality
-- Studied idempotency, transactional outbox and saga patterns
-- Understood distinction between healthy infrastructure and corrupted business state
+- Изучил распределённый консенсус и сбои с расхождением лидеров
+- Изучил компромиссы теоремы CAP при сетевом разделении
+- Изучил кворум, выборы лидера и токены отсечения устаревших лидеров
+- Изучил риски архитектуры active-active в финансовых системах
+- Изучил асинхронную репликацию и штормы повторной обработки
+- Разобрался, почему правило «побеждает последняя запись» нарушает причинный порядок
+- Изучил идемпотентность, транзакционный исходящий журнал и паттерн саги
+- Разобрался в различии между исправностью инфраструктуры и согласованностью бизнес-данных
 ## 2026-05-29
-- Studied observability platform failure modes
-- Learned cardinality explosion and Prometheus scaling limits
-- Understood telemetry amplification and monitoring feedback loops
-- Studied tracing overhead and sampling strategies
-- Learned observability isolation and telemetry governance principles
+- Изучил типичные сбои платформы наблюдаемости
+- Изучил резкий рост кардинальности и пределы масштабирования Prometheus
+- Разобрался с усилением нагрузки от телеметрии и петлями обратной связи мониторинга
+- Изучил накладные расходы трассировки и стратегии выборочного сохранения трасс
+- Изучил принципы изоляции систем наблюдаемости и управления телеметрией

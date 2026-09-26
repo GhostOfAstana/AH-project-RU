@@ -1,14 +1,14 @@
-# Incident Analysis — Week 5 Day 1
+# Разбор инцидента — неделя 5, день 1
 
-## Scenario
-Service `/api/orders` shows intermittent failures.
+## Сценарий
+Сервис `/api/orders` показывает периодические сбои.
 
-Log file:
+Файл журнала:
 `/var/log/orders.log`
 
 ---
 
-## Log Sample
+## Пример журнала
 
 2026-04-18 09:12:01 INFO Request GET /api/orders 200  
 2026-04-18 09:12:03 ERROR Database timeout on query orders  
@@ -19,69 +19,69 @@ Log file:
 
 ---
 
-## My Initial Thinking
+## Мои первоначальные размышления
 
-- I identified that database issues are causing failures
-- However, I lacked knowledge of how to work with logs in Linux
-- I initially considered using Postman instead of logs/metrics
+- Я определил, что проблемы с базой данных вызывают сбои
+- Однако мне не хватило знаний как работать с логами в Linux
+- Изначально я рассматривал возможность использования Postman вместо журналов/метрик.
 
-### Problem
-- Did not know how to read logs using Linux tools
-- Did not prioritize logs as primary debugging source
-- Misidentified Postman as a verification tool for system-level issues
-
----
-
-## Corrected Approach
-
-### 1. What It Means
-
-- System is partially degraded
-- Some requests succeed (200)
-- Some fail due to database timeout
-- Issue is not total outage, but instability
+### Проблема
+- Не знал, как читать логи с помощью инструментов Linux.
+- Журналы не были приоритетными в качестве основного источника отладки.
+- Ошибочно идентифицирован Postman как инструмент проверки проблем системного уровня.
 
 ---
 
-### 2. First Step (Logs)
+## Исправленный подход
 
-Use Linux tools:
+### 1. Что это означает
 
-- `tail -f /var/log/orders.log` → real-time monitoring  
-- `grep ERROR /var/log/orders.log` → filter errors  
-- `grep ERROR /var/log/orders.log | wc -l` → count errors  
-
----
-
-### 3. Possible Cause
-
-- Database is too slow or overloaded
-- Queries to `orders` table are timing out
-- Connection pool or DB performance issue
+- Система частично деградировала
+- Некоторые запросы выполняются успешно (200)
+- Некоторые из них терпят неудачу из-за тайм-аута базы данных.
+- Проблема заключается в нестабильности, а не в полном отказе сервиса
 
 ---
 
-### 4. Actions
+### 2. Первый шаг (журналы)
 
-- Check database load (CPU, queries)
-- Investigate slow queries
-- Check connection pool limits
-- Restart service if necessary
-- Consider caching layer
+Используйте инструменты Linux:
 
----
-
-### 5. Verification
-
-- Monitor logs for repeated errors
-- Check if error rate decreases
-- Analyze metrics (latency, DB performance)
+- `tail -f /var/log/orders.log` → мониторинг в реальном времени  
+- `grep ERROR /var/log/orders.log` → ошибки фильтра  
+- `grep ERROR /var/log/orders.log | wc -l` → подсчет ошибок  
 
 ---
 
-## Key Learning
+### 3. Возможная причина
 
-- Logs are primary source of truth in system-level issues
-- Postman is not useful for diagnosing backend performance problems
-- Must use Linux tools to read and filter logs
-- Partial failure indicates degradation, not full outage
+- База данных работает слишком медленно или перегружена.
+- Запросы к таблице `orders` истекли по тайм-ауту.
+- Проблема с пулом соединений или производительностью БД
+
+---
+
+### 4. Действия
+
+- Проверка загрузки базы данных (ЦП, запросы)
+- Исследование медленных запросов
+- Проверка ограничений пула соединений
+- Перезапустите службу, если необходимо.
+- Рассмотрим уровень кэширования
+
+---
+
+### 5. Проверка
+
+- Мониторинг журналов на предмет повторяющихся ошибок.
+- Проверьте, снижается ли частота ошибок.
+- Анализ показателей (задержка, производительность БД)
+
+---
+
+## Основные выводы
+
+- Журналы являются основным источником достоверной информации о проблемах системного уровня.
+- Postman бесполезен для диагностики проблем с производительностью серверной части.
+- Необходимо использовать инструменты Linux для чтения и фильтрации журналов.
+- Частичный отказ указывает на деградацию, а не на полный выход из строя.

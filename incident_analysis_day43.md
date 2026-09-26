@@ -1,642 +1,642 @@
-# Incident Analysis — Week 10 Day 1
+# Разбор инцидента — неделя 10, день 1
 
-## Scenario
+## Сценарий
 
-Platform architecture:
+Архитектура платформы:
 
 ```text
-Clients
+Клиенты
   ↓
 API
   ↓
-Redis Cache
+Кэш Redis
   ↓
 PostgreSQL
 ```
 
-System characteristics:
-- high traffic
-- millions of users
-- aggressive caching
-- asynchronous invalidation
-- background workers
-- event-driven updates
+Характеристики системы:
+- высокий трафик
+- миллионы пользователей
+- агрессивное кэширование
+- асинхронное аннулирование
+- фоновые рабочие
+- Обновления, управляемые событиями
 
-User complaints:
-- stale profile data
-- outdated balances
-- inconsistent usernames
-- delayed notifications
-- mobile/web inconsistency
-- refresh sometimes fixes issue
-- logout/login sometimes fixes issue
+Жалобы пользователей:
+- устаревшие данные профиля
+- устаревшие остатки
+- противоречивые имена пользователей
+- отложенные уведомления
+- Несогласованность мобильных устройств и веб-сайтов
+- обновление иногда решает проблему
+- Выход из системы/вход в систему иногда решает проблему
 
-Infrastructure metrics remained healthy:
-- Redis healthy
-- PostgreSQL healthy
-- low latency
-- low CPU
-- near-zero error rate
+Показатели инфраструктуры оставались здоровыми:
+- Redis здоров
+- PostgreSQL здоров
+- низкая задержка
+- низкий процессор
+- Почти нулевая частота ошибок
 
-Root cause involved:
-- stale cache state
-- asynchronous invalidation delay
-- eventual consistency
-- race conditions
-- distributed ordering problems
+Основная причина:
+- устаревшее состояние кэша
+- Задержка асинхронной аннулирования
+- Согласованность в конечном счёте
+- условия гонки
+- Проблемы распределенного порядка
 
 ---
 
-# Why Redis Cache Exists
+# Почему существует кэш Redis
 
-Redis cache reduces:
-- database load
-- read latency
-- repeated expensive queries
+Кэш Redis уменьшает:
+- загрузка базы данных
+- задержка чтения
+- повторяющиеся дорогостоящие запросы
 
-Common architecture:
-- cache-aside pattern
+Общая архитектура:
+- Шаблон выделения кэша
 
-Flow:
+Последовательность:
 
 ```text
-Request
-→ check Redis
-→ cache miss
-→ query PostgreSQL
-→ populate cache
-→ return response
+Запрос
+→ проверьте Redis
+→ промах в кэше
+→ запрос PostgreSQL
+→ заполнить кэш
+→ обратный ответ
 ```
 
-Benefits:
-- faster reads
-- lower DB pressure
-- improved scalability
+Преимущества:
+- быстрее читает
+- пониженное давление DB
+- Улучшенная масштабируемость
 
-Tradeoff:
-- distributed consistency complexity
+Компромисс:
+- Сложность распределенной согласованности
 
-Caching converts:
-- storage problem
+Кэширование преобразует:
+- проблема с хранением
 
-into:
-- state synchronization problem.
-
----
-
-# Cache Invalidation
-
-Cache invalidation means:
-- removing or updating outdated cached data
-
-Critical problem:
-- cache does not automatically know DB changed
-
-After database update:
-- cache immediately becomes stale
-
-If invalidation delayed:
-- users continue reading outdated values.
+В:
+- Проблема синхронизации состояний.
 
 ---
 
-# Stale Data
+# Инвалидация кэша
 
-Stale data means:
-- cached value no longer matches source of truth
+Инвалидация кэша означает:
+- удаление или обновление устаревших кэшированных данных
 
-Common causes:
-- delayed invalidation
-- async propagation lag
-- race conditions
-- stale replicas
-- event ordering failures
+Критическая проблема:
+- Кэш не узнает автоматически, что БД изменилась
 
-Result:
-- inconsistent user experience
+После обновления базы данных:
+- кэш сразу устаревает
 
-Users may observe:
-- old profile values
-- outdated balances
-- delayed notifications
-
-even while infrastructure remains healthy.
+Если аннулирование отложено:
+- Пользователи продолжают читать устаревшие значения.
 
 ---
 
-# Eventual Consistency
+# Устаревшие данные
 
-Eventual consistency means:
-- distributed systems converge over time
+Устаревшие данные означают:
+- Кешированное значение больше не соответствует источнику истины
 
-not:
-- instantly
+Распространенные причины:
+- отложенное аннулирование
+- Задержка асинхронного распространения
+- условия гонки
+- устаревшие реплики
+- сбои в упорядочении событий
 
-Guarantee:
+Результат:
+- непостоянный пользовательский опыт
+
+Пользователи могут наблюдать:
+- старые значения профиля
+- устаревшие остатки
+- отложенные уведомления
+
+Даже если инфраструктура остается исправной.
+
+---
+
+# Согласованность в конечном счёте
+
+Согласованность в конечном счёте означает:
+- Распределенные системы сходятся во времени
+
+А не:
+- мгновенно
+
+Гарантия:
 
 ```text
-all replicas eventually agree
+все реплики в конечном итоге соглашаются
 ```
 
-but:
-- temporary inconsistency windows exist.
+Но:
+- Временные окна несоответствия существуют.
 
-This creates:
-- stale reads
-- nondeterministic behavior
-- user-visible inconsistency
+Это создает:
+- устаревшие чтения
+- недетерминированное поведение
+- Несоответствие, видимое пользователю
 
-particularly during:
-- high write activity
-- async replication
-- delayed invalidation.
+особенно во время:
+- высокая активность записи
+- асинхронная репликация
+- Отсроченная аннулирование.
 
 ---
 
-# Inconsistency Window
+# Интервал рассогласования
 
-System flow:
+Схема работы системы:
 
 ```text
-DB write
-→ event publish
-→ queue propagation
-→ worker consume
-→ cache invalidation
+Запись в БД
+→ публикация события
+→ распространение очереди
+→ рабочий потребляет
+→ аннулирование кэша
 ```
 
-Between:
-- database update
-and:
-- cache invalidation
+Между:
+- обновление базы данных
+И:
+- Инвалидация кэша
 
-there exists:
-- inconsistency window
+существует:
+- Интервал рассогласования
 
-During this period:
-- users read stale cache state.
+В течение этого периода:
+- Пользователи считывают устаревшее состояние кэша.
 
 ---
 
-# Race Conditions
+# Условия гонки
 
-Concurrent operations may execute:
-- out of order
-- with delay
-- asynchronously
+Параллельные операции могут выполнять:
+- вышел из строя
+- с задержкой
+- асинхронно
 
-Example:
+Пример:
 
 ```text
-Update version 3 arrives
-→ cache updated
+Пришло обновление версии 3
+→ кэш обновлен
 
-Delayed version 2 event arrives later
-→ stale overwrite occurs
+Отложенное событие версии 2 наступает позже
+→ происходит устаревшая перезапись
 ```
 
-Without:
-- version checks
-- ordering guarantees
+Без:
+- проверка версии
+- Гарантии порядка событий
 
-older state may overwrite:
-- newer state
+более старое состояние может перезаписать:
+- новое состояние
 
-This produces:
-- distributed inconsistency.
-
----
-
-# Distributed Ordering Problems
-
-Distributed systems do not guarantee:
-- global ordering automatically
-
-Events may be:
-- duplicated
-- delayed
-- reordered
-- replayed
-
-Production systems therefore require:
-- idempotency
-- versioning
-- ordering protection
-
-to prevent:
-- stale overwrites.
+Это приводит к:
+- Распределенная несогласованность.
 
 ---
 
-# Why Async Workers Introduced Risk
+# Проблемы распределенного упорядочения
 
-Async workers decoupled:
-- writes
-from:
-- cache invalidation
+Распределенные системы не гарантируют:
+- автоматический глобальный порядок
 
-Benefits:
-- scalability
-- decoupling
-- lower request latency
+Событиями могут быть:
+- продублировано
+- с задержкой
+- изменен порядок
+- переиграл
 
-Tradeoff:
-- nondeterministic propagation timing
+Таким образом, рабочие системы требуют:
+- идемпотентность
+- версия
+- Заказ защиты
 
-Failures may occur because:
-- queue lag grows
-- workers restart
-- events delayed
-- consumers overloaded
-
-This increases:
-- stale data lifetime.
+для предотвращения:
+- устаревшие перезаписи.
 
 ---
 
-# Why Refresh Or Logout Sometimes Fixed Issue
+# Почему асинхронные обработчики создают риск
 
-Refresh sometimes triggered:
-- cache miss
-or:
-- forced revalidation
+Асинхронные рабочие процессы отделены:
+- пишет
+От:
+- Инвалидация кэша
 
-Logout/login frequently:
-- bypassed stale session state
-- rebuilt cache
-- refreshed authentication context
+Преимущества:
+- масштабируемость
+- развязка
+- более низкая задержка запроса
 
-This temporarily restored:
-- fresh reads.
+Компромисс:
+- недетерминированное время распространения
+
+Сбои могут возникнуть из-за:
+- Задержка в очереди увеличивается
+- Перезапуск рабочих
+- События задерживаются
+- потребители перегружены
+
+Это увеличивает:
+- Срок службы устаревших данных.
 
 ---
 
-# TTL (Time To Live)
+# Почему обновление страницы или выход из системы иногда устраняли проблему
 
-TTL defines:
-- cache expiration duration
+Иногда срабатывает обновление:
+- промах в кэше
+Или:
+- принудительная повторная проверка
 
-Example:
+Часто выходить/входить в систему:
+- обошло устаревшее состояние сеанса
+- перестроен кэш
+- обновлен контекст аутентификации
+
+Временно восстановлено:
+- Свежие прочтения.
+
+---
+
+# TTL — время жизни записи
+
+TTL определяет:
+- Срок действия кэша
+
+Пример:
 
 ```text
-profile_cache_ttl = 300 seconds
+profile_cache_ttl = 300 секунд
 ```
 
-Tradeoff:
+Компромисс:
 
 ---
 
-# Long TTL
+# Длинный TTL
 
-Pros:
-- fewer DB reads
-- higher cache hit ratio
+Преимущества:
+- Меньше операций чтения БД
+- Более высокий коэффициент попадания в кэш
 
-Cons:
-- stale data persists longer
-
----
-
-# Short TTL
-
-Pros:
-- fresher data
-
-Cons:
-- more DB load
-- higher cache miss frequency
-- increased stampede risk
-
-TTL therefore represents:
-- consistency vs performance tradeoff.
+Недостатки:
+- устаревшие данные сохраняются дольше
 
 ---
 
-# Cache Stampede
+# Короткий срок жизни
 
-Cache stampede occurs when:
-- many requests simultaneously miss cache
+Преимущества:
+- более свежие данные
 
-Example:
+Недостатки:
+- Увеличение нагрузки на БД
+- Более высокая частота промахов кэша
+- повышенный риск давки
+
+Таким образом, TTL представляет собой:
+- Согласованность и компромисс между производительностью.
+
+---
+
+# Лавина запросов при промахе кэша (cache stampede)
+
+Паника в кэше происходит, когда:
+- многие запросы одновременно пропускают кэш
+
+Пример:
 
 ```text
-popular key expires
-→ thousands of concurrent requests
-→ all hit database simultaneously
+Срок действия популярного ключа истекает
+→ тысячи одновременных запросов
+→ все базы данных совпадений одновременно
 ```
 
-Consequences:
-- DB overload
-- latency spikes
-- cascading retries
+Последствия:
+- Перегрузка БД
+- Пики задержки
+- каскадные повторы
 
-Also known as:
-- dogpile effect
+Также известен как:
+- Эффект одновременных обращений при промахе кэша (dogpile effect)
 
-Production mitigation:
-- cache warming
-- request coalescing
-- jittered TTLs
-- distributed locking.
-
----
-
-# Cache Warming
-
-Cache warming proactively refreshes:
-- hot cache entries
-
-before expiration occurs.
-
-Purpose:
-- reduce synchronized cache misses
-- avoid DB flood
-- stabilize latency
+Снижение уровня добычи:
+- Прогрев кэша
+- запрос на объединение
+- TTL со случайным разбросом
+- Распределенная блокировка.
 
 ---
 
-# Cache-Aside vs Write-Through vs Write-Behind
+# Прогрев кэша
 
-## Cache-Aside
+При подогреве кэша происходит упреждающее обновление:
+- записи горячего кэша
 
-Application manually manages cache.
+до истечения срока годности.
 
-Pros:
-- flexible
-- common
-
-Cons:
-- consistency complexity
-- stale read risk
+Назначение:
+- Уменьшение промахов синхронизированного кэша
+- избежать флуда БД
+- стабилизировать задержку
 
 ---
 
-# Write-Through
+# Сравнение загрузки кэша по запросу, сквозной и отложенной записи
 
-Writes update:
-- DB
-- cache synchronously
+## Загрузка кэша по запросу (cache-aside)
 
-Pros:
-- stronger consistency
+Приложение вручную управляет кэшем.
 
-Cons:
-- slower writes
+Преимущества:
+- гибкий
+- общий
 
----
-
-# Write-Behind (Write-Back)
-
-Writes stored:
-- in cache first
-
-Database updated asynchronously later.
-
-Pros:
-- very fast writes
-
-Cons:
-- durability risk
-- data loss risk
-- ordering complexity
-
-Dangerous for:
-- financial systems
-- critical transactional state
+Недостатки:
+- сложность согласованности
+- риск устаревшего чтения
 
 ---
 
-# Read-After-Write Consistency
+# Сквозная запись
 
-Users typically expect:
+Записывает обновление:
+- БД
+- кэшировать синхронно
+
+Преимущества:
+- Более строгая согласованность
+
+Недостатки:
+- медленнее пишет
+
+---
+
+# Отложенная запись (write-behind / write-back)
+
+Запись сохраняется:
+- Сначала в кэше
+
+База данных позже обновляется асинхронно.
+
+Преимущества:
+- очень быстро пишет
+
+Недостатки:
+- Риск долговечности
+- риск потери данных
+- Сложность обеспечения порядка событий
+
+Опасно для:
+- финансовые системы
+- критическое состояние транзакции
+
+---
+
+# Согласованность чтения после записи
+
+Пользователи обычно ожидают:
 
 ```text
-I updated data
-→ I immediately see updated value
+Я обновил данные
+→ Я сразу вижу обновленное значение
 ```
 
-Distributed caches often violate this expectation.
+Распределенные кэши часто нарушают это ожидание.
 
-Production strategies:
-- temporary cache bypass
-- synchronous invalidation
-- sticky sessions
-- version-aware reads
+Рабочие стратегии:
+- временный обход кэша
+- синхронное аннулирование
+- липкие сеансы
+- Чтение с учетом версии
 
-Critical data frequently requires:
-- stronger consistency guarantees.
-
----
-
-# Idempotency
-
-Idempotent processing ensures:
-- duplicate events produce same final state
-
-Important because distributed systems may:
-- retry events
-- replay messages
-- duplicate deliveries
-
-Without idempotency:
-- repeated invalidation events may corrupt state.
+Критические данные часто требуют:
+- Более строгие гарантии согласованности.
 
 ---
 
-# Why Dashboards Appeared Healthy
+# Идемпотентность
 
-Infrastructure metrics measured:
-- availability
-- latency
-- resource usage
+Идемпотентная обработка обеспечивает:
+- повторяющиеся события создают одинаковое конечное состояние
 
-but not:
-- correctness of distributed state
+Это важно, поскольку распределенные системы могут:
+- События для повторной обработки
+- воспроизведение сообщений
+- дублированные поставки
 
-Redis served responses successfully:
-- even if values stale
-
-System therefore appeared:
-- operational
-
-while users experienced:
-- inconsistent application behavior.
+Без идемпотентности:
+- Повторяющиеся события аннулирования могут испортить состояние.
 
 ---
 
-# Cache Poisoning Risk
+# Почему дашборды показывали нормальное состояние
 
-Incorrect or stale state may propagate into:
-- shared cache layer
+Измеряемые показатели инфраструктуры:
+- доступность
+- задержка
+- использование ресурсов
 
-Cache then amplifies:
-- inconsistency globally
+но не:
+- Корректность распределенного состояния
 
-Small synchronization bugs become:
-- platform-wide stale state incidents.
+Redis успешно доставил ответы:
+- даже если значения устарели
+
+Таким образом появилась система:
+- Эксплуатационный
+
+В то время как пользователи испытывали:
+- Несогласованное поведение приложений.
 
 ---
 
-# Investigation Process
+# Риск отравления кэша
 
-## Event Timeline Analysis
+Неправильное или устаревшее состояние может распространиться на:
+- Уровень общего кэша
 
-Trace full propagation chain:
+Затем кэш усиливается:
+- несоответствие во всем мире
+
+Небольшими ошибками синхронизации становятся:
+- Инциденты устаревшего состояния на уровне всей платформы.
+
+---
+
+# Процесс расследования
+
+## Анализ временной шкалы событий
+
+Отслеживание полной цепочки распространения:
 
 ```text
-DB update
-→ event publish
-→ queue delivery
-→ worker consume
-→ cache invalidation
+Обновление БД
+→ публикация события
+→ доставка в очередь
+→ рабочий потребляет
+→ аннулирование кэша
 ```
 
-Identify:
-- propagation delays
-- missing events
-- worker lag
+Определить:
+- задержки распространения
+- пропущенные события
+- рабочее отставание
 
 ---
 
-# Queue Monitoring
+# Мониторинг очереди
 
-Inspect:
-- consumer lag
-- queue depth
-- retry counts
-- dead-letter queues
+Исследовать:
+- потребительское отставание
+- глубина очереди
+- количество повторных попыток
+- Очереди недоставленных сообщений
 
-Purpose:
-- detect invalidation delay.
-
----
-
-# Redis Analysis
-
-Inspect:
-- TTL distribution
-- hot keys
-- eviction rates
-- key expiration behavior
-
-Useful tooling:
-- Redis keyspace notifications
+Назначение:
+- Обнаружение задержки аннулирования.
 
 ---
 
-# Consistency Testing
+# Анализ Redis
 
-Compare:
-- DB state
-vs:
-- cache state
+Исследовать:
+- Распределение TTL
+- горячие клавиши
+- темпы вытеснения
+- Поведение истечения срока действия ключа
 
-Validate:
-- stale read frequency
-- propagation delay
-- ordering correctness
-
----
-
-# Production Mitigation Plan
-
-## Short-Term Stabilization
-
-- reduce TTL
-- invalidate cache synchronously for critical data
-- bypass cache for recent writes
-- increase worker capacity
-- monitor queue lag
-
-Goal:
-- shrink inconsistency window.
+Полезный инструмент:
+- Уведомления пространства ключей Redis
 
 ---
 
-# Long-Term Improvements
+# Проверка согласованности
 
-## Versioned Cache Entries
+Сравнить:
+- Состояние БД
+По сравнению с:
+- состояние кэша
 
-Store:
-- object version
-- update timestamp
-
-Prevent:
-- stale overwrite events.
-
----
-
-# Ordering Guarantees
-
-Use:
-- partition-aware queues
-- ordered event streams
-- idempotent consumers
-
-Reduce:
-- out-of-order updates.
+Проверить:
+- устаревшая частота чтения
+- Задержка распространения
+- Корректность порядка событий
 
 ---
 
-# Hybrid Consistency Strategy
+# План снижения последствий инцидента в рабочей среде
 
-Differentiate:
-- critical state
-- noncritical state
+## Кратковременная стабилизация
 
-Examples:
+- Уменьшите TTL
+- Синхронно аннулировать кэш для критических данных
+- обход кеша для недавних записей
+- Повышение производительности труда
+- контролировать задержку в очереди
 
-Strong consistency:
-- balances
-- payments
-
-Eventual consistency acceptable:
-- notifications
-- recommendations
+Цель:
+- Сокращение окна несоответствия.
 
 ---
 
-# Stampede Protection
+# Долгосрочные улучшения
 
-Implement:
-- cache warming
-- request collapsing
-- distributed locks
-- staggered TTL expiration
+## Версионные записи кэша
 
-Prevent:
-- synchronized DB flooding.
+Хранить:
+- версия объекта
+- обновить временную метку
 
----
-
-# Architectural Lessons
-
-Caching systems fail not because:
-- cache crashes
-
-but because:
-- distributed state propagation becomes nondeterministic
-
-Distributed caches introduce:
-- consistency windows
-- ordering complexity
-- stale state propagation
-- synchronization races
-
-Reliable backend systems require:
-- careful invalidation design
-- ordering guarantees
-- version-aware updates
-- bounded inconsistency windows
+Предотвращать:
+- Устаревшие события перезаписи.
 
 ---
 
-# Key Learning
+# Гарантии порядка событий
 
-- caching introduces distributed consistency complexity
-- stale reads emerge from delayed invalidation
-- async workers create inconsistency windows
-- eventual consistency trades correctness for scalability
-- distributed ordering failures corrupt cache state
-- cache stampedes amplify backend load
-- healthy infrastructure does not guarantee correct data visibility
+Использовать:
+- Очереди с учетом разделов
+- упорядоченные потоки событий
+- идемпотентные потребители
+
+Уменьшить:
+- Неупорядоченные обновления.
+
+---
+
+# Стратегия гибридной согласованности
+
+Различать:
+- критическое состояние
+- некритическое состояние
+
+Примеры:
+
+Строгая согласованность:
+- остатки
+- платежи
+
+Согласованность в конечном счёте приемлема:
+- уведомления
+- рекомендации
+
+---
+
+# Защита от лавины запросов при промахе кэша
+
+Реализовать:
+- Прогрев кэша
+- Сворачивание запроса
+- распределенные блокировки
+- Поэтапное истечение срока TTL
+
+Предотвращать:
+- Синхронизированная лавинная рассылка БД.
+
+---
+
+# Архитектурные уроки
+
+Системы кэширования терпят неудачу не потому, что:
+- Сбой кэша
+
+но потому что:
+- Распределенное распространение состояний становится недетерминированным
+
+Распределенные кэши предоставляют:
+- Окна согласованности
+- Сложность обеспечения порядка событий
+- Распространение устаревшего состояния
+- Гонки синхронизации
+
+Надежные серверные системы требуют:
+- Тщательный дизайн недействительности
+- Гарантии порядка событий
+- Обновления с учетом версии
+- Ограниченные окна несоответствия
+
+---
+
+# Основные выводы
+
+- Кэширование усложняет распределенную согласованность
+- устаревшие чтения возникают в результате отложенной аннулирования
+- асинхронные работники создают окна несогласованности
+- Согласованность в конечном счёте меняет правильность на масштабируемость
+- сбои распределенного порядка приводят к повреждению состояния кэша
+- Паника в кэше увеличивает нагрузку на серверную часть
+- исправная инфраструктура не гарантирует правильную видимость данных

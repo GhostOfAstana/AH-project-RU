@@ -1,34 +1,34 @@
-# SQL Cheat Sheet
+# Шпаргалка по SQL
 
-## Core Words
-- SELECT = what to show
-- FROM = from which table
-- WHERE = filter rows
-- ORDER BY = sort result
+## Основные термины
+- SELECT = что показывать
+- FROM = из какой таблицы
+- WHERE = фильтровать строки
+- ORDER BY = результат сортировки
 
-## Basic Examples
+## Основные примеры
 
-### Show all columns
+### Показать все столбцы
 SELECT * FROM users;
 
-### Show one column
+### Показать один столбец
 SELECT name FROM users;
 
-### Show two columns
+### Показать два столбца
 SELECT name, email FROM users;
 
-### Filter rows
+### Фильтровать строки
 SELECT * FROM users WHERE city = 'Astana';
 
-### Sort rows
+### Сортировка строк
 SELECT * FROM users ORDER BY name;
 
-### Filter and sort
+### Фильтровать и сортировать
 SELECT name, email FROM users WHERE city = 'Astana' ORDER BY name;
 
-## My Reminder
-SQL is about:
-1. choosing data
-2. choosing source
-3. filtering rows
-4. sorting result
+## Памятка
+SQL – это:
+1. выбор данных
+2. выбор источника
+3. фильтрация строк
+4. результат сортировки

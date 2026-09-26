@@ -1,32 +1,32 @@
-# Incident Report 2
+# Отчет об инциденте 2
 
-## Issue
-User reports: "I cannot log in to the system"
+## Проблема
+Пользователь сообщает: «Я не могу войти в систему»
 
-## Steps to Reproduce
-1. User enters login and password
-2. System returns error: "Invalid credentials"
+## Этапы воспроизведения
+1. Пользователь вводит логин и пароль
+2. Система возвращает ошибку: «Неверные учетные данные».
 
-## Observed Result
-- Login attempt fails
-- Error message: "Invalid credentials"
+## Наблюдаемый результат
+- Попытка входа не удалась.
+- Сообщение об ошибке: «Неверные учетные данные».
 
-## Expected Result
-- User should be able to log in with correct credentials
+## Ожидаемый результат
+- Пользователь должен иметь возможность войти в систему с правильными учетными данными.
 
-## Initial Analysis
-- This may not be a system bug
-- Possible user input error (wrong login or password)
-- Could be account-related issue (locked or inactive)
+## Первоначальный анализ
+- Возможно, это не системная ошибка.
+- Возможна ошибка ввода пользователя (неправильный логин или пароль)
+- Возможно, проблема связана с учетной записью (заблокирована или неактивна).
 
-## Possible Causes
-- Incorrect login or password
-- Caps Lock enabled
-- Account is locked after multiple attempts
-- User account does not exist
+## Возможные причины
+- Неправильный логин или пароль.
+- Включен Caps Lock
+- Аккаунт блокируется после нескольких попыток.
+- Учетная запись пользователя не существует
 
-## Next Actions
-- Ask user to re-check login and password
-- Ask user to reset password
-- Check if account is locked
-- Escalate only if issue persists after checks
+## Следующие действия
+- Попросить пользователя перепроверить логин и пароль.
+- Попросить пользователя сбросить пароль
+- Проверьте, заблокирована ли учетная запись
+- Эскалация только в том случае, если проблема не устранена после проверок.

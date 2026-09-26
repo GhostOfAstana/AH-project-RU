@@ -1,87 +1,87 @@
-# Incident Analysis — Week 7 Day 1
+# Разбор инцидента — неделя 7, день 1
 
-## Scenario
-User reports:
-"External payment service sometimes slows down and causes API failures"
-
----
-
-## Observations
-
-- API waits up to 10 seconds for external service
-- Multiple concurrent requests lead to worker exhaustion
-- Users receive timeouts or 500 errors
-- External dependency is unstable
+## Сценарий
+Отчеты пользователей:
+«Внешний платежный сервис иногда тормозит и вызывает сбои API»
 
 ---
 
-## What Is Happening
+## Наблюдения
 
-- API makes synchronous call to external payment service
-- Workers block while waiting for response
-- Under load, worker pool becomes exhausted
-- New requests are queued or fail
-
-→ Result:
-System becomes unresponsive due to blocked resources
+- API ожидает внешнего сервиса до 10 секунд.
+- Множественные одновременные запросы приводят к истощению работника.
+- Пользователи получают таймауты или 500 ошибок.
+- Внешняя зависимость нестабильна
 
 ---
 
-## Core Problem
+## Что происходит
 
-- Tight coupling with external dependency
-- No isolation or protection mechanisms
-- System does not degrade gracefully
+- API выполняет синхронный вызов внешней платежной службы
+- Рабочие блокируются в ожидании ответа
+- Под нагрузкой рабочий пул исчерпывается.
+- Новые запросы ставятся в очередь или терпят неудачу.
 
----
-
-## Solutions
-
-### 1. Timeout + Fail-Fast (Critical)
-
-- Set strict timeouts for external calls
-- Separate connect timeout and read timeout
-
-Result:
-- Workers are freed quickly
-- System remains responsive
+→ Результат:
+Система перестает отвечать на запросы из-за заблокированных ресурсов.
 
 ---
 
-### 2. Retry Strategy
+## Основная проблема
 
-- Implement limited retries with exponential backoff
-- Avoid infinite or aggressive retry loops
-
-Result:
-- Handles transient failures without overload
+- Тесная связь с внешней зависимостью
+- Отсутствие механизмов изоляции или защиты.
+- Система не деградирует корректно
 
 ---
 
-### 3. Circuit Breaker
+## Решения
 
-- Stop calling external service after repeated failures
-- Allow recovery period before retrying
+### 1. Тайм-аут и быстрый отказ (критически важно)
 
-Result:
-- Prevents cascading failures
-- Protects system resources
+- Установите строгие таймауты для внешних вызовов
+- Отдельный тайм-аут соединения и тайм-аут чтения.
 
----
-
-### 4. Asynchronous Processing
-
-- Move payment handling to background queue
-- Respond to user immediately with processing status
-
-Result:
-- Decouples API response time from external service latency
+Результат:
+- Рабочие освобождаются быстро
+- Система остается отзывчивой
 
 ---
 
-## Key Learning
+### 2. Стратегия повторной попытки
 
-- External dependencies must be treated as unreliable
-- Systems must fail fast to remain stable
-- Protection mechanisms are essential for resilience
-- Decoupling improves system robustness
+- Реализуйте ограниченные повторные попытки с экспоненциальной задержкой.
+- Избегайте бесконечных или агрессивных циклов повторов.
+
+Результат:
+- Обрабатывает переходные сбои без перегрузки.
+
+---
+
+### 3. Предохранитель (Circuit Breaker)
+
+- Прекращение вызова внешней службы после повторяющихся сбоев
+- Разрешить период восстановления перед повторной попыткой.
+
+Результат:
+- Предотвращает каскадные сбои
+- Защищает системные ресурсы
+
+---
+
+### 4. Асинхронная обработка
+
+- Переместить обработку платежей в фоновую очередь.
+- Немедленный ответ пользователю со статусом обработки.
+
+Результат:
+- Отделяет время ответа API от задержки внешнего сервиса.
+
+---
+
+## Основные выводы
+
+- Внешние зависимости следует рассматривать как ненадежные.
+- Чтобы оставаться стабильными, системы должны быстро выходить из строя.
+- Защитные механизмы необходимы для устойчивости.
+- Развязка повышает надежность системы.

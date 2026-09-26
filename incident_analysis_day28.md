@@ -1,190 +1,190 @@
-# Incident Analysis — Week 7 Day 7
+# Разбор инцидента — неделя 7, день 7
 
-## Scenario
+## Сценарий
 
-A new API version was deployed on Friday evening.
+Новая версия API была развернута в пятницу вечером.
 
-After deployment:
+После развертывания:
 
-- latency increased x4
-- p99 latency reached 12 seconds
-- CPU usage rose to 95%
-- some users received 502/504 errors
-- rollback was performed only after 40 minutes
+- Задержка увеличена в 4 раза
+- Задержка p99 достигла 12 секунд.
+- Загрузка ЦП выросла до 95%
+- некоторые пользователи получали ошибки 502/504
+- Откат осуществлялся только через 40 минут.
 
-Unit tests and staging environment showed no critical issues before release.
-
----
-
-## What Happened
-
-The new version reduced system throughput under real production load.
-
-Possible causes:
-- inefficient database query
-- memory leak
-- blocking operation
-- thread/resource exhaustion
-
-As latency increased:
-- requests accumulated
-- workers became saturated
-- CPU spent resources on context switching
-- reverse proxy (Nginx) started returning 502/504
-
-Result:
-System entered resource saturation state.
+Модульные тесты и промежуточная среда не выявили критических проблем перед выпуском.
 
 ---
 
-## Why Staging Did Not Reveal the Problem
+## Что произошло
 
-### 1. Insufficient Load
-Staging environment had very low concurrency compared to production traffic.
+Новая версия снизила производительность системы при реальной рабочей нагрузке.
 
-Problems such as:
-- lock contention
-- queue buildup
-- thread starvation
+Возможные причины:
+- неэффективный запрос к базе данных
+- утечка памяти
+- Операция блокировки
+- исчерпание потока/ресурса
 
-only appear under heavy parallel load.
+По мере увеличения задержки:
+- Накопились запросы
+- Рабочие насытились
+- Затраты ресурсов ЦП на переключение контекста
+- обратный прокси (Nginx) начал возвращать 502/504
 
----
-
-### 2. Different Dataset Size
-Production database contained significantly more records.
-
-Queries that are fast on small datasets may become extremely slow on large tables.
-
----
-
-### 3. Different Traffic Shape
-Production traffic contains:
-- bursts
-- uneven load distribution
-- hot endpoints
-- cache invalidation patterns
-
-These conditions were absent in staging.
+Результат:
+Система вошла в состояние насыщения ресурсов.
 
 ---
 
-## Main Architectural Mistake
+## Почему тестовая среда не выявила проблему
 
-Deployment strategy was:
-- all-at-once
+### 1. Недостаточная нагрузка
+Промежуточная среда имела очень низкий уровень параллелизма по сравнению с рабочим трафиком.
 
-All production instances were updated simultaneously.
+Такие проблемы, как:
+- Конфликт блокировки
+- создание очереди
+- голодание потока
 
-Result:
-- no blast radius reduction
-- bug immediately affected all users
-
-Additionally:
-- no automatic rollback mechanism existed
-
-Rollback depended entirely on manual human reaction.
+появляются только при большой параллельной нагрузке.
 
 ---
 
-## How to Reduce Deployment Risk
+### 2. Различный размер набора данных
+Рабочая база данных содержала значительно больше записей.
 
-### 1. Canary Deployment
+Запросы, которые выполняются быстро в небольших наборах данных, могут стать чрезвычайно медленными в больших таблицах.
 
-Deploy new version to a small percentage of instances or users.
+---
 
-Example:
+### 3. Другой профиль трафика
+Рабочий трафик содержит:
+- всплески
+- Неравномерное распределение нагрузки
+- горячие конечные точки
+- Шаблоны аннулирования кэша
+
+Эти условия отсутствовали при стадировании.
+
+---
+
+## Основная архитектурная ошибка
+
+Стратегия Deployment заключалась в следующем:
+- все сразу
+
+Все рабочие экземпляры были обновлены одновременно.
+
+Результат:
+- отсутствие уменьшения радиуса взрыва
+- ошибка сразу затронула всех пользователей
+
+Дополнительно:
+- Никакого автоматического механизма отката не существовало
+
+Откат полностью зависел от ручной реакции человека.
+
+---
+
+## Как снизить риск при развёртывании
+
+### 1. Канареечное развёртывание
+
+Разверните новую версию для небольшого процента экземпляров или пользователей.
+
+Пример:
 - 1%
 - 5%
 - 25%
 - 50%
 - 100%
 
-Monitor:
-- latency
-- error rate
-- CPU
-- saturation
+Отслеживать:
+- задержка
+- Частота ошибок
+- ЦП
+- насыщенность
 
-Rollback immediately if metrics degrade.
-
----
-
-### 2. Feature Flags
-
-Deploy code in disabled state.
-
-Enable feature gradually for selected users without redeployment.
-
-Result:
-- safer rollout
-- instant disable capability
+Немедленный откат в случае ухудшения показателей.
 
 ---
 
-### 3. Load Testing Before Production
+### 2. Флаги функций
 
-Use tools such as:
-- k6
-- Locust
-- Gatling
+Код развертывания в отключенном состоянии.
 
-Test:
-- throughput
-- concurrency
-- latency degradation
+Включайте функцию постепенно для выбранных пользователей без повторного развертывания.
 
-before real deployment.
+Результат:
+- Более безопасное развертывание
+- Возможность мгновенного отключения
 
 ---
 
-## What Mature Production Deployment Looks Like
+### 3. Нагрузочное тестирование перед выпуском в рабочую среду
 
-### Blue/Green Deployment
+Используйте такие инструменты, как:
+- к6
+- Саранча
+- Гатлинг
 
-Maintain two identical environments:
-- Blue (current stable)
-- Green (new version)
+Проверить:
+- пропускная способность
+- параллелизм
+- ухудшение задержки
 
-Switch traffic only after validation.
-
-Rollback:
-- instant traffic switch back
-
----
-
-### Health Checks
-
-System continuously verifies:
-- service availability
-- response time
-- dependency health
-
-Deployment stops automatically if checks fail.
+Перед реальным развертыванием.
 
 ---
 
-### Deployment Gates
+## Как устроено надёжное развёртывание в рабочей среде
 
-Automatic rollout stop when:
-- p99 latency exceeds threshold
-- error rate spikes
-- saturation increases
+### Сине-зелёное развёртывание
 
----
+Поддержание двух идентичных сред:
+- Синий (текущий стабильный)
+- Зеленый (новая версия)
 
-### Automated Rollback
+Переключайте трафик только после проверки.
 
-If deployment degrades system metrics:
-- rollback starts automatically
-- stable version restored without waiting for manual intervention
+Откат:
+- мгновенное переключение трафика обратно
 
 ---
 
-## Key Learning
+### Проверка работоспособности
 
-- Production deployment is risk management
-- Staging cannot fully reproduce production behavior
-- Blast radius must be minimized
-- Progressive delivery reduces deployment risk
-- Rollback must be automated whenever possible
+Система постоянно проверяет:
+- доступность услуги
+- время отклика
+- Здоровье зависимости
+
+Deployment автоматически останавливается, если проверки не пройдены.
+
+---
+
+### Контрольные проверки перед развёртыванием
+
+Автоматическая остановка выкатывания, когда:
+- Задержка p99 превышает пороговое значение
+- Пики частоты ошибок
+- Насыщение увеличивается
+
+---
+
+### Автоматический откат
+
+Если развертывание ухудшает показатели системы:
+- откат начинается автоматически
+- Стабильная версия восстановлена без ожидания ручного вмешательства
+
+---
+
+## Основные выводы
+
+- Развёртывание в рабочей среде — это управление рисками
+- Постановка не может полностью воспроизвести рабочее поведение.
+- Радиус взрыва должен быть минимизирован.
+- Прогрессивная доставка снижает риск развертывания.
+- Откат должен быть автоматизирован, когда это возможно.

@@ -1,128 +1,128 @@
-# Incident Analysis — Week 6 Day 5
+# Разбор инцидента — неделя 6, день 5
 
-## Scenario
-User reports:
-"API works fast with low traffic, but slows down significantly under load (10–15 seconds)"
-
----
-
-## Observations
-
-- CPU usage is normal
-- Memory usage is stable
-- Database queries are fast
-- External services respond quickly
-- Low load response time: ~200ms
-- Under load (concurrency 20): ~12 seconds
+## Сценарий
+Отчеты пользователей:
+«API работает быстро при малом трафике, но существенно тормозит под нагрузкой (10–15 секунд)»
 
 ---
 
-## My Initial Thinking
+## Наблюдения
 
-- I identified performance degradation only under load
-- I recognized this as a saturation problem
-- I considered resource limits and queueing behavior
-
----
-
-## What Is Happening
-
-- System reaches a resource limit under load
-- Requests are queued due to limited capacity
-- Waiting time increases non-linearly
-
-→ Result: high latency despite normal system metrics
+- Загрузка ЦП в норме
+- Использование памяти стабильно
+- Запросы к базе данных выполняются быстро.
+- Внешние службы отвечают быстро
+- Время отклика при низкой нагрузке: ~200 мс.
+- Под нагрузкой (параллелизм 20): ~12 секунд
 
 ---
 
-## First Step
+## Мои первоначальные размышления
 
-Identify system and application limits:
-
-- Number of workers
-- Connection pool size
-- OS-level limits (file descriptors)
+- Деградацию производительности я выявил только под нагрузкой
+- Я осознал это как проблему насыщения
+- Я рассмотрел ограничения ресурсов и поведение в очередях.
 
 ---
 
-## Root Cause (Possible)
+## Что происходит
 
-- Database connection pool exhaustion
-- Limited number of workers or threads
-- OS file descriptor limits (ulimit)
-- Lack of keep-alive causing connection overhead
-- Internal locks or contention
+- Система достигает предела ресурсов под нагрузкой
+- Запросы попадают в очередь из-за ограниченной пропускной способности
+- Время ожидания увеличивается нелинейно
+
+→ Результат: высокая задержка, несмотря на нормальные показатели системы.
 
 ---
 
-## Validation
+## Первый шаг
 
-### 1. Check active connections
+Определить ограничения системы и приложения:
 
-Command:
+- Количество работников
+- Размер пула соединений
+- Ограничения уровня ОС (дескрипторы файлов)
+
+---
+
+## Основная причина (возможная)
+
+- Исчерпание пула соединений с базой данных
+- Ограниченное количество рабочих или потоков
+- Ограничения файлового дескриптора ОС (ulimit)
+- Отсутствие поддержки активности, вызывающее накладные расходы на соединение.
+- Внутренние блокировки или конфликты
+
+---
+
+## Проверка гипотез
+
+### 1. Проверьте активные соединения
+
+Команда:
 ss -s
 
 ---
 
-### 2. Check OS limits
+### 2. Проверьте ограничения ОС
 
-Command:
+Команда:
 ulimit -n
 
 ---
 
-### 3. Database activity
+### 3. Активность базы данных
 
-Query:
+Запрос:
 SELECT * FROM pg_stat_activity;
 
 ---
 
-### 4. Load testing
+### 4. Нагрузочное тестирование
 
-Command:
+Команда:
 ab -n 100 -c 20 http://localhost:8000/api/orders
 
 ---
 
-### 5. Process state
+### 5. Состояние процесса
 
-Command:
+Команда:
 htop
 
-Observation:
-- Many processes in waiting state → contention or queueing
+Наблюдение:
+- Многие процессы в состоянии ожидания → конфликт или очередь
 
 ---
 
-## Actions
+## Действия
 
-### Immediate
+### Немедленно
 
-- Increase connection pool size
-- Adjust number of workers
-- Enable keep-alive
-
----
-
-### Short-term
-
-- Optimize blocking operations
-- Reduce lock contention
+- Увеличение размера пула соединений
+- Регулировка количества рабочих
+- Включить поддержание активности
 
 ---
 
-### Long-term
+### В краткосрочной перспективе
 
-- Horizontal scaling (multiple instances)
-- Load balancing
-- Improve architecture for concurrency
+- Оптимизация операций блокировки
+- Уменьшить конфликт блокировок
 
 ---
 
-## Key Learning
+### В долгосрочной перспективе
 
-- Systems can perform well under low load but fail under stress
-- Saturation leads to queueing and latency spikes
-- Identifying limits is critical for scalability
-- Scaling should follow optimization, not replace it
+- Горизонтальное масштабирование (множественные экземпляры)
+- Балансировка нагрузки
+- Улучшение архитектуры для параллелизма.
+
+---
+
+## Основные выводы
+
+- Системы могут хорошо работать при низкой нагрузке, но выходят из строя при стрессе.
+- Насыщение приводит к очередям и скачкам задержки.
+- Идентификация ограничений имеет решающее значение для масштабируемости.
+- Масштабирование должно следовать за оптимизацией, а не заменять ее.

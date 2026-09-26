@@ -1,177 +1,177 @@
-# Incident Analysis — Week 8 Day 1
+# Разбор инцидента — неделя 8, день 1
 
-## Scenario
+## Сценарий
 
-Team experiences deployment inconsistencies:
+Команда сталкивается с несогласованностью развертывания:
 
-- application works locally but fails on server
-- Python versions differ between environments
-- dependencies behave differently
-- staging and production produce different results
+- Приложение работает локально, но не работает на сервере
+- Версии Python различаются в зависимости от среды.
+- зависимости ведут себя по-разному
+- Тестовая и рабочая среды дают разные результаты
 
-CTO requests environment standardization.
-
----
-
-## What Problem Is Happening
-
-This is an example of Environment Drift.
-
-Application behavior depends on:
-- source code
-- runtime version
-- libraries
-- system packages
-- OS configuration
-- environment variables
-
-When these layers differ between environments:
-- behavior becomes unpredictable
-- deployments become unreliable
+Технический директор запрашивает стандартизацию среды.
 
 ---
 
-## Why "Works on My Machine" Is Dangerous
+## В чём заключается проблема
 
-Local success does not guarantee production compatibility.
+Это пример смещения окружающей среды.
 
-Problems:
-- different runtime versions
-- incompatible dependencies
-- hidden system-level assumptions
+Поведение приложения зависит от:
+- исходный код
+- версия времени выполнения
+- библиотеки
+- системные пакеты
+- Конфигурация ОС
+- Переменные среды
 
-Consequences:
-- deployment failures
-- unstable releases
-- difficult debugging
-- non-reproducible environments
-
-Local machine must not be the source of truth.
-
----
-
-## What Containerization Is
-
-Containerization is process isolation at operating system level.
-
-Containers package:
-- application code
-- dependencies
-- runtime
-- configuration
-
-into a reproducible isolated environment.
-
-Containers use Linux kernel features:
-- namespaces
-- cgroups
-
-to isolate:
-- filesystem
-- processes
-- networking
-- resource usage
-
-Unlike virtual machines:
-- containers do not require full guest OS
-- containers are lightweight and faster to start
+Когда эти уровни различаются в зависимости от среды:
+- поведение становится непредсказуемым
+- развертывания становятся ненадежными
 
 ---
 
-## Why Docker Is Better Than Manual Server Setup
+## Почему «работает на моей машине» опасно
 
-### 1. Immutable Infrastructure
+Локальный успех не гарантирует рабочей совместимости.
 
-Docker image is a fixed snapshot of the application environment.
+Проблемы:
+- разные версии времени выполнения
+- несовместимые зависимости
+- скрытые предположения на уровне системы
 
-Same image:
-- tested in staging
-- deployed in production
+Последствия:
+- Сбои при развертывании
+- нестабильные версии
+- сложная отладка
+- Невоспроизводимые среды
 
-without changes.
-
----
-
-### 2. Dependency Isolation
-
-Different applications can use:
-- different Python versions
-- different libraries
-
-on the same host safely.
+Локальная машина не должна быть источником истины.
 
 ---
 
-### 3. Reproducibility
+## Что такое контейнеризация
 
-Application behaves consistently:
-- locally
-- in CI
-- in staging
-- in production
+Контейнеризация представляет собой изоляцию процесса на уровне операционной системы.
 
----
+Пакет контейнеров:
+- код приложения
+- зависимости
+- время выполнения
+- конфигурация
 
-### 4. Disposable Infrastructure
+в воспроизводимую изолированную среду.
 
-Containers are temporary and replaceable.
+Контейнеры используют функции ядра Linux:
+- Пространства имен
+- cгруппы
 
-Instead of manually fixing servers:
-- broken container is destroyed
-- new identical container is created
+изолировать:
+- файловая система
+- процессы
+- сеть
+- использование ресурсов
 
----
-
-## Mature Container Deployment Workflow
-
-### 1. Build
-
-Developer writes Dockerfile.
-
-CI system builds Docker image.
+В отличие от виртуальных машин:
+- Контейнеры не требуют полноценной гостевой ОС
+- Контейнеры легкие и быстрее запускаются
 
 ---
 
-### 2. Tagging
+## Почему Docker лучше, чем ручная настройка сервера
 
-Image receives immutable version tag.
+### 1. Неизменяемая инфраструктура
 
-Examples:
+Образ Docker представляет собой фиксированный снимок среды приложения.
+
+Один и тот же образ:
+- протестировано на стадии
+- внедрено в рабочую среду
+
+без изменений.
+
+---
+
+### 2. Изоляция зависимостей
+
+Различные приложения могут использовать:
+- разные версии Python
+- различные библиотеки
+
+На одном и том же хосте безопасно.
+
+---
+
+### 3. Воспроизводимость
+
+Приложение ведет себя последовательно:
+- локально
+- в CI
+- в постановке
+- в рабочей среде
+
+---
+
+### 4. Одноразовая инфраструктура
+
+Контейнеры являются временными и заменяемыми.
+
+Вместо исправления серверов вручную:
+- разбитый контейнер уничтожается
+- Создается новый идентичный контейнер
+
+---
+
+## Надёжный процесс развёртывания контейнеров
+
+### 1. Сборка
+
+Разработчик пишет Dockerfile.
+
+Система CI создает образ Docker.
+
+---
+
+### 2. Назначение тега версии
+
+Образ получает неизменяемый тег версии.
+
+Примеры:
 - api:v1.4.2
 - api:commit-a82f91
 
-Avoid using:
-- latest
+Избегайте использования:
+- последний
 
-for production deployments.
-
----
-
-### 3. Push
-
-Image is uploaded to container registry.
+для рабочих развертываний.
 
 ---
 
-### 4. Test
+### 3. Отправка образа в реестр
 
-Same image is tested in staging environment.
-
----
-
-### 5. Deploy
-
-Exactly the same image is deployed to production.
-
-Principle:
-Build once, deploy many.
+Образ загружается в реестр контейнеров.
 
 ---
 
-## Key Learning
+### 4. Тестирование
 
-- Application includes its environment
-- Environment drift causes unreliable deployments
-- Containers improve reproducibility and isolation
-- Docker enables immutable infrastructure
-- Production deployments require consistent runtime environments
+Тот же образ тестируется в тестовой среде.
+
+---
+
+### 5. Развертывание
+
+Точно такой же образ развертывается в рабочей среде.
+
+Принцип:
+Постройте один раз, разверните много.
+
+---
+
+## Основные выводы
+
+- Приложение включает в себя свою среду
+- Дрейф окружающей среды приводит к ненадежному развертыванию.
+- Контейнеры улучшают воспроизводимость и изоляцию.
+- Docker обеспечивает неизменяемую инфраструктуру
+- Для рабочих развертываний требуются согласованные среды выполнения.

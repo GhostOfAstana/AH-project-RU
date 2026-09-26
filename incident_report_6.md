@@ -1,35 +1,35 @@
-# Incident Report 6
+# Отчет об инциденте 6
 
-## Issue
-User reports: "I submitted a form, but nothing happened"
+## Проблема
+Пользователь сообщает: «Я отправил форму, но ничего не произошло»
 
-## Steps to Reproduce
-1. User fills out a form
-2. Clicks submit button
-3. No confirmation message appears
-4. Data is not visible in the system
+## Этапы воспроизведения
+1. Пользователь заполняет форму
+2. Нажимает кнопку «Отправить»
+3. Подтверждающее сообщение не появляется.
+4. Данные не видны в системе
 
-## Observed Result
-- No error message
-- No success message
-- No data created
+## Наблюдаемый результат
+- Нет сообщения об ошибке
+- Нет сообщения об успехе
+- Данные не созданы
 
-## Expected Result
-- Form submission should create data and show confirmation
+## Ожидаемый результат
+- Отправка формы должна создавать данные и отображать подтверждение.
 
-## Initial Analysis
-- No feedback from system
-- Could be frontend, API, or backend issue
-- Need to verify if request is sent
+## Первоначальный анализ
+- Нет обратной связи от системы
+- Возможно, проблема с интерфейсом, API или серверной частью.
+- Необходимо проверить, отправлен ли запрос.
 
-## Possible Causes
-- Frontend does not send request (button issue)
-- API request fails silently
-- Backend does not process request
-- Data is not stored in database
+## Возможные причины
+- Интерфейс не отправляет запрос (проблема с кнопкой)
+- Запрос API завершается с ошибкой без уведомления
+- Серверная часть не обрабатывает запрос
+- Данные не сохраняются в базе данных.
 
-## Next Actions
-- Check if request is triggered (browser / Postman)
-- Verify API response (status code)
-- Check backend logs if available
-- Confirm if data is stored
+## Следующие действия
+- Проверьте, запущен ли запрос (браузер/Postman)
+- Проверка ответа API (код состояния)
+- Проверьте внутренние журналы, если они доступны.
+- Подтвердить, сохранены ли данные

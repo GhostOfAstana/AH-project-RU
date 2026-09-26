@@ -1,448 +1,448 @@
-# Incident Analysis — Week 9 Day 3
+# Разбор инцидента — неделя 9, день 3
 
-## Scenario
+## Сценарий
 
-Production Kubernetes cluster experienced sudden traffic growth.
+В рабочем кластере Kubernetes наблюдался внезапный рост трафика.
 
-Symptoms:
-- API latency increased significantly
-- CPU utilization reached 90–95%
-- Horizontal Pod Autoscaler attempted scaling
-- replicas increased to 20
-- some Pods stayed in `Pending`
-- rollout slowed down
-- cluster remained overloaded
+Симптомы:
+- Задержка API значительно увеличилась
+- Загрузка ЦП достигла 90–95%
+- Horizontal Pod Autoscaler попытался увеличить число реплик
+- Количество реплик увеличено до 20
+- Некоторые Pod остались в `Pending`
+- Развертывание замедлилось
+- кластер оставался перегруженным
 
-Scheduler events:
+События планировщика:
 - `Insufficient memory`
 - `node(s) had taint`
 - `didn't match node selector`
 
-At the same time:
-- some nodes remained almost empty
-- other nodes became saturated
+В то же время:
+- некоторые узлы оставались почти пустыми
+- другие узлы стали насыщенными
 
-CTO concluded:
-The team believes Kubernetes creates infrastructure resources from nothing.
-
----
-
-## What Problem Is Happening
-
-The cluster entered scheduling bottleneck state caused by finite infrastructure capacity and placement constraints.
-
-The team made a fundamental mistake:
-- scaling workloads
-does not equal
-- scaling infrastructure
-
-Kubernetes cluster consists of finite physical or virtual nodes:
-- limited CPU
-- limited RAM
-- limited disk
-- limited scheduling space
-
-When replicas increased:
-- scheduler attempted Pod placement
-- cluster resources became exhausted
-- placement rules reduced available nodes further
-
-As a result:
-- new Pods could not be scheduled
-- existing Pods became overloaded
-- latency increased
-- autoscaling stopped being effective
-
-This created:
-- scheduling congestion
-- resource starvation
-- degraded production performance
+Технический директор заключил:
+Команда считает, что Kubernetes создает ресурсы инфраструктуры из ничего.
 
 ---
 
-## Why Pods Stay In Pending State
+## В чём заключается проблема
 
-`Pending` means:
-- Pod object exists in etcd
-- Kubernetes accepted deployment request
-- but scheduler failed to assign Pod onto any node
+Кластер вошел в состояние узкого места планирования, вызванное ограниченной пропускной способностью инфраструктуры и ограничениями по размещению.
 
-The Pod has not started yet.
+Команда допустила фундаментальную ошибку:
+- масштабирование рабочих нагрузок
+не равно
+- масштабирование инфраструктуры
 
----
+Кластер Kubernetes состоит из конечных физических или виртуальных узлов:
+- ограниченный процессор
+- ограниченная оперативная память
+- ограниченный диск
+- ограниченное пространство планирования
 
-## Common Causes Of Pending
+При увеличении количества реплик:
+- планировщик предпринял попытку размещения Pod
+- Ресурсы кластера исчерпаны
+- Правила размещения еще больше сократили количество доступных узлов.
 
-### Insufficient CPU Or Memory
+В результате:
+- Планировщик не смог разместить новые объекты Pod
+- Существующие объекты Pod оказались перегружены
+- Задержка увеличена
+- автомасштабирование перестало быть эффективным
 
-No node has enough allocatable resources for Pod requests.
-
-Example:
-- Pod requests 4 GB RAM
-- every node has only 2 GB free
-
-Result:
-- Pod remains Pending forever
-
----
-
-### Node Selector / Affinity Mismatch
-
-Pod requires specific node characteristics.
-
-Example:
-- SSD storage
-- GPU hardware
-- dedicated node pool
-
-If matching nodes unavailable:
-- scheduling impossible
+Это создало:
+- планирование перегрузок
+- нехватка ресурсов
+- Ухудшение рабочих показателей
 
 ---
 
-### Taints Without Tolerations
+## Почему объекты Pod остаются в состоянии Pending
 
-Node protected by taints:
-- production-only
-- database-only
-- GPU-only
+`Pending` означает:
+- Объект Pod существует в etcd.
+- Kubernetes принял запрос на развертывание
+- Но планировщик не смог назначить Pod ни одному узлу
 
-Pod lacks required toleration:
-- scheduler rejects placement
-
----
-
-### Resource Fragmentation
-
-Cluster may have enough total resources globally,
-but not enough on any single node.
-
-Example:
-
-Node A:
-- 2 CPU free
-- 1 GB RAM free
-
-Node B:
-- 1 CPU free
-- 4 GB RAM free
-
-Pod requires:
-- 2 CPU
-- 4 GB RAM
-
-Total resources exist,
-but no single node satisfies request.
-
-Result:
-- Pod remains Pending
-
-This is called:
-- resource fragmentation
+Pod еще не запустился.
 
 ---
 
-# Kubernetes Scheduler
+## Распространенные причины Pending
 
-Kubernetes Scheduler is cluster placement controller.
+### Недостаточно процессора или памяти
 
-It does NOT:
-- create resources
-- add nodes
-- increase hardware capacity
+Ни один узел не имеет достаточного количества выделяемых ресурсов для запросов Pod.
 
-Scheduler only decides:
-- where Pods should run
+Пример:
+- Pod запрашивает 4 ГБ ОЗУ
+- на каждом узле свободно только 2 ГБ
 
----
-
-## Scheduling Pipeline
-
-Scheduler operates in several stages.
+Результат:
+- Pod остается Pending навсегда
 
 ---
 
-## 1. Node Filtering
+### Несоответствие селектору узла или правилам привязки
 
-Scheduler evaluates all cluster nodes and removes incompatible ones.
+Pod требует определенных характеристик узла.
 
-Checks include:
-- available CPU
-- available memory
-- taints
-- affinity rules
-- node selectors
-- topology constraints
+Пример:
+- SSD-накопитель
+- Аппаратное обеспечение графического процессора
+- пул выделенных узлов
 
-Nodes failing requirements are discarded immediately.
+Если совпадающие узлы недоступны:
+- планирование невозможно
 
 ---
 
-## 2. Node Scoring
+### Ограничения taints без соответствующих допусков tolerations
 
-Remaining nodes receive scores.
+На узле установлены ограничения taints:
+- только для рабочей среды
+- только для базы данных
+- Только для графического процессора
 
-Scheduler attempts optimization based on:
-- cluster utilization
-- spreading
-- balancing
-- resource efficiency
+У Pod нет необходимого допуска (toleration):
+- планировщик отклоняет размещение
 
 ---
 
-## Bin Packing
+### Фрагментация ресурсов
 
-One strategy is:
-- pack workloads densely
+Кластер может иметь достаточно общих ресурсов по всему миру,
+Но недостаточно на каком-либо отдельном узле.
 
-Purpose:
+Пример:
+
+Узел А:
+- 2 процессора свободны
+- Свободно 1 ГБ ОЗУ
+
+Узел Б:
+- 1 процессор свободен
+- Свободно 4 ГБ ОЗУ
+
+Pod требует:
+- 2 ЦП
+- 4 ГБ ОЗУ
+
+Всего ресурсов существует,
+Но ни один узел не удовлетворяет запрос.
+
+Результат:
+- Pod остается Pending
+
+Это называется:
+- фрагментация ресурсов
+
+---
+
+# Планировщик Kubernetes
+
+Планировщик Kubernetes является контроллером размещения кластера.
+
+Он НЕ выполняет следующие задачи:
+- создавать ресурсы
+- добавить узлы
+- Увеличение мощности оборудования
+
+Планировщик решает только:
+- На каких узлах должны работать объекты Pod
+
+---
+
+## Этапы работы планировщика
+
+Планировщик работает в несколько этапов.
+
+---
+
+## 1. Фильтрация узлов
+
+Планировщик оценивает все узлы кластера и удаляет несовместимые.
+
+Проверки включают в себя:
+- Доступный процессор
+- доступная память
+- Ограничения узлов (taints)
+- Правила сходства
+- Селекторы узлов
+- Ограничения топологии
+
+Узлы, не отвечающие требованиям, немедленно отбрасываются.
+
+---
+
+## 2. Оценка узлов
+
+Остальные узлы получают оценки.
+
+Попытки оптимизации планировщика основаны на:
+- Использование кластера
+- Распределение нагрузки по узлам
+- Балансировка
+- Эффективность использования ресурсов
+
+---
+
+## Плотное размещение нагрузки (bin packing)
+
+Одна стратегия заключается в следующем:
+- Плотно упаковывайте рабочие нагрузки
+
+Назначение:
 - free unused nodes
-- reduce cloud costs
-- improve utilization
+- Снизить затраты на облако
+- улучшить использование
 
 ---
 
-## Spreading
+## Распределение нагрузки по узлам
 
-Another strategy:
-- distribute workloads across nodes/zones
+Другая стратегия:
+- распределять рабочие нагрузки по узлам/зонам
 
-Purpose:
-- fault isolation
-- resilience
-- high availability
+Назначение:
+- изоляция неисправности
+- устойчивость
+- высокая доступность
 
-Scheduler constantly balances:
-- economics
-vs
-- reliability
-
----
-
-## 3. Scheduling Decision
-
-Highest-scoring node selected.
-
-Scheduler binds Pod to node.
-
-Then kubelet on that node:
-- downloads image
-- starts container
-- initializes Pod
+Планировщик постоянно балансирует:
+- экономика
+против
+- надежность
 
 ---
 
-# Node Affinity
+## 3. Решение о планировании
 
-Node Affinity controls where Pods prefer or require placement.
+Выбран узел с наивысшим баллом.
 
-Used for:
-- GPU workloads
-- SSD storage
-- isolated hardware
-- compliance requirements
+Планировщик привязывает Pod к узлу.
 
----
-
-## Affinity Types
-
-### Preferred Affinity
-
-Soft preference:
-- scheduler tries to satisfy rule
-- but may ignore it if necessary
+Затем kubelet на этом узле:
+- загружает образ
+- запускает контейнер
+- инициализирует Pod
 
 ---
 
-### Required Affinity
+# Привязка к узлам (node affinity)
 
-Hard constraint:
-- Pod cannot run without matching node
+Node Affinity задаёт предпочтительные или обязательные условия выбора узлов для размещения Pod.
 
-Incorrect required affinity may create Pending Pods.
-
----
-
-# Pod Anti-Affinity
-
-Anti-affinity prevents similar Pods from colocating.
-
-Example:
-- avoid placing all API replicas on same node
-
-Purpose:
-- improve fault tolerance
-- avoid single-node failure impact
-- spread replicas across zones
-
-Without anti-affinity:
-- one node failure may destroy entire service
+Используется для:
+- Рабочие нагрузки графического процессора
+- SSD-накопитель
+- изолированное оборудование
+- Требования соответствия
 
 ---
 
-# Taints And Tolerations
+## Типы привязки
 
-Taints protect nodes from unwanted workloads.
+### Предпочтительная привязка
 
-Node says:
-- "Do not schedule Pods here"
-
-Only Pods with matching toleration may enter.
-
----
-
-## Typical Usage
-
-- isolate databases
-- separate production from staging
-- dedicate GPU nodes
-- protect infrastructure services
+Мягкое предпочтение:
+- Планировщик пытается удовлетворить правило
+- но при необходимости может игнорировать это
 
 ---
 
-# Noisy Neighbor Problem
+### Обязательная привязка
 
-Without isolation:
-- one workload may consume excessive resources
-- neighboring services become unstable
+Жесткое ограничение:
+- Pod не может работать без соответствующего узла.
 
-This creates:
-- latency spikes
-- eviction pressure
-- unpredictable performance
-
-Affinity and taints help isolate workloads.
+Ошибочные обязательные правила привязки могут оставить объекты Pod в состоянии Pending.
 
 ---
 
-# Cluster Autoscaler
+# Раздельное размещение Pod (pod anti-affinity)
 
-Scheduler cannot add hardware capacity.
+Антиаффинность предотвращает совместное размещение аналогичных Pod.
 
-Cluster Autoscaler monitors:
-- Pending Pods
-- unschedulable workloads
+Пример:
+- Избегайте размещения всех реплик API на одном узле
 
-If capacity insufficient:
-- autoscaler requests new nodes from cloud provider
+Назначение:
+- Улучшение отказоустойчивости
+- избежать влияния отказа одного узла
+- Распределение реплик по зонам
 
-Examples:
-- AWS EC2
-- Google Compute Engine
-- Azure VM Scale Sets
-
-After node joins cluster:
-- scheduler retries placement
+Без антиаффинности:
+- Сбой одного узла может разрушить всю услугу
 
 ---
 
-# Topology Spread Constraints
+# Ограничения узлов и допуски (taints и tolerations)
 
-Production systems distribute workloads across:
-- zones
-- racks
-- fault domains
-- node groups
+Повреждения защищают узлы от нежелательных рабочих нагрузок.
 
-Purpose:
-- prevent hotspot concentration
-- improve resiliency
-- survive node/zone failures
+Узел говорит:
+- «Не планируйте здесь Pod»
+
+На узле могут размещаться только объекты Pod с соответствующим допуском.
 
 ---
 
-# Overprovisioning
+## Типичное использование
 
-Critical clusters often reserve spare scheduling capacity.
-
-Technique:
-- low-priority placeholder Pods consume resources
-
-During traffic spike:
-- placeholders evicted
-- production Pods scheduled instantly
-
-Purpose:
-- avoid waiting for new node provisioning
+- изолировать базы данных
+- Отделить рабочую среду от тестовой
+- выделить узлы графического процессора
+- защитить инфраструктурные услуги
 
 ---
 
-# Production-Grade Scheduling Principles
+# Проблема «шумного соседа»
 
-Reliable Kubernetes scheduling requires:
+Без изоляции:
+- одна рабочая нагрузка может потреблять чрезмерные ресурсы
+- соседние сервисы становятся нестабильными
 
----
+Это создает:
+- Пики задержки
+- давление вытеснения
+- непредсказуемая производительность
 
-## Explicit Resource Requests
-
-Every critical workload must define:
-- CPU requests
-- memory requests
-- realistic limits
-
-Purpose:
-- predictable placement
-- scheduler accuracy
+Правила привязки и ограничения узлов помогают изолировать приложения.
 
 ---
 
-## Workload Isolation
+# Автомасштабирование кластера (Cluster Autoscaler)
 
-Use:
-- taints
-- tolerations
-- affinity rules
+Планировщик не может добавлять аппаратные ресурсы.
 
-Purpose:
-- prevent noisy neighbors
-- isolate critical services
+Cluster Autoscaler контролирует:
+- Объекты Pod в состоянии Pending
+- незапланированные рабочие нагрузки
 
----
+Если ресурсов недостаточно:
+- автомасштабирование запрашивает новые узлы у облачного провайдера
 
-## High Availability Placement
+Примеры:
+- АРМ EC2
+- Вычислительная система Google
+- Масштабируемые наборы виртуальных машин Azure
 
-Use:
-- anti-affinity
-- topology spread constraints
-
-Purpose:
-- survive node failures
-- distribute replicas safely
+После присоединения узла к кластеру:
+- Планировщик повторяет попытку размещения
 
 ---
 
-## Infrastructure Autoscaling
+# Ограничения распределения по топологии
 
-Use:
-- Cluster Autoscaler
-- Karpenter
+Рабочие системы распределяют рабочие нагрузки между:
+- зоны
+- стеллажи
+- Домены сбоя
+- Группы узлов
 
-Purpose:
-- scale infrastructure automatically
-- eliminate Pending bottlenecks
-
----
-
-## Balanced Resource Utilization
-
-Avoid:
-- node hotspots
-- severe fragmentation
-- uneven cluster saturation
-
-Purpose:
-- stable long-term operation
+Назначение:
+- Предотвращение концентрации горячих точек
+- повысить отказоустойчивость
+- выдерживать сбои узла/зоны
 
 ---
 
-## Key Learning
+# Резервирование избыточных ресурсов
 
-- Kubernetes resources are finite
-- scheduler distributes capacity but does not create it
-- Pending means placement failure
-- requests determine scheduling feasibility
-- affinity controls placement rules
-- anti-affinity improves resiliency
-- taints isolate workloads
-- autoscaling workloads requires autoscaling infrastructure
-- production scheduling is topology engineering
+В критически важных кластерах часто оставляют запас ресурсов для размещения новой нагрузки.
+
+Метод:
+- Ресурсы занимают резервные объекты Pod с низким приоритетом
+
+Во время пика трафика:
+- заполнители удалены
+- Рабочие объекты Pod размещаются немедленно
+
+Назначение:
+- избегать ожидания подготовки нового узла
+
+---
+
+# Принципы размещения нагрузки в рабочей среде
+
+Надежное планирование Kubernetes требует:
+
+---
+
+## Явное указание запросов ресурсов
+
+Каждая критическая рабочая нагрузка должна определять:
+- Запросы ЦП
+- Запросы памяти
+- реалистичные пределы
+
+Назначение:
+- предсказуемое размещение
+- Точность планировщика
+
+---
+
+## Изоляция рабочей нагрузки
+
+Использовать:
+- Ограничения узлов (taints)
+- Допуски
+- Правила сходства
+
+Назначение:
+- Предотвратить появление шумных соседей
+- изолировать критически важные службы
+
+---
+
+## Размещение с высокой доступностью
+
+Использовать:
+- антиаффинность
+- Ограничения распределения по топологии
+
+Назначение:
+- пережить сбои узла
+- безопасно распространять реплики
+
+---
+
+## Автомасштабирование инфраструктуры
+
+Использовать:
+- Автомасштабирование кластера (Cluster Autoscaler)
+- Карпентер
+
+Назначение:
+- автоматически масштабировать инфраструктуру
+- Устранить узкие места Pending
+
+---
+
+## Сбалансированное использование ресурсов
+
+Избегать:
+- Горячие точки узла
+- сильная фрагментация
+- неравномерное насыщение кластеров
+
+Назначение:
+- Стабильная долгосрочная работа
+
+---
+
+## Основные выводы
+
+- Ресурсы Kubernetes конечны.
+- Планировщик распределяет ресурсы, но не создаёт их
+- Pending означает неудачное размещение.
+- Запросы определяют осуществимость планирования
+- Правила размещения элементов управления сходством
+- Антиаффинность повышает устойчивость
+- Ограничения taints изолируют приложения
+- Для рабочих нагрузок автоматического масштабирования требуется инфраструктура автоматического масштабирования.
+- Размещение нагрузки в рабочей среде требует продуманной топологии

@@ -1,37 +1,37 @@
-# HTTP Notes
+# Заметки по HTTP
 
-## What is HTTP
-HTTP is a protocol for communication between client and server.
+## Что такое HTTP
+HTTP представляет собой протокол для связи между клиентом и сервером.
 
-## Main Idea
-- Client sends a request
-- Server returns a response
+## Основная идея
+- Клиент отправляет запрос
+- Сервер возвращает ответ
 
-## Core Words
-- request = what the client sends
-- response = what the server returns
-- headers = extra information about the request or response
-- params = values in the URL
-- body = main data sent in the request
+## Основные термины
+- запрос = то, что отправляет клиент
+- ответ = что возвращает сервер
+- заголовки = дополнительная информация о запросе или ответе
+- параметры = значения в URL-адресе
+- Тело запроса = основные данные, передаваемые в запросе
 
-## HTTP Methods
-- GET = get data
-- POST = create new data
-- PUT = update data
-- DELETE = remove data
+## Методы HTTP
+- GET = получить данные
+- POST = создать новые данные
+- PUT = обновить данные
+- DELETE = удалить данные
 
-## Status Codes
-- 200 = OK
-- 201 = Created
-- 400 = Bad Request
-- 401 = Unauthorized
-- 403 = Forbidden
-- 404 = Not Found
-- 500 = Internal Server Error
+## Коды состояния
+- 200 = ОК
+- 201 = Создано
+- 400 = Неверный запрос
+- 401 = требуется аутентификация
+- 403 = Запрещено
+- 404 = Не найдено
+- 500 = Внутренняя ошибка сервера
 
-## My Reminder
-HTTP is about:
-1. sending a request
-2. getting a response
-3. understanding method
-4. reading status code
+## Памятка
+HTTP касается:
+1. отправка запроса
+2. получение ответа
+3. Способ понимания
+4. код состояния чтения

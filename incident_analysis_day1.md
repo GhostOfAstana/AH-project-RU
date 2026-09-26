@@ -1,83 +1,83 @@
-# Incident Analysis — Week 4 Day 1
+# Разбор инцидента — неделя 4, день 1
 
-## Scenario
-User reports: "I updated my profile (name), but changes are not saved"
-
----
-
-## My Initial Approach (Before Correction)
-
-### Questions
-- Is there an error message?
-- What is your login and registration date?
-- Are the changes valid?
-
-### First Steps
-- Check data in SQL
-- Test request via Postman (POST/GET)
-- Verify input correctness
-
-### Assumptions
-- If POST = 200 and GET is empty → frontend issue
-- If SQL has no data → user issue
-- If API returns error → backend issue
+## Сценарий
+Пользователь сообщает: «Я обновил свой профиль (имя), но изменения не сохраняются»
 
 ---
 
-## Corrected Approach (After Learning)
+## Мой первоначальный подход (до исправления)
 
-### 1. Questions to User
-- What exactly are you changing?
-- What happens after clicking "Save"?
-- Do you see any error message?
-- Have you tried again?
+### Вопросы
+- Есть ли сообщение об ошибке?
+- Какова дата вашего входа и регистрации?
+- Являются ли изменения действительными?
 
----
+### Первые шаги
+- Проверка данных в SQL
+- Тестовый запрос через Postman (POST/GET)
+- Проверка правильности ввода
 
-### 2. First Step (Critical)
-Check in browser DevTools → Network:
-- Is request sent when clicking "Save"?
-
----
-
-### 3. Diagnostic Flow
-
-#### If NO request:
-→ Frontend issue (button / JS not working)
-
-#### If request exists:
-→ Check API response:
-- Error (4xx/5xx) → backend issue
-- 200 OK → continue analysis
+### Предположения
+- Если POST = 200 и GET пуст → проблема с интерфейсом
+- Если в SQL нет данных → проблема пользователя
+- Если API возвращает ошибку → проблема с серверной частью
 
 ---
 
-### 4. If 200 OK but data not saved:
-- Backend may not store data
-- Database issue
-- Incorrect processing logic
+## Исправленный подход (после обучения)
+
+### 1. Вопросы пользователю
+- Что именно вы меняете?
+- Что происходит после нажатия кнопки «Сохранить»?
+- Вы видите какое-либо сообщение об ошибке?
+- Вы пробовали еще раз?
 
 ---
 
-### 5. If data saved but not shown:
-- API response issue
-- SQL/filter problem
-- Frontend display issue
+### 2. Первый шаг (критический)
+Проверьте в браузере DevTools → Сеть:
+- Отправляется ли запрос при нажатии «Сохранить»?
 
 ---
 
-## Key Learning
+### 3. Последовательность диагностики
 
-- Always start from user action (frontend)
-- Do not jump directly to SQL or Postman
-- 200 OK does not guarantee success
-- Diagnose step-by-step across system layers
+#### Если НЕТ запроса:
+→ Проблема с интерфейсом (кнопка / JS не работает)
+
+#### Если запрос существует:
+→ Проверьте ответ API:
+- Ошибка (4xx/5xx) → проблема с серверной частью
+- 200 ОК → продолжить анализ
 
 ---
 
-## Conclusion
+### 4. Если 200 ОК, но данные не сохранены:
+- Серверная часть может не хранить данные
+- Проблема с базой данных
+- Неправильная логика обработки
 
-I improved from:
-- jumping between tools  
-to:
-- following a structured debugging flow (frontend → API → backend → database)
+---
+
+### 5. Если данные сохранены, но не показаны:
+- Проблема с ответом API
+- Проблема SQL/фильтра
+- Проблема с отображением во внешнем интерфейсе
+
+---
+
+## Основные выводы
+
+- Всегда начинать с действия пользователя (интерфейс)
+- Не переходите непосредственно к SQL или Postman.
+- 200 ОК не гарантирует успех
+- Пошаговая диагностика на всех уровнях системы.
+
+---
+
+## Заключение
+
+Я улучшил:
+- прыжки между инструментами  
+К:
+- Следование структурированному потоку отладки (интерфейс → API → серверная часть → база данных)

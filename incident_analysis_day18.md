@@ -1,21 +1,21 @@
-# Incident Analysis — Week 6 Day 4
+# Разбор инцидента — неделя 6, день 4
 
-## Scenario
-User reports: "API responds in 3–5 seconds"
-
----
-
-## Observations
-
-- CPU usage is low
-- Memory usage is normal
-- Database queries are fast
-- External services respond quickly (~100ms)
-- API response time: ~4.2 seconds
+## Сценарий
+Пользователь сообщает: «API отвечает через 3–5 секунд».
 
 ---
 
-## Logs
+## Наблюдения
+
+- Низкая загрузка ЦП
+- Использование памяти в норме
+- Запросы к базе данных выполняются быстро.
+- Внешние службы отвечают быстро (~100 мс)
+- Время ответа API: ~4,2 секунды.
+
+---
+
+## Журналы
 
 INFO Request started  
 INFO Processing request  
@@ -23,91 +23,91 @@ INFO Finished processing in 4.1s
 
 ---
 
-## My Initial Thinking
+## Мои первоначальные размышления
 
-- I identified that system resources are not the bottleneck
-- I suspected internal inefficiency in request handling
-- I considered concurrency limitations and blocking behavior
+- Я определил, что системные ресурсы не являются узким местом
+- Я подозревал внутреннюю неэффективность обработки запросов.
+- Я рассмотрел ограничения параллелизма и поведение блокировки.
 
-### Problem
-- I initially focused on system metrics instead of execution model
-- Needed to explicitly analyze concurrency configuration
-
----
-
-## Corrected Approach
-
-### 1. What Is Happening
-
-- Requests are not processed efficiently in parallel
-- System resources are underutilized
-- Requests are queued or blocked internally
-
-→ Result: high response time despite low resource usage
+### Проблема
+- Изначально я сосредоточился на системных метриках, а не на модели выполнения.
+- Необходимо явно проанализировать конфигурацию параллелизма.
 
 ---
 
-### 2. First Step
+## Исправленный подход
 
-Check service execution model:
+### 1. Что происходит
 
-- Number of workers
-- Thread configuration
-- Sync vs async behavior
+- Запросы не обрабатываются эффективно в параллельном режиме
+- Системные ресурсы используются недостаточно
+- Запросы ставятся в очередь или блокируются внутри системы
 
-Command:
+→ Результат: высокое время отклика, несмотря на низкое использование ресурсов.
+
+---
+
+### 2. Первый шаг
+
+Проверьте модель выполнения услуги:
+
+- Количество работников
+- Конфигурация резьбы
+- Синхронное и асинхронное поведение
+
+Команда:
 ps aux | grep gunicorn
 
 ---
 
-### 3. Root Cause
+### 3. Основная причина
 
-Possible causes:
+Возможные причины:
 
-- Limited number of workers
-- Synchronous request handling
-- Blocking operations
-- Thread pool or connection pool limits
+- Ограниченное количество работников
+- Синхронная обработка запросов
+- Операции блокировки
+- Ограничения пула потоков или пула соединений
 
 ---
 
-### 4. Validation
+### 4. Проверка гипотез
 
-- Check process configuration (workers/threads)
-- Run load test:
+- Проверка конфигурации процесса (работники/потоки)
+- Запуск нагрузочного теста:
 
-Command:
+Команда:
 ab -n 50 -c 10 http://localhost:8000/api/orders
 
-- Observe behavior:
-  - Increasing response time with concurrency → queueing issue
+- Наблюдайте за поведением:
+  - Увеличение времени ответа при одновременном использовании → проблема с очередями
 
-- Check CPU distribution across cores using htop
-
----
-
-### 5. Actions
-
-#### Improve Parallelism
-- Increase number of workers
-- Adjust thread configuration
-
-#### Improve Execution Model
-- Replace blocking code with async alternatives
-- Avoid long synchronous operations
-
-#### Optimize Resource Pools
-- Increase connection pool limits if necessary
-- Reduce waiting time for shared resources
-
-#### Deep Analysis
-- Use profiling tools (e.g. py-spy) to detect bottlenecks
+- Проверьте распределение ЦП по ядрам с помощью htop
 
 ---
 
-## Key Learning
+### 5. Действия
 
-- Low CPU usage does not mean system is efficient
-- Concurrency limitations can create hidden bottlenecks
-- Request queueing can significantly increase latency
-- Must analyze execution model, not only resource usage
+#### Улучшение параллелизма
+- Увеличение количества рабочих
+- Регулировка конфигурации резьбы
+
+#### Улучшение модели выполнения
+- Замените код блокировки асинхронными альтернативами.
+- Избегайте длительных синхронных операций.
+
+#### Оптимизация пулов ресурсов
+- При необходимости увеличить лимиты пула соединений.
+- Сократить время ожидания общих ресурсов.
+
+#### Глубокий анализ
+- Используйте инструменты профилирования (например, py-spy) для обнаружения узких мест.
+
+---
+
+## Основные выводы
+
+- Низкая загрузка ЦП не означает, что система эффективна.
+- Ограничения параллелизма могут создавать скрытые узкие места.
+- Организация очереди запросов может значительно увеличить задержку
+- Необходимо анализировать модель выполнения, а не только использование ресурсов.

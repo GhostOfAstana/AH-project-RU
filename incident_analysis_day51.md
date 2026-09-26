@@ -1,44 +1,44 @@
-# Incident Analysis — Week 11 Day 2
+# Разбор инцидента — неделя 11, день 2
 
-## Scenario
+## Сценарий
 
-A production deployment of the checkout-api service triggered a major outage.
+Рабочее развертывание службы checkout-api вызвало серьезный сбой.
 
-Environment:
+Окружение:
 
-- Kubernetes cluster with 120 nodes
-- Deployment replicas: 60
-- RollingUpdate strategy enabled
-- Cluster Autoscaler enabled
+- Кластер Kubernetes со 120 узлами
+- Реплики Deployment: 60
+- Включена стратегия RollingUpdate
+- Включено автомасштабирование кластера
 
-During the rollout:
+Во время развертывания:
 
-- one worker node became unavailable
-- new Pods remained Pending
-- API error rate increased to 35%
-- users received HTTP 503 responses
+- один рабочий узел стал недоступен
+- Новые объекты Pod оставались в состоянии Pending
+- Частота ошибок API увеличена до 35%.
+- пользователи получили HTTP 503 ответа
 
-Database, cache, and infrastructure services remained healthy.
+База данных, кэш и инфраструктурные службы оставались работоспособными.
 
-Deployment status eventually reported:
+Статус Deployment в конечном итоге сообщил:
 
 ```text
 ProgressDeadlineExceeded
 ```
 
-Several Pods showed:
+Несколько Pod показали:
 
 ```text
 0/119 nodes are available: Insufficient CPU
 ```
 
-and:
+И:
 
 ```text
 volume node affinity conflict
 ```
 
-Cluster Autoscaler logs showed:
+Журналы Cluster Autoscaler показали:
 
 ```text
 max node group size reached
@@ -46,38 +46,38 @@ max node group size reached
 
 ---
 
-# What Problem Happened
+# Какая проблема произошла?
 
-The outage was caused by scheduling capacity exhaustion during a rolling deployment.
+Отключение было вызвано исчерпанием пропускной способности планирования во время скользящего развертывания.
 
-The cluster had enough capacity for normal operation.
+Кластер имел достаточную емкость для нормальной работы.
 
-The cluster did not have enough capacity for:
+В кластере не хватало ресурсов для:
 
-- normal operation
-- rolling update surge capacity
-- node failure
+- нормальная работа
+- Дополнительные ресурсы для последовательного обновления
+- отказ узла
 
-at the same time.
+В то же время.
 
-The deployment entered a state where replacement Pods could not be scheduled.
+Развёртывание оказалось в состоянии, при котором планировщик не мог разместить новые объекты Pod взамен старых.
 
-As a result:
+В результате:
 
-- old Pods were being replaced
-- new Pods could not start
-- service capacity decreased
-- user requests failed
+- Старые объекты Pod заменялись новыми
+- Новые объекты Pod не могли запуститься
+- Снижена пропускная способность службы
+- Не удалось выполнить запросы пользователей
 
 ---
 
-# Rolling Update Fundamentals
+# Основы последовательного обновления
 
-Kubernetes RollingUpdate gradually replaces old Pods with new Pods.
+Стратегия RollingUpdate в Kubernetes постепенно заменяет старые объекты Pod новыми.
 
-The goal is to avoid full service interruption.
+Цель состоит в том, чтобы избежать полного прерывания обслуживания.
 
-Example configuration:
+Пример конфигурации:
 
 ```yaml
 strategy:
@@ -90,141 +90,141 @@ strategy:
 
 # maxUnavailable
 
-Maximum number of Pods allowed to become unavailable during rollout.
+Максимальное количество Pod, которое может стать недоступным во время развертывания.
 
-For:
+Для:
 
 ```text
 replicas = 60
 ```
 
-and:
+И:
 
 ```text
 maxUnavailable = 25%
 ```
 
-Kubernetes may temporarily lose:
+Kubernetes может временно потерять:
 
 ```text
-15 Pods
+15 Pod
 ```
 
-during deployment.
+Во время развертывания.
 
-This protects service availability.
+Это защищает доступность услуги.
 
 ---
 
 # maxSurge
 
-Maximum number of extra Pods created during rollout.
+Максимальное количество дополнительных Pod, созданных во время развертывания.
 
-For:
+Для:
 
 ```text
 replicas = 60
 ```
 
-and:
+И:
 
 ```text
 maxSurge = 25%
 ```
 
-Kubernetes may temporarily create:
+Kubernetes может временно создавать:
 
 ```text
-15 additional Pods
+15 дополнительных Pod
 ```
 
-above the desired replica count.
+Превышение желаемого количества реплик.
 
-This accelerates rollout speed.
+Это увеличивает скорость развертывания.
 
 ---
 
-# Why Node Failure Was So Damaging
+# Почему отказ узла был настолько разрушительным
 
-A worker node failed during deployment.
+Рабочий узел вышел из строя во время развертывания.
 
-The node removed:
+Узел удален:
 
-- CPU resources
-- memory resources
-- running Pods
+- Ресурсы ЦП
+- ресурсы памяти
+- Работающие объекты Pod
 
-from cluster capacity.
+от емкости кластера.
 
-At the same time the deployment attempted to create surge Pods.
+В это же время развёртывание пыталось создать дополнительные объекты Pod сверх обычного числа реплик.
 
-The cluster suddenly required more resources while simultaneously losing resources.
+Кластеру неожиданно потребовалось больше ресурсов, одновременно теряя ресурсы.
 
-Available scheduling capacity disappeared.
+Доступная способность планирования исчезла.
 
 ---
 
 # ProgressDeadlineExceeded
 
-Deployment Controller monitors rollout progress.
+Контроллер Deployment отслеживает ход развертывания.
 
-A deployment must eventually reach:
+Развертывание должно в конечном итоге достичь:
 
 ```text
 Available
 Ready
 ```
 
-state.
+Состояние.
 
-If Kubernetes cannot make progress within the configured deadline:
+Если Kubernetes не может добиться прогресса в течение установленного срока:
 
 ```text
 ProgressDeadlineExceeded
 ```
 
-is reported.
+сообщается.
 
-This means rollout is effectively stalled.
+Это означает, что развертывание фактически застопорилось.
 
-Common causes:
+Распространенные причины:
 
-- Pending Pods
-- failed scheduling
-- failed readiness checks
-- insufficient cluster capacity
-
----
-
-# Why Pods Remained Pending
-
-Pending Pods indicate that scheduling requirements cannot be satisfied.
-
-The scheduler attempted placement but failed.
-
-The cluster still contained running nodes.
-
-However, none of the available nodes could satisfy all scheduling constraints.
+- Объекты Pod в состоянии Pending
+- неудачное планирование
+- Неудачные проверки готовности
+- недостаточная емкость кластера
 
 ---
 
-# Resource Requests vs Limits
+# Почему объекты Pod оставались в состоянии Pending
 
-Kubernetes Scheduler uses:
+Pending Pod указывают, что требования планирования не могут быть удовлетворены.
+
+Планировщик предпринял попытку размещения, но потерпел неудачу.
+
+Кластер по-прежнему содержал работающие узлы.
+
+Однако ни один из доступных узлов не мог удовлетворить всем ограничениям планирования.
+
+---
+
+# Запросы ресурсов и лимиты: различия
+
+Планировщик Kubernetes использует:
 
 ```text
 requests
 ```
 
-not:
+А не:
 
 ```text
 limits
 ```
 
-for placement decisions.
+для принятия решений о размещении.
 
-Example:
+Пример:
 
 ```yaml
 resources:
@@ -234,336 +234,336 @@ resources:
     cpu: 8
 ```
 
-Scheduler reserves:
+Резервы планировщика:
 
 ```text
-2 CPU
+2 ЦП
 ```
 
-during scheduling.
+во время планирования.
 
-Even if actual utilization is much lower.
+Даже если фактическое использование намного ниже.
 
-Scheduling decisions are based on guaranteed resources.
+Решения по планированию основаны на гарантированных ресурсах.
 
 ---
 
-# Meaning Of Insufficient CPU
+# Что означает Insufficient CPU
 
-This error does not mean total cluster CPU is exhausted.
+Эта ошибка не означает, что общий процессор кластера исчерпан.
 
-It means:
-
-```text
-no individual node
-has enough allocatable CPU
-for the Pod request
-```
-
-A Pod may require:
+Это означает:
 
 ```text
-2 CPU
+нет отдельного узла
+имеет достаточно выделяемого процессора
+для запроса Pod
 ```
 
-while each remaining node only has:
+Для Pod может потребоваться:
 
 ```text
-1 CPU free
+2 ЦП
 ```
 
-The Pod cannot be scheduled.
+в то время как каждый оставшийся узел имеет только:
+
+```text
+1 процессор свободен
+```
+
+Pod не может быть запланирован.
 
 ---
 
-# Resource Fragmentation
+# Фрагментация ресурсов
 
-Fragmentation occurs when free resources exist but are scattered.
+Фрагментация происходит, когда свободные ресурсы существуют, но разбросаны.
 
-Example:
-
-```text
-Node A = 1 CPU free
-Node B = 1 CPU free
-Node C = 1 CPU free
-Node D = 1 CPU free
-```
-
-Total free CPU:
+Пример:
 
 ```text
-4 CPU
+Узел A = 1 ЦП свободен
+Узел B = 1 ЦП свободен
+Узел C = 1 ЦП свободен
+Узел D = 1 ЦП свободен
 ```
 
-New Pod requires:
+Всего свободных ЦП:
 
 ```text
-2 CPU
+4 ЦП
 ```
 
-The Pod still cannot be scheduled.
+Для нового Pod требуется:
 
-Because no single node satisfies the request.
+```text
+2 ЦП
+```
 
-This is resource fragmentation.
+Pod по-прежнему невозможно запланировать.
+
+Потому что ни один узел не удовлетворяет запрос.
+
+Это фрагментация ресурсов.
 
 ---
 
-# Volume Node Affinity Conflict
+# Конфликт привязки тома к узлу
 
-Persistent Volumes may be tied to specific infrastructure locations.
+Постоянные тома могут быть привязаны к конкретным местам инфраструктуры.
 
-Examples:
+Примеры:
 
-- AWS EBS
-- Azure Managed Disk
-- GCP Persistent Disk
+- АВС ЭБС
+- Управляемый диск Azure
+- Постоянный диск GCP
 
-Storage may only be attachable within a particular zone.
+Хранилище может быть подключено только в пределах определенной зоны.
 
-If a Pod is rescheduled elsewhere:
+Если Pod перепланирован в другое место:
 
 ```text
 volume node affinity conflict
 ```
 
-appears.
+Возникает.
 
-CPU may be available.
+ЦП может быть доступен.
 
-Memory may be available.
+Память может быть доступна.
 
-Storage topology prevents placement.
+Топология хранения предотвращает размещение.
 
-This is a topology-aware scheduling issue.
+Это проблема планирования с учетом топологии.
 
 ---
 
-# Cluster Autoscaler Limitation
+# Ограничение кластерного автомасштабирования
 
-Cluster Autoscaler detected insufficient resources.
+Cluster Autoscaler обнаружил недостаточность ресурсов.
 
-It attempted to scale the cluster.
+Была предпринята попытка масштабирования кластера.
 
-However logs showed:
+Однако журналы показали:
 
 ```text
 max node group size reached
 ```
 
-Meaning:
+Значение:
 
 ```text
-Autoscaler was functioning correctly
-but was blocked by configuration limits
+Автомасштабер работал корректно.
+но был заблокирован ограничениями конфигурации
 ```
 
-Additional nodes could not be created.
+Дополнительные узлы не могли быть созданы.
 
-Capacity remained exhausted.
-
----
-
-# Scheduler, Capacity And Autoscaling Relationship
-
-Scheduler places workloads.
-
-Scheduler depends on:
-
-- node capacity
-- resource requests
-- topology constraints
-- affinity rules
-
-Autoscaler only adds nodes when possible.
-
-If autoscaler reaches configured limits:
-
-- scheduler remains constrained
-- Pending Pods accumulate
-- deployments stall
-
-Autoscaling cannot overcome hard capacity limits.
+Доступные ресурсы по-прежнему были исчерпаны.
 
 ---
 
-# Bin Packing
+# Связь между планировщиком, доступными ресурсами и автомасштабированием
 
-Bin packing attempts to maximize resource utilization.
+Планировщик размещает рабочие нагрузки.
 
-Benefits:
+Планировщик зависит от:
 
-- lower infrastructure cost
-- higher utilization
-- reduced idle capacity
+- Пропускная способность узла
+- запросы ресурсов
+- Ограничения топологии
+- Правила сходства
 
-Example:
+Автомасштабирование добавляет узлы только тогда, когда это возможно.
+
+Если автомасштабирование достигает заданных пределов:
+
+- Планировщик остается ограниченным
+- Накапливаются объекты Pod в состоянии Pending
+- остановка развертывания
+
+Автомасштабирование не может преодолеть жесткие ограничения емкости.
+
+---
+
+# Плотное размещение нагрузки (bin packing)
+
+Упаковка контейнеров направлена ​​на максимальное использование ресурсов.
+
+Преимущества:
+
+- более низкая стоимость инфраструктуры
+- более высокая степень использования
+- Сокращение объёма неиспользуемых ресурсов
+
+Пример:
 
 ```text
-many Pods packed onto fewer nodes
+Большое число объектов Pod плотно размещено на небольшом числе узлов
 ```
 
 ---
 
-# Risks Of Bin Packing
+# Риски плотного размещения нагрузки
 
-Highly packed clusters have little scheduling headroom.
+Сильно упакованные кластеры имеют небольшой запас планирования.
 
-During failures:
+Во время сбоев:
 
-- resources become fragmented
-- replacement Pods cannot fit
-- rollouts become dangerous
+- ресурсы становятся фрагментированными
+- Для новых объектов Pod взамен старых не хватает ресурсов
+- Развертывания становятся опасными
 
-Aggressive bin packing improves efficiency but reduces resilience.
+Агрессивная упаковка контейнеров повышает эффективность, но снижает устойчивость.
 
 ---
 
-# Immediate Mitigation
+# Немедленное смягчение последствий
 
-## Stop The Rollout
+## Остановить развертывание
 
-Prevent additional rollout activity.
+Предотвратить дополнительную активность по развертыванию.
 
-Example:
+Пример:
 
 ```bash
 kubectl rollout pause deployment/checkout-api
 ```
 
-Purpose:
+Назначение:
 
-- stop creating new scheduling pressure
+- Прекратите создавать новое давление планирования
 
 ---
 
-## Roll Back
+## Откат назад
 
-Restore known healthy version.
+Восстановить известную исправную версию.
 
-Example:
+Пример:
 
 ```bash
 kubectl rollout undo deployment/checkout-api
 ```
 
-Purpose:
+Назначение:
 
-- remove rollout-induced capacity demand
-
----
-
-## Restore Capacity
-
-Options:
-
-- repair failed node
-- manually add worker nodes
-- increase node group size limits
-
-Purpose:
-
-- recover scheduling headroom
+- Устранить дополнительную потребность в ресурсах, вызванную развёртыванием
 
 ---
 
-## Reduce Replica Requirements
+## Восстановить доступный объём ресурсов
 
-Temporarily lower replica count if business impact is acceptable.
+Варианты:
 
-Purpose:
+- Ремонт вышедшего из строя узла
+- вручную добавлять рабочие узлы
+- Увеличение пределов размера группы узлов
 
-- allow successful scheduling
-- restore service availability
+Назначение:
 
----
-
-# Long-Term Improvements
-
-## Capacity Planning
-
-Design clusters for:
-
-- normal operation
-- rolling updates
-- node failures
-
-simultaneously.
-
-Capacity must include failure scenarios.
+- восстановить запас планирования
 
 ---
 
-## Increase Autoscaler Limits
+## Сокращение требований к репликам
 
-Review:
+Временно уменьшите количество реплик, если влияние на бизнес приемлемо.
+
+Назначение:
+
+- позволяют успешное планирование
+- восстановить доступность услуги
+
+---
+
+# Долгосрочные улучшения
+
+## Планирование ресурсов
+
+Спроектировать кластеры для:
+
+- нормальная работа
+- непрерывные обновления
+- Сбои узла
+
+Одновременно.
+
+Производительность должна включать сценарии отказа.
+
+---
+
+## Увеличить лимиты автомасштабирования
+
+Проверить:
 
 ```text
-max node group size
+Максимальный размер группы узлов
 ```
 
-Ensure scale-out remains possible during incidents.
+Обеспечить возможность горизонтального масштабирования во время инцидентов.
 
 ---
 
-## Improve Resource Request Accuracy
+## Повышение точности запроса ресурсов
 
-Overestimated requests increase fragmentation.
+Завышенные запросы увеличивают фрагментацию.
 
-Underestimated requests increase instability.
+Недооцененные запросы увеличивают нестабильность.
 
-Requests must reflect reality.
-
----
-
-## Pod Disruption Budgets
-
-Use Pod Disruption Budgets for controlled maintenance.
-
-Purpose:
-
-- protect availability during voluntary disruptions
-- prevent excessive concurrent evictions
+Запросы ресурсов должны соответствовать реальному потреблению.
 
 ---
 
-## Overprovisioning
+## Бюджеты допустимых прерываний Pod (PodDisruptionBudget)
 
-Deploy low-priority reserve Pods.
+Использовать бюджеты допустимых прерываний Pod для контролируемого обслуживания.
 
-These Pods can be preempted when real workloads require capacity.
+Назначение:
 
-Purpose:
-
-- maintain scheduling headroom
-- accelerate recovery
+- Защита доступности во время добровольных сбоев
+- Предотвратить чрезмерные одновременные вытеснения
 
 ---
 
-## Topology-Aware Architecture
+## Резервирование избыточных ресурсов
 
-Distribute workloads and storage across failure domains.
+Развернуть резервные объекты Pod с низким приоритетом.
 
-Reduce dependency on:
+Эти объекты Pod можно вытеснить, когда ресурсы понадобятся рабочим приложениям.
 
-- individual nodes
-- individual zones
+Назначение:
 
-Purpose:
-
-- improve resilience
-- reduce affinity-related scheduling failures
+- сохранять запас планирования
+- Ускорить восстановление
 
 ---
 
-# Key Learning
+## Архитектура с учетом топологии
 
-- healthy infrastructure metrics do not guarantee schedulability
-- scheduler capacity is a critical production resource
-- requests drive placement decisions
-- resource fragmentation causes hidden capacity loss
-- rolling updates require spare capacity
-- autoscalers have hard limits
-- storage topology influences scheduling outcomes
-- bin packing improves efficiency but reduces resilience
-- clusters must be sized for failures, not only normal operation
+Распределите рабочие нагрузки и хранилище по доменам отказов.
+
+Уменьшить зависимость от:
+
+- отдельные узлы
+- отдельные зоны
+
+Назначение:
+
+- Повышение устойчивости
+- Уменьшение сбоев планирования, связанных со сходством
+
+---
+
+# Основные выводы
+
+- Показатели работоспособности инфраструктуры не гарантируют возможность планирования
+- Производительность планировщика является важнейшим рабочим ресурсом.
+- запрашивает решение о размещении диска
+- Фрагментация ресурсов вызывает скрытую потерю доступной ёмкости
+- Для последовательных обновлений нужен запас ресурсов
+- Автомасштаберы имеют жесткие ограничения
+- Топология хранения влияет на результаты планирования
+- Упаковка контейнеров повышает эффективность, но снижает устойчивость
+- Размер кластеров должен быть рассчитан на сбои, а не только на нормальную работу.

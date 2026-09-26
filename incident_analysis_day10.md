@@ -1,15 +1,15 @@
-# Incident Analysis — Week 5 Day 3
+# Разбор инцидента — неделя 5, день 3
 
-## Scenario
-Service `/api/orders` shows errors for specific users.
+## Сценарий
+Сервис `/api/orders` показывает ошибки для конкретных пользователей.
 
-Two log sources:
-- orders.log (API layer)
-- db.log (database layer)
+Два источника журналов:
+- orders.log (уровень API)
+- db.log (уровень базы данных)
 
 ---
 
-## Log Samples
+## Примеры строк журналов
 
 ### orders.log
 
@@ -26,73 +26,73 @@ Two log sources:
 
 ---
 
-## My Initial Thinking
+## Мои первоначальные размышления
 
-- I identified that database is slow for user_id=202
-- I understood there is a relationship between logs
-- I suggested indexing as a solution
+- Я определил, что база данных работает медленно для user_id=202.
+- Я понял, что между журналами существует связь
+- Я предложил индексацию как решение
 
-### Problem
-- I did not explicitly confirm correlation between logs first
-- My reasoning was not structured around cause-effect chain
-- I did not fully specify how to validate slow queries
-
----
-
-## Corrected Approach
-
-### 1. What Is Happening
-
-- Database logs show slow queries (5–6 seconds) for user_id=202
-- API logs show timeouts at the same timestamps
-- Strong correlation between DB delay and API failure
-
-→ Slow query causes API timeout
+### Проблема
+- Сначала я не подтверждал явно корреляцию между журналами.
+- Мои рассуждения не были построены вокруг причинно-следственной цепочки.
+- Я не полностью указал, как проверять медленные запросы.
 
 ---
 
-### 2. First Step
+## Исправленный подход
 
-Confirm correlation:
+### 1. Что происходит
+
+- Журналы базы данных показывают медленные запросы (5–6 секунд) для user_id=202.
+- Журналы API показывают таймауты в одни и те же временные метки.
+- Сильная корреляция между задержкой БД и сбоем API.
+
+→ Медленный запрос приводит к тайм-ауту API
+
+---
+
+### 2. Первый шаг
+
+Подтвердите корреляцию:
 
 - `grep user_id=202 /var/log/orders.log`
 - `grep user_id=202 /var/log/db.log`
 
-Match timestamps and frequency
+Сопоставление временных меток и частоты
 
 ---
 
-### 3. Root Cause
+### 3. Основная причина
 
-- Slow SQL queries for specific user
-- Possible reasons:
-  - missing indexes
-  - large dataset
-  - inefficient query design
-
----
-
-### 4. Validation
-
-- Analyze slow query logs
-- Identify specific SQL query
-- Check execution time patterns
-- Compare with other users
+- Медленные SQL-запросы для конкретного пользователя
+- Возможные причины:
+  - недостающие индексы
+  - большой набор данных
+  - неэффективная конструкция запроса
 
 ---
 
-### 5. Actions
+### 4. Проверка гипотез
 
-- Optimize SQL query
-- Add indexes where necessary
-- Reduce data scope (limit/filter)
-- Introduce caching if applicable
+- Анализ журналов медленных запросов
+- Идентификация конкретного SQL-запроса.
+- Проверка шаблонов времени выполнения
+- Сравнить с другими пользователями
 
 ---
 
-## Key Learning
+### 5. Действия
 
-- API errors can originate from database performance issues
-- Must correlate logs across multiple layers
-- Always confirm cause-effect relationship before acting
-- Slow queries are a critical signal in system debugging
+- Оптимизация SQL-запроса
+- При необходимости добавьте индексы.
+- Уменьшить объем данных (ограничить/фильтровать)
+- Внедрить кэширование, если применимо.
+
+---
+
+## Основные выводы
+
+- Ошибки API могут возникать из-за проблем с производительностью базы данных.
+- Необходимо коррелировать журналы на нескольких уровнях.
+- Всегда проверяйте причинно-следственную связь, прежде чем действовать.
+- Медленные запросы являются критическим сигналом при отладке системы.

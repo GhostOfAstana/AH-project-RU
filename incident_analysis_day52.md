@@ -1,411 +1,411 @@
-# Incident Analysis — Week 11 Day 3
+# Разбор инцидента — неделя 11, день 3
 
-## Scenario
+## Сценарий
 
-A Kubernetes platform running Istio Service Mesh experienced a major production outage.
+На платформе Kubernetes под управлением Istio Service Mesh произошел крупный рабочий сбой.
 
-Environment:
+Окружение:
 
 - Kubernetes
 - Istio
-- Envoy Sidecars
-- STRICT mTLS
+- Вспомогательные прокси-контейнеры Envoy
+- Строгий режим mTLS (STRICT)
 - PostgreSQL
 - Kafka
-- 350+ microservices
+- 350+ микросервисов
 
-The platform had been stable for several months.
+Платформа работала стабильно в течение нескольких месяцев.
 
-Twenty-four hours after a certificate rotation operation performed by the security team, services began failing with:
+Через двадцать четыре часа после операции ротации сертификатов, выполненной командой безопасности, в службах начались сбои:
 
 - HTTP 500
 - HTTP 503
-- upstream connect errors
-- TLS handshake failures
-- certificate validation failures
+- Ошибки подключения к целевым сервисам
+- Сбои квитирования TLS
+- Сбои проверки сертификата
 - peer certificate expired
 
-Infrastructure dashboards appeared healthy:
+Инфраструктурные информационные панели выглядели исправными:
 
-- CPU normal
-- Memory normal
-- Network normal
-- PostgreSQL healthy
-- Kafka healthy
+- Процессор в норме
+- Память в норме
+- Сеть нормальная
+- PostgreSQL здоров
+- Kafka здоров
 
-Restarting some Pods temporarily restored communication, while other services continued failing.
-
----
-
-# Root Cause
-
-The most probable root cause was an incomplete certificate rotation within the Service Mesh.
-
-Istiod began issuing new workload certificates and trust bundles after certificate rotation.
-
-Some Envoy sidecars successfully received updated secrets through SDS.
-
-Other sidecars continued operating with outdated certificates or outdated trust bundles.
-
-As certificate expiration deadlines were reached, mutual TLS validation started failing between workloads.
-
-Because the mesh operated in STRICT mTLS mode, any certificate validation failure immediately prevented service-to-service communication.
-
-The result was a large-scale communication outage despite healthy application infrastructure.
+Перезапуск некоторых Pod временно восстанавливал связь, в то время как другие службы продолжали давать сбои.
 
 ---
 
-# How mTLS Works Inside Service Mesh
+# Основная причина
 
-Mutual TLS requires both communication participants to authenticate themselves.
+Наиболее вероятной основной причиной была неполная ротация сертификатов внутри Service Mesh.
 
-Unlike standard TLS:
+Istiod начал выдавать новые сертификаты рабочей нагрузки и пакеты доверия после ротации сертификатов.
 
-- client presents certificate
-- server presents certificate
+Некоторые вспомогательные прокси-контейнеры Envoy успешно получили обновлённые секреты через SDS.
 
-Both sides verify:
+Другие вспомогательные прокси-контейнеры продолжали работать с устаревшими сертификатами или наборами доверенных сертификатов.
 
-- certificate validity
-- certificate chain
-- certificate expiration
-- trusted root authority
+Когда были достигнуты сроки истечения срока действия сертификата, взаимная проверка TLS начала давать сбой между рабочими нагрузками.
 
-Only after successful validation can encrypted communication begin.
+Поскольку сервисная сеть работала в режиме STRICT mTLS, любая ошибка проверки сертификата немедленно блокировала взаимодействие между сервисами.
 
-This provides:
-
-- encryption
-- authentication
-- workload identity verification
+Результатом стал крупномасштабный сбой связи, несмотря на исправную инфраструктуру приложений.
 
 ---
 
-# Role Of Envoy Sidecars
+# Как mTLS работает внутри сервисной сети
 
-Applications do not directly perform TLS operations.
+Взаимный TLS требует, чтобы оба участника связи прошли аутентификацию.
 
-Each Pod contains an Envoy sidecar.
+В отличие от стандартного TLS:
 
-Envoy intercepts:
+- клиент представляет сертификат
+- сервер представляет сертификат
 
-- inbound traffic
-- outbound traffic
+Обе стороны проверяют:
 
-Responsibilities include:
+- Действительность сертификата
+- цепочка сертификатов
+- Истечение срока действия сертификата
+- доверенный корневой центр
 
-- mTLS encryption
-- certificate validation
-- traffic policies
-- retries
-- routing
-- observability
+Только после успешной проверки может начаться зашифрованная связь.
 
-Applications continue communicating using normal HTTP or gRPC.
+Это обеспечивает:
 
-Envoy transparently secures communication.
+- шифрование
+- аутентификация
+- Проверка идентичности рабочей нагрузки
 
 ---
 
-# Certificate Distribution
+# Роль вспомогательных прокси-контейнеров Envoy
 
-Certificates are distributed through:
+Приложения не выполняют операции TLS напрямую.
+
+Каждый Pod содержит вспомогательный прокси-контейнер Envoy.
+
+Envoy перехватывает:
+
+- входящий трафик
+- исходящий трафик
+
+Обязанности включают:
+
+- Шифрование mTLS
+- Проверка сертификата
+- Политика трафика
+- повторные попытки
+- Маршрутизация
+- наблюдаемость
+
+Приложения продолжают обмениваться данными, используя обычный HTTP или gRPC.
+
+Envoy прозрачно защищает связь.
+
+---
+
+# Распространение сертификатов
+
+Сертификаты распространяются через:
 
 ```text
-SDS
+Служба доставки секретов (SDS)
 Secret Discovery Service
 ```
 
-Workflow:
+Рабочий процесс:
 
-1. Envoy starts.
-2. Envoy connects to Istiod.
-3. Istiod provides:
-   - workload certificate
-   - private key
-   - trust bundle
-4. Envoy continuously watches for updates.
+1. Envoy запускается.
+2. Envoy подключается к Istiod.
+3. Istiod обеспечивает:
+   - сертификат рабочей нагрузки
+   - закрытый ключ
+   - Пакет доверия
+4. Envoy постоянно следит за обновлениями.
 
-When rotation occurs, Envoy should receive updated secrets without Pod restart.
+Когда происходит ротация, Envoy должен получать обновленные секреты без перезапуска Pod.
 
 ---
 
-# Meaning Of "Peer Certificate Expired"
+# Значение фразы «Срок действия сертификата узла истек»
 
-The message:
+Сообщение:
 
 ```text
 peer certificate expired
 ```
 
-means the remote workload presented a certificate that is no longer valid.
+означает, что удаленная рабочая нагрузка предоставила сертификат, который больше не действителен.
 
-Certificate validation failed because:
+Проверка сертификата не удалась, потому что:
 
-- expiration time passed
-- trust bundle mismatch occurred
-- certificate chain could not be validated
+- Срок годности истек
+- Произошло несоответствие пакета доверия
+- Цепочка сертификатов не может быть проверена
 
-TLS handshake terminates immediately.
+Квитирование TLS немедленно прекращается.
 
-Connection establishment fails.
-
----
-
-# Why The Problem Appears Gradually
-
-Not all Pods receive updates simultaneously.
-
-Possible reasons:
-
-- stale SDS connections
-- delayed xDS propagation
-- disconnected proxies
-- outdated trust bundles
-- control plane synchronization issues
-
-Therefore:
-
-- some services communicate successfully
-- some services partially fail
-- some services completely fail
-
-The outage spreads gradually as certificates expire.
+Установление соединения не удается.
 
 ---
 
-# Istio Components Involved
+# Почему проблема появляется постепенно
+
+Не все Pod получают обновления одновременно.
+
+Возможные причины:
+
+- устаревшие соединения SDS
+- задержка распространения xDS
+- отключенные прокси
+- устаревшие пакеты доверия
+- Проблемы синхронизации плоскости управления
+
+Поэтому:
+
+- некоторые службы успешно взаимодействуют
+- некоторые сервисы частично выходят из строя
+- некоторые службы полностью выходят из строя
+
+Отключение распространяется постепенно по мере истечения срока действия сертификатов.
+
+---
+
+# Задействованные компоненты Istio
 
 ## Istiod
 
-Responsibilities:
+Обязанности:
 
-- certificate authority functions
-- workload certificate issuance
-- trust bundle distribution
-- SDS service
-- xDS configuration distribution
+- Функции центра сертификации
+- Выдача сертификата рабочей нагрузки
+- Распространение пакета доверия
+- Служба SDS
+- Распространение конфигурации xDS
 
 ---
 
 ## Envoy
 
-Responsibilities:
+Обязанности:
 
-- certificate consumption
-- certificate validation
-- mTLS communication
-
----
-
-## SDS
-
-Responsibilities:
-
-- dynamic secret delivery
-- secret rotation
-- certificate updates
+- Получение и использование сертификатов
+- Проверка сертификата
+- Связь mTLS
 
 ---
 
-# Why Pod Restart Helps
+## Служба доставки секретов (SDS)
 
-Pod restart forces:
+Обязанности:
 
-1. Sidecar restart.
-2. Fresh connection to Istiod.
-3. New SDS synchronization.
-4. New certificate retrieval.
-5. New trust bundle retrieval.
-
-Communication temporarily recovers.
-
-However, if stale proxies remain elsewhere in the mesh, failures continue.
-
-Therefore restart is mitigation rather than permanent resolution.
+- динамическая секретная доставка
+- Ротация секретов
+- обновления сертификатов
 
 ---
 
-# Production Investigation
+# Почему помогает перезапуск Pod
 
-## Verify Certificate Expiration
+Перезапуск Pod принудительно вызывает:
 
-Check workload certificates:
+1. Перезапуск вспомогательного контейнера.
+2. Новое соединение с Istiod.
+3. Новая синхронизация SDS.
+4. Получение нового сертификата.
+5. Получение нового пакета доверия.
+
+Связь временно восстанавливается.
+
+Однако, если устаревшие прокси-серверы остаются в другом месте сети, сбои продолжаются.
+
+Таким образом, перезапуск является скорее смягчением, чем постоянным решением.
+
+---
+
+# Диагностика в рабочей среде
+
+## Проверка срока действия сертификата
+
+Проверьте сертификаты рабочей нагрузки:
 
 ```bash
 istioctl proxy-config secret <pod>
 ```
 
-Inspect:
+Исследовать:
 
-- expiration dates
-- certificate chains
-- trust bundles
+- Срок годности
+- Цепочки сертификатов
+- Пакеты доверия
 
 ---
 
-## Verify Proxy Synchronization
+## Проверка синхронизации прокси
 
-Check synchronization status:
+Проверьте статус синхронизации:
 
 ```bash
 istioctl proxy-status
 ```
 
-Look for:
+Ищите:
 
 ```text
 STALE
 ```
 
-or
+ИЛИ
 
 ```text
 NOT SENT
 ```
 
-These indicate incomplete configuration propagation.
+Это указывает на неполное распространение конфигурации.
 
 ---
 
-## Verify Istiod Health
+## Проверка работоспособности Istiod
 
-Inspect:
+Исследовать:
 
-- Istiod logs
-- certificate issuance events
-- SDS errors
-- xDS delivery errors
+- Журналы Istiod
+- События выдачи сертификата
+- Ошибки SDS
+- Ошибки доставки xDS
 
 ---
 
-## Compare Root Trust Bundles
+## Сравнение корневых пакетов доверия
 
-Verify consistency of:
+Проверьте согласованность:
 
 ```text
 istio-ca-root-cert
 ```
 
-across namespaces and workloads.
+между пространствами имен и рабочими нагрузками.
 
 ---
 
-## Verify Time Synchronization
+## Проверка синхронизации времени
 
-Check:
+Проверить:
 
 ```bash
 timedatectl
 ```
 
-or
+ИЛИ
 
 ```bash
 chronyc tracking
 ```
 
-Time drift can cause:
+Дрейф во времени может вызвать:
 
 ```text
 certificate expired
 certificate not yet valid
 ```
 
-even with otherwise correct certificates.
+даже при наличии в остальном правильных сертификатов.
 
 ---
 
-# Short-Term Mitigation
+# Краткосрочное смягчение последствий
 
-## Rolling Restart
+## Последовательный перезапуск
 
-Force restart of critical workloads:
+Принудительный перезапуск критических рабочих нагрузок:
 
 ```bash
 kubectl rollout restart deployment
 ```
 
-Purpose:
+Назначение:
 
-- refresh Envoy sidecars
-- retrieve new certificates
-- retrieve updated trust bundles
-
----
-
-## Validate Istiod
-
-Confirm:
-
-- healthy replicas
-- functioning SDS
-- successful certificate issuance
+- Обновить вспомогательные прокси-контейнеры Envoy
+- получить новые сертификаты
+- получить обновленные пакеты доверия
 
 ---
 
-## Restore Mesh Synchronization
+## Проверить Istiod
 
-Identify stale proxies and reconnect them to control plane.
+Подтвердить:
 
----
-
-# Long-Term Fix
-
-## Safe Root CA Rotation
-
-Introduce overlapping trust windows.
-
-Both old and new Root CA certificates should be trusted during migration.
-
-Purpose:
-
-- eliminate trust gaps
-- allow gradual adoption
+- здоровые реплики
+- Работоспособная служба SDS
+- успешная выдача сертификата
 
 ---
 
-## Certificate Expiration Monitoring
+## Восстановить синхронизацию сервисной сети
 
-Monitor:
-
-- certificate lifetime
-- SDS synchronization
-- trust bundle age
-
-Generate alerts before expiration.
+Идентифицируйте устаревшие прокси-серверы и повторно подключайте их к плоскости управления.
 
 ---
 
-## Automated Proxy Health Validation
+# Долгосрочное исправление
 
-Continuously monitor:
+## Безопасная ротация корневого CA
 
-- xDS synchronization
-- SDS synchronization
-- stale proxy detection
+Введение перекрывающихся окон доверия.
 
----
+Как старым, так и новым сертификатам корневого CA следует доверять во время миграции.
 
-## Improve Rotation Procedures
+Назначение:
 
-Introduce staged certificate rotation:
-
-1. Deploy new trust bundle.
-2. Verify propagation.
-3. Rotate workload certificates.
-4. Remove old Root CA after validation.
-
-This minimizes outage risk.
+- Устранить пробелы в доверии
+- позволяют постепенное внедрение
 
 ---
 
-# Key Learning
+## Мониторинг срока действия сертификата
 
-Service Mesh security depends not only on certificate issuance but also on certificate distribution and trust propagation.
+Отслеживать:
 
-A healthy infrastructure does not guarantee healthy communication.
+- срок действия сертификата
+- Синхронизация SDS
+- Срок действия пакета доверия
 
-When STRICT mTLS is enabled, certificate management becomes a critical availability dependency.
+Генерировать оповещения до истечения срока действия.
 
-Expired certificates can create platform-wide outages even when applications, databases, and networking remain healthy.
+---
+
+## Автоматическая проверка работоспособности прокси-сервера
+
+Постоянно контролируйте:
+
+- Синхронизация xDS
+- Синхронизация SDS
+- Обнаружение устаревшего прокси
+
+---
+
+## Улучшение процедур ротации
+
+Введение поэтапной ротации сертификатов:
+
+1. Разверните новый пакет доверия.
+2. Проверка распространения.
+3. Ротация сертификатов рабочей нагрузки.
+4. Удалить старый корневой центр сертификации после проверки.
+
+Это минимизирует риск простоя.
+
+---
+
+# Основные выводы
+
+Безопасность Service Mesh зависит не только от выдачи сертификата, но также от распространения сертификатов и распространения доверия.
+
+Исправная инфраструктура не гарантирует работоспособность связи.
+
+Когда включен STRICT mTLS, управление сертификатами становится критической зависимостью доступности.
+
+Сертификаты с истекшим сроком действия могут привести к сбоям в работе всей платформы, даже если приложения, базы данных и сеть остаются работоспособными.

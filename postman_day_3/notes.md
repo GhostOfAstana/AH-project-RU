@@ -1,22 +1,22 @@
-# Postman Day 3
+# Postman — день 3
 
-## What I did
-- Sent a GET request to https://postman-echo.com/status/500
-- Got a 500 Internal Server Error response
+## Что я сделал
+- Отправил запрос GET на https://postman-echo.com/status/500
+- Получил ответ 500 Internal Server Error
 
-## What I learned
-- 500 means server-side error (backend)
-- The issue is not caused by the user
-- The problem cannot be fixed on my level
+## Что я узнал
+- 500 означает ошибку на стороне сервера (бэкэнд)
+- Проблема не вызвана пользователем.
+- Проблему невозможно решить на моем уровне.
 
-## How I think as support
-- Check the request
-- Confirm the status code
-- Understand if it is frontend, backend, or network issue
-- If 500 → escalate to backend team
+## Как я рассуждаю в роли специалиста поддержки
+- Проверьте запрос
+- Подтвердите код состояния
+- Выясните, является ли это проблемой внешнего интерфейса, серверной части или сети.
+- Если 500 → передать дело бэкэнд-команде.
 
-## My Reminder
-If I see 500:
-1. It is server problem
-2. User is not виноват
-3. I must report clearly and escalate
+## Памятка
+Если я вижу 500:
+1. Это проблема сервера.
+2. Пользователь не виноват
+3. Я должен четко сообщить и передать

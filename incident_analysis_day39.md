@@ -1,499 +1,499 @@
-# Incident Analysis — Week 9 Day 4
+# Разбор инцидента — неделя 9, день 4
 
-## Scenario
+## Сценарий
 
-Production PostgreSQL was migrated into Kubernetes.
+Рабочую базу PostgreSQL перенесли в Kubernetes.
 
-Team deployed database using:
+Команда развернула базу данных с использованием:
 
 ```yaml
 kind: Deployment
 replicas: 3
 ```
 
-After several days production entered unstable state.
+Через несколько дней рабочая среда стала нестабильной.
 
-Symptoms:
-- inconsistent data
-- old reads
-- conflicting table versions
-- replication instability
-- split-brain behavior
-- storage attached to wrong node
-- PVC stuck in Pending
-- database recovery became slow after node failures
+Симптомы:
+- противоречивые данные
+- старые чтения
+- конфликтующие версии таблиц
+- нестабильность репликации
+- Расхождение лидеров
+- хранилище подключено к неправильному узлу
+- ПВХ застрял в Pending
+- Восстановление базы данных стало медленным после сбоев узла
 
-CTO conclusion:
-The team attempted to scale PostgreSQL like a stateless web service.
-
----
-
-# What Problem Is Happening
-
-The core architectural failure is treating stateful infrastructure as stateless workload.
-
-Team applied:
-- cattle model
-to
-- persistent database system
-
-This violates distributed state consistency principles.
-
-Stateless services:
-- disposable
-- interchangeable
-- horizontally replicated
-- identity-independent
-
-Databases are fundamentally different.
-
-A database node:
-- owns persistent state
-- maintains history
-- depends on replication ordering
-- requires stable identity
-- participates in distributed consensus
-
-Using Deployment for PostgreSQL created:
-- uncontrolled replicas
-- unstable identities
-- inconsistent storage ownership
-- invalid replication topology
-
-Result:
-- multiple nodes attempted leadership
-- replication diverged
-- storage consistency collapsed
-
-This produced split-brain behavior.
+Заключение технического директора:
+Команда попыталась масштабировать PostgreSQL как веб-сервис без сохранения состояния.
 
 ---
 
-# Stateless vs Stateful Workloads
+# В чём заключается проблема
 
-Stateful systems differ from stateless systems in several critical dimensions.
+Основная архитектурная ошибка заключается в том, что инфраструктуру с сохранением состояния рассматривают как рабочую нагрузку без сохранения состояния.
+
+Применена команда:
+- модель крупного рогатого скота
+
+- постоянная система баз данных
+
+Это нарушает принципы согласованности распределенного состояния.
+
+Услуги без гражданства:
+- одноразовый
+- взаимозаменяемый
+- горизонтально реплицированные
+- независимый от идентичности
+
+Базы данных принципиально отличаются.
+
+Узел базы данных:
+- владеет постоянным состоянием
+- сохраняет историю
+- зависит от порядка репликации
+- требуется стабильная идентичность
+- участвует в распределенном консенсусе
+
+С помощью Deployment для PostgreSQL создано:
+- неконтролируемые реплики
+- нестабильные личности
+- непоследовательное владение хранилищем
+- неверная топология репликации
+
+Результат:
+- несколько узлов попытались получить лидерство
+- репликация разошлась
+- согласованность хранения нарушена
+
+Это привело к расхождению лидеров (split brain).
 
 ---
 
-# 1. Identity
+# Рабочие нагрузки без сохранения состояния и с сохранением состояния
 
-Stateless Pods are anonymous.
+Системы с состоянием отличаются от систем без состояния по нескольким критическим аспектам.
 
-Example:
+---
+
+# 1. Идентичность
+
+Pod без сохранения состояния являются анонимными.
+
+Пример:
 
 ```text
 api-7c4b9b-abc12
 ```
 
-If Pod dies:
-- replacement Pod receives new identity
-- traffic continues normally
+Если Pod умирает:
+- Новый Pod получает собственный идентификатор
+- движение продолжается в обычном режиме
 
-Stateful systems require deterministic identity.
+Системы с сохранением состояния требуют детерминированной идентичности.
 
-Example:
+Пример:
 
 ```text
-db-0
-db-1
-db-2
+дб-0
+дб-1
+БД-2
 ```
 
-Identity defines:
-- replication role
-- cluster topology
-- synchronization behavior
+Идентичность определяет:
+- роль репликации
+- топология кластера
+- Поведение синхронизации
 
-Stable identity is mandatory.
-
----
-
-# 2. Ordering
-
-Stateless workloads may:
-- start simultaneously
-- terminate simultaneously
-- scale arbitrarily
-
-Stateful systems require strict ordering.
-
-Example:
-- primary database must initialize first
-- replicas start afterward
-- replication established sequentially
-
-Incorrect startup order may:
-- corrupt replication
-- break cluster bootstrap
-- produce inconsistent state
+Стабильная идентичность является обязательной.
 
 ---
 
-# 3. Persistence
+# 2. Порядок запуска и завершения
 
-Stateless data is temporary.
+Рабочие нагрузки без сохранения состояния могут:
+- запуск одновременно
+- прекратить одновременно
+- произвольно масштабировать
 
-Pod deletion destroys:
-- cache
-- local filesystem
-- temporary state
+Системы с сохранением состояния требуют строгого упорядочения.
 
-Stateful data must survive:
-- Pod restarts
-- node failures
-- rescheduling
-- rolling updates
+Пример:
+- Первичная база данных должна быть инициализирована первой
+- Реплики запускаются позже
+- Репликация установлена последовательно
 
-Persistent state must outlive compute lifecycle.
+Неправильный порядок запуска может:
+- поврежденная репликация
+- Прервать загрузку кластера
+- создают противоречивое состояние
 
 ---
 
-# 4. Stable Networking
+# 3. Сохранность данных
 
-Databases require deterministic addressing.
+Данные без сохранения состояния являются временными.
 
-Replication topology depends on:
-- stable DNS names
-- fixed node identity
-- predictable endpoints
+Удаление Pod уничтожает:
+- кэш
+- локальная файловая система
+- временное состояние
 
-Traditional Kubernetes Service load balancing is unsuitable for replication traffic.
+Данные с сохранением состояния должны сохраняться:
+- Перезапуски Pod
+- Сбои узла
+- перепланирование
+- непрерывные обновления
 
-Database replicas must know:
-- exact primary endpoint
-- exact replica identities
+Постоянное состояние должно пережить жизненный цикл вычислений.
+
+---
+
+# 4. Стабильная сеть
+
+Базы данных требуют детерминированной адресации.
+
+Топология репликации зависит от:
+- стабильные DNS-имена
+- фиксированная идентификация узла
+- предсказуемые конечные точки
+
+Традиционная служба балансировки нагрузки Kubernetes непригодна для трафика репликации.
+
+Реплики базы данных должны знать:
+- Точная первичная конечная точка
+- точные копии идентичности
 
 ---
 
 # StatefulSet
 
-StatefulSet is Kubernetes controller for stateful workloads.
+StatefulSet представляет собой контроллер Kubernetes для рабочих нагрузок с отслеживанием состояния.
 
-Unlike Deployment, StatefulSet guarantees:
-- stable Pod identity
-- ordered startup
-- ordered shutdown
-- stable storage association
+В отличие от Deployment, StatefulSet гарантирует:
+- стабильная идентичность Pod
+- Запуск в заданном порядке
+- Завершение работы в заданном порядке
+- стабильная ассоциация хранения
 
-Pods receive deterministic names:
+Pod получают детерминированные имена:
 
 ```text
-db-0
-db-1
-db-2
+дб-0
+дб-1
+БД-2
 ```
 
-If Pod recreated:
-- identity preserved
-- associated storage reattached
+Если Pod воссоздан:
+- идентичность сохранена
+- связанное хранилище повторно подключено
 
-This enables:
-- replication stability
-- deterministic failover
-- consistent topology
+Это позволяет:
+- Стабильность репликации
+- детерминированное аварийное переключение
+- согласованная топология
 
 ---
 
-# Headless Service
+# Сервис без кластерного IP (Headless Service)
 
-Headless Service configured with:
+Сервис без кластерного IP настраивается следующим образом:
 
 ```yaml
 clusterIP: None
 ```
 
-Unlike normal Service:
-- no virtual IP created
-- no traffic load balancing performed
+В отличие от обычного обслуживания:
+- виртуальный IP-адрес не создан
+- Балансировка нагрузки трафика не выполнялась
 
-Instead:
-- DNS resolves directly to Pod IPs
+Вместо этого:
+- DNS разрешается напрямую в IP-адреса Pod.
 
-Example:
+Пример:
 
 ```text
 db-0.postgres.svc.cluster.local
 ```
 
-Purpose:
-- direct Pod discovery
-- stable replication addressing
-- topology visibility
+Назначение:
+- прямое обнаружение Pod
+- стабильная репликационная адресация
+- Видимость топологии
 
-Headless Service exposes Pod identity rather than hiding it.
+Headless Service предоставляет доступ к отдельным объектам Pod, сохраняя их идентичность.
 
 ---
 
 # PersistentVolume (PV)
 
-PersistentVolume represents actual storage resource.
+PersistentVolume представляет фактический ресурс хранения.
 
-Examples:
-- cloud block storage
-- SAN storage
-- Ceph volume
-- NVMe device
+Примеры:
+- облачное блочное хранилище
+- SAN-хранилище
+- Объем цефов
+- NVMe-устройство
 
-PV exists independently from Pods.
+PV существует независимо от Pod.
 
-Purpose:
-- persistent infrastructure storage
+Назначение:
+- Постоянное хранилище инфраструктуры
 
 ---
 
 # PersistentVolumeClaim (PVC)
 
-PVC is storage request abstraction.
+PVC представляет собой абстракцию запроса на сохранение.
 
-Pod requests storage through PVC.
+Pod запрашивает хранение через PVC.
 
-StatefulSet creates deterministic PVC mapping:
+StatefulSet создает детерминированное отображение PVC:
 
 ```text
-data-db-0
-data-db-1
+данные-db-0
+данные-db-1
 ```
 
-If Pod recreated:
-- same PVC reused
-- same data restored
+Если Pod воссоздан:
+- Тот же ПВХ повторно использован
+- восстановлены те же данные
 
-PVC provides:
-- persistent ownership
-- storage continuity
-- durable state lifecycle
-
----
-
-# Why Storage Is The Hardest Kubernetes Layer
-
-Storage introduces physical constraints absent in stateless compute systems.
+ПВХ обеспечивает:
+- постоянное владение
+- непрерывность хранения
+- Жизненный цикл устойчивого состояния
 
 ---
 
-# Attach / Detach Complexity
+# Почему хранение является самым сложным слоем Kubernetes
 
-Storage volumes physically attached to nodes.
-
-After node failure:
-- volume detached from dead node
-- reattached to new node
-- filesystem remounted
-- database recovery started
-
-This process may require minutes.
-
-During transition:
-- Pod remains Pending
-- database unavailable
-
-Storage mobility slower than compute mobility.
+Хранение накладывает физические ограничения, отсутствующие в вычислительных системах без сохранения состояния.
 
 ---
 
-# Node Locality
+# Сложности подключения и отключения томов
 
-Some storage tied to specific zones or nodes.
+Тома хранения, физически прикрепленные к узлам.
 
-Scheduler cannot freely move database Pods everywhere.
+После отказа узла:
+- Том отделен от мертвого узла
+- повторно подключен к новому узлу
+- файловая система перемонтирована
+- Начато восстановление базы данных
 
-Placement constrained by:
-- storage topology
-- zone affinity
-- hardware locality
+Этот процесс может занять несколько минут.
 
-This creates scheduling complexity.
+Во время перехода:
+- Pod остается Pending
+- база данных недоступна
+
+Мобильность хранилища медленнее, чем мобильность вычислений.
 
 ---
 
-# ReadWriteOnce vs ReadWriteMany
+# Местоположение узла
 
-Most performant block storage supports:
+Некоторые хранилища привязаны к конкретным зонам или узлам.
+
+Планировщик не может произвольно перемещать объекты Pod базы данных между любыми узлами.
+
+Размещение ограничено:
+- топология хранения данных
+- Привязка зоны
+- аппаратная локальность
+
+Это создает сложность планирования.
+
+---
+
+# Сравнение ReadWriteOnce и ReadWriteMany
+
+Наиболее производительное блочное хранилище поддерживает:
 
 ```text
 ReadWriteOnce (RWO)
 ```
 
-Meaning:
-- only one node may mount volume simultaneously
+Значение:
+- только один узел может одновременно монтировать том
 
-Attempting multiple writers risks corruption.
+Попытка создания нескольких авторов рискует коррупцией.
 
-Shared storage modes:
+Режимы совместного хранения:
 
 ```text
 ReadWriteMany (RWX)
 ```
 
-allow multi-node access,
-but often introduce:
-- higher latency
-- lower performance
-- consistency tradeoffs
+разрешить многоузловой доступ,
+, но часто вводят:
+- более высокая задержка
+- более низкая производительность
+- Компромиссы последовательности
 
 ---
 
-# Data Gravity
+# Гравитация данных
 
-Large datasets difficult to relocate.
+Большие наборы данных трудно перемещать.
 
-Terabytes of database state cannot move instantly across cluster.
+Терабайты состояния базы данных не могут мгновенно перемещаться по кластеру.
 
-Applications must move toward data.
+Приложения должны двигаться к данным.
 
-Not vice versa.
+Не наоборот.
 
-This principle called:
-- data gravity
-
----
-
-# Split Brain
-
-Split brain occurs when multiple database nodes believe they are primary leaders simultaneously.
-
-Result:
-- conflicting writes
-- divergent histories
-- broken replication
-- unrecoverable consistency problems
-
-Split brain often worse than temporary downtime.
-
-Preventing split brain is critical.
+Этот принцип называется:
+- гравитация данных
 
 ---
 
-# Kubernetes Does NOT Solve Consensus
+# Расхождение лидеров (split brain)
 
-Kubernetes orchestrates:
-- containers
+Расхождение лидеров происходит, когда несколько узлов базы данных считают, что они одновременно являются основными лидерами.
+
+Результат:
+- противоречивые записи
+- разные истории
+- нарушенная репликация
+- Неустранимые проблемы с согласованностью
+
+Расхождение лидеров зачастую хуже, чем временный простой.
+
+Предотвращение расхождения лидеров имеет решающее значение.
+
+---
+
+# Kubernetes НЕ решает задачу консенсуса
+
+Kubernetes оркеструет:
+- контейнеры
 - Pods
-- scheduling
-- lifecycle
+- планирование
+- жизненный цикл
 
-Kubernetes does NOT automatically solve:
-- leader election
-- write quorum
-- replication consistency
-- distributed consensus
+Kubernetes НЕ решает автоматически следующие задачи:
+- Выборы лидера
+- записать кворум
+- согласованность репликации
+- распределенный консенсус
 
-Consensus requires additional systems:
-- Patroni
-- Etcd
+Для достижения консенсуса необходимы дополнительные системы:
+- Патрони
+- И т.д.
 - Raft
-- distributed coordination layers
+- распределенные координационные уровни
 
 ---
 
-# Production-Grade Stateful Architecture
+# Архитектура приложений с состоянием в рабочей среде
 
-Reliable database infrastructure requires specialized architecture.
+Надежная инфраструктура базы данных требует специализированной архитектуры.
 
 ---
 
-# StatefulSet Instead Of Deployment
+# StatefulSet вместо Deployment
 
-Databases must use:
+Базы данных должны использовать:
 - StatefulSet
-not
+нет
 - Deployment
 
-Purpose:
-- stable identity
-- deterministic storage
-- ordered lifecycle
+Назначение:
+- стабильная идентичность
+- детерминированное хранение
+- упорядоченный жизненный цикл
 
 ---
 
-# Dedicated Persistent Storage
+# Выделенное постоянное хранилище
 
-Use:
-- durable block storage
-- isolated storage classes
-- dedicated database disks
+Использовать:
+- Прочное блочное хранилище
+- изолированные классы хранения
+- выделенные диски базы данных
 
-Avoid:
-- ephemeral local container storage
-
----
-
-# Consensus Layer
-
-Use distributed coordination systems:
-- Patroni
-- Etcd
-- Raft-based orchestration
-
-Purpose:
-- leader election
-- failover safety
-- split-brain prevention
+Избегать:
+- эфемерное локальное хранилище контейнеров
 
 ---
 
-# Operator Pattern
+# Уровень консенсуса
 
-Production Kubernetes databases usually managed by Operators.
+Используйте распределенные системы координации:
+- Патрони
+- И т.д.
+- Оркестровка на основе Raft
 
-Examples:
+Назначение:
+- Выборы лидера
+- Безопасность аварийного переключения
+- Предотвращение расхождения лидеров
+
+---
+
+# Шаблон оператора
+
+Рабочие базы данных Kubernetes обычно управляются операторами.
+
+Примеры:
 - CloudNativePG
-- Zalando Postgres Operator
+- Оператор Zalando Postgres
 
-Operator acts as:
-- domain-specific automation controller
+Оператор действует как:
+- Контроллер автоматизации, зависящий от предметной области
 
-Operator handles:
-- failover
-- backups
-- replication
-- upgrades
-- recovery
-- topology management
-
----
-
-# Dedicated Database Nodes
-
-Database workloads isolated from stateless applications.
-
-Use:
-- taints
-- tolerations
-- node affinity
-
-Purpose:
-- prevent noisy neighbors
-- isolate IO-intensive workloads
-- stabilize latency
+Ручки оператора:
+- аварийное переключение
+- резервные копии
+- репликация
+- обновления
+- восстановление
+- Управление топологией
 
 ---
 
-# Production Storage Principles
+# Выделенные узлы базы данных
 
-Reliable stateful infrastructure requires:
+Рабочие нагрузки базы данных изолированы от приложений без отслеживания состояния.
 
-- stable identity
-- persistent storage
-- deterministic networking
-- ordered startup
-- consensus management
-- replication coordination
-- split-brain prevention
-- storage topology awareness
-- dedicated infrastructure
-- operator-based lifecycle automation
+Использовать:
+- Ограничения узлов (taints)
+- Допуски
+- Привязка к узлам (node affinity)
+
+Назначение:
+- Предотвратить появление шумных соседей
+- изолировать рабочие нагрузки с интенсивным вводом-выводом
+- стабилизировать задержку
 
 ---
 
-# Key Learning
+# Принципы хранения данных в рабочей среде
 
-- stateless replication differs fundamentally from stateful replication
-- databases require identity and persistence
-- StatefulSet preserves stable topology
-- storage lifecycle independent from Pod lifecycle
-- Kubernetes orchestration does not equal distributed consensus
-- split brain is catastrophic
-- storage mobility constrained by physics
-- data gravity shapes infrastructure architecture
-- production databases require dedicated operational patterns
+Надежная инфраструктура с отслеживанием состояния требует:
+
+- стабильная идентичность
+- Постоянное хранилище
+- Детерминированная сеть
+- Запуск в заданном порядке
+- Согласованное управление
+- координация репликации
+- Предотвращение расхождения лидеров
+- Осведомленность о топологии хранилища
+- выделенная инфраструктура
+- Автоматизация жизненного цикла с участием оператора
+
+---
+
+# Основные выводы
+
+- Репликация без сохранения состояния фундаментально отличается от репликации с сохранением состояния.
+- Базы данных требуют идентичности и постоянства
+- StatefulSet сохраняет стабильную топологию.
+- Жизненный цикл хранилища не зависит от жизненного цикла Pod.
+- Оркестровка Kubernetes не равна распределенному консенсусу.
+- Расхождение лидеров катастрофичен
+- Мобильность хранения данных ограничена физикой
+- Гравитация данных формирует архитектуру инфраструктуры
+- рабочие базы данных требуют специальных операционных шаблонов

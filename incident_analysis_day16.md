@@ -1,116 +1,116 @@
-# Incident Analysis — Week 6 Day 2
+# Разбор инцидента — неделя 6, день 2
 
-## Scenario
-User reports: "API is slow"
+## Сценарий
+Пользователь сообщает: «API работает медленно»
 
-Environment:
-- Linux server
-- Multiple running processes
-- API process is not immediately identifiable
-
----
-
-## My Initial Approach
-
-Goal:
-Find the API process and verify its performance
+Окружение:
+- Сервер Linux
+- Несколько запущенных процессов
+- Процесс API невозможно сразу идентифицировать.
 
 ---
 
-### 1. Identify High-Load Processes
+## Мой первоначальный подход
 
-Command:
+Цель:
+Найдите процесс API и проверьте его производительность.
+
+---
+
+### 1. Идентификация процессов с высокой нагрузкой
+
+Команда:
 ps aux --sort=-%cpu | head
 
-Purpose:
-- Find processes consuming the most CPU
-- Narrow down potential candidates
+Назначение:
+- Найдите процессы, потребляющие больше всего процессора
+- Сузить круг потенциальных кандидатов
 
 ---
 
-### 2. Locate API Process
+### 2. Найдите процесс API
 
-Commands:
+Команды:
 ps aux | grep -E "python|node|java|gunicorn|uvicorn"
 
-Alternative:
+Альтернатива:
 systemctl list-units --type=service
 
-Purpose:
-- Identify service based on runtime (Python, Node, etc.)
-- Detect application entry point (e.g. app.py, server.js)
+Назначение:
+- Идентификация службы на основе времени выполнения (Python, Node и т. д.)
+- Обнаружение точки входа приложения (например, app.py, server.js)
 
 ---
 
-### 3. Identify Network Port
+### 3. Идентификация сетевого порта
 
-Commands:
+Команды:
 ss -tulpn | grep LISTEN  
 lsof -i -P -n  
 
-Purpose:
-- Map process (PID) to open port
-- Confirm service is listening for requests
+Назначение:
+- Сопоставление процесса (PID) с открытием порта
+- Подтвердите, что служба прослушивает запросы.
 
 ---
 
-### 4. Monitor Specific Process
+### 4. Мониторинг конкретного процесса
 
-Command:
+Команда:
 top -p [PID]
 
-Purpose:
-- Observe CPU and memory usage for the API process
-- Detect abnormal resource consumption
+Назначение:
+- Наблюдайте за использованием ЦП и памяти для процесса API.
+- Обнаружение аномального потребления ресурсов
 
 ---
 
-### 5. Test API Response Time
+### 5. Тестирование времени ответа API
 
-Command:
+Команда:
 curl -w "%{time_total}" -o /dev/null -s http://localhost:[PORT]/api/orders
 
-Purpose:
-- Measure real response time
-- Confirm user-reported latency
+Назначение:
+- Измерение реального времени отклика
+- Подтвердите задержку, сообщаемую пользователем.
 
 ---
 
-### 6. Deep Inspection (if needed)
+### 6. Глубокая проверка (при необходимости)
 
-Command:
+Команда:
 strace -p [PID]
 
-Purpose:
-- Inspect system calls
-- Detect blocking operations (I/O, network)
+Назначение:
+- Проверка системных вызовов
+- Обнаружение операций блокировки (ввода-вывода, сети)
 
-Note:
-Use carefully in production due to performance impact
-
----
-
-## Decision Strategy
-
-1. Identify process
-2. Map process to port
-3. Measure performance
-4. Correlate with system metrics
+Примечание:
+Осторожно использовать в рабочей среде из-за влияния на производительность.
 
 ---
 
-## Actions
+## Стратегия принятия решения
 
-- If high CPU → investigate code or loops
-- If high memory → check for leaks
-- If slow response but low CPU → check I/O or dependencies
-- Avoid immediate restart without diagnosis
+1. Идентификация процесса
+2. Сопоставление процесса с портом
+3. Измерение производительности
+4. Корреляция с системными метриками
 
 ---
 
-## Key Learning
+## Действия
 
-- Must locate service before diagnosing it
-- Process + Port + Metrics = full service visibility
-- System navigation is critical for real incident handling
-- Direct measurement (curl) confirms real user experience
+- Если высокая загрузка ЦП → исследуйте код или циклы.
+- Если большая память → проверьте на наличие утечек
+- Если медленный отклик, но низкий процессор → проверьте ввод-вывод или зависимости.
+- Избегайте немедленного перезапуска без диагностики.
+
+---
+
+## Основные выводы
+
+- Необходимо найти сервис перед его диагностикой.
+- Процесс + Порт + Метрики = полная видимость услуги
+- Системная навигация имеет решающее значение для реального реагирования на инциденты.
+- Прямое измерение с помощью curl подтверждает задержку, которую испытывает пользователь

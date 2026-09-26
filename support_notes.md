@@ -1,113 +1,113 @@
-# Support Notes
+# Заметки по технической поддержке
 
-## Core Terms
+## Основные термины
 
-### Incident
-An incident is a problem that affects the user or service right now.
+### Инцидент
+Инцидент – это проблема, которая влияет на пользователя или услугу прямо сейчас.
 
-### Bug
-A bug is an error or defect in the system or application.
+### Ошибка
+Баг – это ошибка или дефект в системе или приложении.
 
-### Priority
-Priority shows how urgent the issue is.
+### Приоритет
+Приоритет показывает, насколько срочен вопрос.
 
-### Escalation
-Escalation means passing the issue to the next level or another specialist.
+### Эскалация
+Эскалация означает передачу вопроса на следующий уровень или другому специалисту.
 
-### Workaround
-A workaround is a temporary way to bypass the problem.
+### Временное обходное решение
+Обходной путь — это временный способ обойти проблему.
 
-## Case 1: User cannot log in
+## Случай 1: Пользователь не может войти в систему
 
-### What I ask
-- What exactly do you see on the screen?
-- What is the error message?
-- When did the problem start?
-- Does the user enter the correct login and password?
-- Does the issue happen only for one user or for others too?
+### Какие вопросы я задаю
+- Что именно вы видите на экране?
+- Что такое сообщение об ошибке?
+- Когда возникла проблема?
+- Вводит ли пользователь правильный логин и пароль?
+- Проблема возникает только у одного пользователя или у других тоже?
 
-### What I check
-- Is the login correct?
-- Is the password correct?
-- Is the account locked?
-- Is the service working normally?
-- Is there any outage or known incident?
+### Что я проверяю
+- Правильный ли логин?
+- Правильный ли пароль?
+- Аккаунт заблокирован?
+- Сервис работает нормально?
+- Имеются ли какие-либо сбои или известные инциденты?
 
-### Where I escalate
-- To system administrator if it is an access or account issue
-- To application support if it is an app-side issue
-- To developers if it looks like a bug in the system
+### Кому я передаю проблему
+- Системному администратору, если это проблема доступа или учетной записи.
+- В службу поддержки приложений, если это проблема на стороне приложения.
+- Разработчикам, если это похоже на ошибку в системе
 
-## My Reminder
-In support I should think like this:
-1. understand the symptom
-2. ask clear questions
-3. check basic causes
-4. find temporary workaround if possible
-5. escalate if needed
-
-
-## Case 2: User cannot load page
-
-### What I ask
-- What page are you trying to open?
-- What exactly happens? (blank page, error, loading forever)
-- When did it start?
-- Does it happen on other devices or browsers?
-
-### What I check
-- Is the URL correct?
-- Is the server responding?
-- Is there a network issue?
-- Is there a known outage?
-
-### Where I escalate
-- To network/admin team if it's connectivity
-- To backend team if server is down
-- To frontend team if UI is broken
+## Памятка
+В поддержку я должен думать так:
+1. понять симптом
+2. задавать четкие вопросы
+3. проверьте основные причины
+4. Если возможно, найдите временное решение
+5. При необходимости эскалируйте
 
 
-## Case 3: Data is not saving
+## Случай 2: Пользователь не может загрузить страницу
 
-### What I ask
-- What action did you perform?
-- What data did you enter?
-- Did you see any error message?
-- Does it happen every time?
+### Какие вопросы я задаю
+- Какую страницу вы пытаетесь открыть?
+- Что именно происходит? (пустая страница, ошибка, загрузка бесконечна)
+- Когда это началось?
+- Происходит ли это на других устройствах или браузерах?
 
-### What I check
-- Is the API request sent? (POST)
-- What is the response status?
-- Is there validation error?
-- Is the database working?
+### Что я проверяю
+- Правильный ли URL-адрес?
+- Отвечает ли сервер?
+- Есть ли проблема с сетью?
+- Известно ли об отключении электроэнергии?
 
-## Case 4: User does not see their data
+### Кому я передаю проблему
+- Сетевой команде/администратору, если есть возможность подключения.
+- К серверной команде, если сервер не работает
+- Группе фронтенда, если пользовательский интерфейс сломан
 
-### Situation
-User says: "I created data, but I don’t see it in the system"
 
-### What I ask
-- What exactly did you create?
-- When did you create it?
-- Do you see any error?
-- Does the issue happen every time?
+## Случай 3: Данные не сохраняются
 
-### What I check
-- Was the POST request successful? (status 200/201)
-- Is the data returned in response?
-- Is the GET request returning the data?
-- Is there a delay or caching issue?
+### Какие вопросы я задаю
+- Какое действие вы совершили?
+- Какие данные вы ввели?
+- Вы видели какое-либо сообщение об ошибке?
+- Это происходит каждый раз?
 
-### What I think
-- Maybe POST worked but GET does not return data
-- Maybe data is not saved in database
-- Maybe filtering conditions are wrong (SQL issue)
+### Что я проверяю
+- Отправлен ли запрос API? (POST)
+- Каков статус ответа?
+- Есть ли ошибка проверки?
+- База данных работает?
 
-### Where I escalate
-- To backend if API logic is broken
-- To database team if data is not stored
-- To developers if it's a logic bug
-### Where I escalate
-- To backend if API fails
-- To database team if data is not stored
-- To developers if it looks like a bug
+## Случай 4: Пользователь не видит свои данные
+
+### Ситуация
+Пользователь говорит: «Я создал данные, но не вижу их в системе»
+
+### Какие вопросы я задаю
+- Что именно вы создали?
+- Когда вы это создали?
+- Вы видите какую-либо ошибку?
+- Проблема возникает каждый раз?
+
+### Что я проверяю
+- Был ли запрос POST успешным? (статус 200/201)
+- Возвращаются ли данные в ответ?
+- Возвращает ли запрос GET данные?
+- Есть ли проблема с задержкой или кэшированием?
+
+### Что я думаю
+- Возможно, POST работал, но GET не возвращает данные.
+- Возможно, данные не сохранены в базе данных.
+- Возможно, условия фильтрации неверны (проблема SQL)
+
+### Кому я передаю проблему
+- Для серверной части, если логика API нарушена
+- Группе базы данных, если данные не сохранены
+- Разработчикам, если это логическая ошибка
+### Кому я передаю проблему
+- Для серверной части в случае сбоя API
+- Группе базы данных, если данные не сохранены
+- Разработчикам, если это похоже на ошибку

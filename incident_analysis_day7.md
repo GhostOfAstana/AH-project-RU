@@ -1,87 +1,87 @@
-# Incident Analysis — Week 4 Day 7
+# Разбор инцидента — неделя 4, день 7
 
-## Scenario
-Alert: "Error rate increased to 35% on /api/orders endpoint"
-
----
-
-## My Initial Thinking
-
-### Assumption
-- Problem might be related to backend or database not responding
-- Considered checking requests via DevTools
-
-### Problem
-- I approached this like a user-level issue
-- I focused on frontend tools instead of system-level diagnostics
-- I did not consider logs and metrics as primary sources
+## Сценарий
+Предупреждение: «Частота ошибок увеличена до 35% на конечной точке /api/orders»
 
 ---
 
-## Corrected Approach
+## Мои первоначальные размышления
 
-### 1. What It Means
+### Предположение
+- Проблема может быть связана с тем, что серверная часть или база данных не отвечают.
+- Рассмотрена проверка запросов через DevTools.
 
-- System is partially degraded
-- Some requests succeed, others fail
-- Not a UI issue
-- Likely related to system load, dependencies, or instability
-
----
-
-### 2. First Step (System Level)
-
-Check service logs for `/api/orders`:
-- Identify error types (500, timeout, DB errors)
-- Look for patterns
+### Проблема
+- Я подошел к этому как к проблеме на уровне пользователя.
+- Я сосредоточился на инструментах внешнего интерфейса, а не на диагностике на уровне системы.
+- Я не считал логи и метрики первоисточниками
 
 ---
 
-### 3. Diagnostic Flow
+## Исправленный подход
 
-#### Step 1: Logs
-- Analyze error messages
-- Frequency and patterns
+### 1. Что это означает
 
-#### Step 2: Metrics
-- CPU / RAM usage
-- Request latency
-- Error spikes
-
-#### Step 3: Dependencies
-- Database performance
-- External services (payments, etc.)
-
-#### Step 4: Pattern Detection
-- Is failure random or specific?
-- Does it affect certain requests/users?
+- Система частично деградировала
+- Некоторые запросы выполняются успешно, другие терпят неудачу.
+- Это не проблема пользовательского интерфейса.
+- Вероятно, связано с загрузкой системы, зависимостями или нестабильностью.
 
 ---
 
-### 4. Possible Causes
+### 2. Первый шаг (системный уровень)
 
-- Database slow queries or overload
-- Service dependency failure
-- Timeout between services
-- High system load
-- One instance in cluster malfunctioning
-- Cache issues
+Проверьте журналы обслуживания для `/api/orders`:
+- Идентификация типов ошибок (500, таймаут, ошибки БД)
+- Ищите закономерности
 
 ---
 
-### 5. Actions
+### 3. Последовательность диагностики
 
-- Restart affected service or instance
-- Remove unhealthy instance from load balancer
-- Rollback recent deployment
-- Enable fallback (cache)
-- Limit incoming traffic (if needed)
+#### Шаг 1: Журналы
+- Анализ сообщений об ошибках
+- Частота и закономерности
+
+#### Шаг 2: Показатели
+- Использование ЦП/ОЗУ
+- Задержка запроса
+- Пики ошибок
+
+#### Шаг 3: Зависимости
+- Производительность базы данных
+- Внешние сервисы (платежи и т.п.)
+
+#### Шаг 4: Поиск закономерностей
+- Является ли отказ случайным или конкретным?
+- Влияет ли это на определенные запросы/пользователей?
 
 ---
 
-## Key Learning
+### 4. Возможные причины
 
-- System issues require logs and metrics, not DevTools
-- Partial failure indicates instability, not total outage
-- Must think in terms of services, dependencies, and infrastructure
-- Transition from user-level debugging to system-level analysis
+- Медленные запросы или перегрузка базы данных
+- Сбой зависимости службы
+- Тайм-аут между услугами
+- Высокая нагрузка на систему
+- Один экземпляр в кластере неисправен.
+- Проблемы с кэшем
+
+---
+
+### 5. Действия
+
+- Перезапустите затронутую службу или экземпляр.
+- Удалите неработоспособный экземпляр из балансировщика нагрузки.
+- Откат недавнего развертывания
+- Включить резервный режим (кэш)
+- Ограничить входящий трафик (при необходимости)
+
+---
+
+## Основные выводы
+
+- Системные проблемы требуют журналов и метрик, а не DevTools.
+- Частичный отказ указывает на нестабильность, а не на полное отключение.
+- Необходимо думать с точки зрения услуг, зависимостей и инфраструктуры.
+- Переход от отладки на уровне пользователя к анализу на уровне системы.

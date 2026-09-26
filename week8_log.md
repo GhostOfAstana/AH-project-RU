@@ -1,30 +1,30 @@
 ## 2026-05-09
-- Learned about environment drift and containerization
-- Understood Docker isolation and immutable infrastructure
-- Practiced mature container deployment workflow concepts
+- Изучил расхождение окружений и контейнеризацию
+- Понимание изоляции Docker и неизменяемой инфраструктуры.
+- Практикуемые концепции рабочего процесса развертывания зрелых контейнеров.
 ## 2026-05-10
-- Learned Docker layer mechanics and cache invalidation
-- Understood production image optimization techniques
-- Practiced principles of secure and minimal container builds
+- Изучена механика слоев Docker и аннулирование кэша.
+- Разобрался с оптимизацией образов для рабочей среды
+- Практикуемые принципы безопасных и минимальных сборок контейнеров.
 ## 2026-05-11
-- Learned container networking and service discovery concepts
-- Understood Docker bridge networking and internal DNS
-- Practiced persistent storage and volume management principles
+- Изучены концепции контейнерных сетей и обнаружения сервисов.
+- Понимание сетевого моста Docker и внутреннего DNS.
+- Практикуемые принципы постоянного хранения и управления томами.
 ## 2026-05-12
-- Learned container orchestration fundamentals
-- Understood desired state and reconciliation concepts
-- Studied Kubernetes motivation and production orchestration principles
+- Изучены основы оркестровки контейнеров.
+- Поняты концепции желаемого состояния и согласования.
+- Изучил причины появления Kubernetes и принципы оркестровки в рабочей среде
 ## 2026-05-13
-- Studied Kubernetes Pod abstraction and runtime model
-- Learned difference between Pods, ReplicaSets, Deployments, and Services
-- Understood ephemeral infrastructure and immutable deployment principles
+- Изучена абстракция Kubernetes Pod и модель времени выполнения.
+- Изучил различия между Pod, ReplicaSet, Deployment и Service
+- Понимание эфемерной инфраструктуры и неизменяемых принципов развертывания.
 ## 2026-05-14
-- Studied Kubernetes networking model
-- Learned how Services abstract ephemeral Pod networking
-- Understood ClusterIP, NodePort, LoadBalancer, and Ingress concepts
-- Learned Layer 4 vs Layer 7 traffic routing principles
+- Изучена сетевая модель Kubernetes.
+- Изучил, как Service скрывает изменения временных сетевых адресов Pod
+- Понимание концепций ClusterIP, NodePort, LoadBalancer и Ingress.
+- Изучены принципы маршрутизации трафика уровня 4 и уровня 7.
 ## 2026-05-15
-- Studied Kubernetes ConfigMaps and Secrets
-- Learned separation between code, configuration, and credentials
-- Understood immutable image principles and runtime configuration injection
-- Learned RBAC, least privilege, and secret rotation concepts
+- Изучены Kubernetes ConfigMaps и Secrets.
+- Изучил разделение кода, конфигурации и учётных данных
+- Разобрался с неизменяемыми образами и передачей конфигурации во время выполнения
+- Изучил RBAC, принцип минимальных привилегий и ротацию секретов

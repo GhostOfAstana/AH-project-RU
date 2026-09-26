@@ -1,11 +1,11 @@
-# Incident Analysis — Week 5 Day 4
+# Разбор инцидента — неделя 5, день 4
 
-## Scenario
-Users report: "Orders are loading very slowly"
+## Сценарий
+Пользователи сообщают: «Заказы загружаются очень медленно»
 
 ---
 
-## Log Sample
+## Пример журнала
 
 2026-04-18 12:00:01 INFO Request GET /api/orders 200 response_time=120ms  
 2026-04-18 12:00:02 INFO Request GET /api/orders 200 response_time=150ms  
@@ -15,74 +15,74 @@ Users report: "Orders are loading very slowly"
 
 ---
 
-## My Initial Thinking
+## Мои первоначальные размышления
 
-- I assumed database is the main cause
-- I focused on backend/DB without confirming the bottleneck
-- I suggested general actions like clearing cache and reducing load
+- Я предположил, что основной причиной является база данных.
+- Я сосредоточился на серверной части/БД, не выявив узкое место.
+- Я предложил общие действия вроде очистки кеша и снижения нагрузки
 
-### Problem
-- Jumped to conclusions without evidence
-- Did not analyze response_time patterns deeply
-- Lacked structured performance debugging approach
-
----
-
-## Corrected Approach
-
-### 1. What I See
-
-- All requests return 200 (no errors)
-- Response time varies significantly
-- Some requests are fast (~120ms)
-- Some are extremely slow (~5000ms)
-
-→ System is functional but unstable in performance
+### Проблема
+- Поспешил с выводами без доказательств
+- Паттерны response_time не анализировались глубоко.
+- Недостаток структурированного подхода к отладке производительности.
 
 ---
 
-### 2. First Step
+## Исправленный подход
 
-Identify pattern in slow requests:
-- Are they random?
-- Do they relate to specific users?
-- Do they occur at specific times?
+### 1. Что я вижу
 
----
+- Все запросы возвращают 200 (без ошибок)
+- Время отклика значительно варьируется
+- Некоторые запросы выполняются быстро (~120 мс)
+- Некоторые из них работают очень медленно (~5000 мс).
 
-### 3. Possible Causes
-
-- Slow database queries (not yet confirmed)
-- Cache misses (cold cache)
-- External service delays
-- High system load
-- Inefficient backend logic (e.g., multiple queries)
+→ Система работоспособна, но нестабильна в работе.
 
 ---
 
-### 4. Verification
+### 2. Первый шаг
 
-- Analyze response_time patterns in logs
-- Check database slow query logs
-- Identify repetition (same user/time)
-- Compare fast vs slow requests
-- Evaluate caching behavior
-
----
-
-### 5. Actions
-
-- Identify exact bottleneck (DB / cache / service)
-- Optimize queries if DB-related
-- Improve caching strategy
-- Reduce unnecessary requests
-- Monitor system load and adjust resources
+Выявление закономерностей в медленных запросах:
+- Являются ли они случайными?
+- Относятся ли они к конкретным пользователям?
+- Происходят ли они в определенное время?
 
 ---
 
-## Key Learning
+### 3. Возможные причины
 
-- 200 OK does not guarantee good performance
-- Must analyze response_time, not just status codes
-- Do not assume cause without evidence
-- Performance issues require structured investigation
+- Медленные запросы к базе данных (пока не подтверждено)
+- Промахи в кэше (холодный кэш)
+- Задержки внешних услуг
+- Высокая нагрузка на систему
+- Неэффективная внутренняя логика (например, множественные запросы)
+
+---
+
+### 4. Проверка
+
+- Анализ шаблонов response_time в журналах.
+- Проверка журналов медленных запросов к базе данных
+- Идентификация повторения (тот же пользователь/время)
+- Сравнение быстрых и медленных запросов
+- Оценка поведения кэширования
+
+---
+
+### 5. Действия
+
+- Определить точное узкое место (БД/кеш/сервис)
+- Оптимизировать запросы, если они связаны с БД.
+- Улучшение стратегии кэширования.
+- Сокращение ненужных запросов
+- Мониторинг загрузки системы и настройка ресурсов
+
+---
+
+## Основные выводы
+
+- 200 ОК не гарантирует хорошую производительность.
+- Необходимо анализировать response_time, а не только коды состояния.
+- Не предполагайте причину без доказательств.
+- Проблемы с производительностью требуют структурированного исследования.

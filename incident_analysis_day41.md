@@ -1,236 +1,236 @@
-# Incident Analysis — Week 9 Day 6
+# Разбор инцидента — неделя 9, день 6
 
-## Scenario
+## Сценарий
 
-Production Kubernetes cluster experienced intermittent service failures.
+В рабочем кластере Kubernetes возникали периодические сбои обслуживания.
 
-Symptoms:
-- some requests succeeded
-- some requests timed out
-- some Pods reachable
-- some Pods unreachable
+Симптомы:
+- некоторые запросы были выполнены успешно
+- Тайм-аут некоторых запросов истек
+- некоторые Pod доступны
+- некоторые Pod недоступны
 
-Observed behavior:
+Наблюдаемое поведение:
 
 ```text
 curl service-name
-→ sometimes works
-→ sometimes hangs
-→ sometimes timeouts
+→ иногда работает
+→ иногда зависает
+→ иногда таймауты
 ```
 
-Cluster observations:
-- Pods Running
-- readiness probes healthy
-- CPU normal
-- memory normal
-- ingress healthy
-- database healthy
-- application logs clean
+Кластерные наблюдения:
+- Объекты Pod в состоянии Running
+- Готовность проверяет здоровье
+- Процессор в норме
+- память в норме
+- проникновение здоровое
+- база данных исправна
+- журналы приложений чистые
 
-Additional observation:
+Дополнительное наблюдение:
 
 ```text
 kubectl get endpoints
 ```
 
-sometimes showed:
-- full endpoint list
+иногда показывало:
+- полный список конечных точек
 
-and sometimes:
-- missing endpoints
+и иногда:
+- отсутствуют конечные точки
 
-Redeploy temporarily fixed issue for approximately:
-- 15–20 minutes
+Повторное развертывание временно исправленной проблемы примерно на:
+- 15–20 минут
 
 ---
 
-# Kubernetes Service Architecture
+# Архитектура Service в Kubernetes
 
-Kubernetes Service provides stable virtual access layer for Pods.
+Служба Kubernetes обеспечивает стабильный уровень виртуального доступа для Pod.
 
-ClusterIP is:
-- virtual IP abstraction
-- not physical interface address
+ClusterIP представляет собой:
+- Абстракция виртуального IP
+- не адрес физического интерфейса
 
-Traffic sent to ClusterIP intercepted by:
+Трафик, отправленный на ClusterIP, перехвачен:
 - kube-proxy
-- Linux networking stack
+- Сетевой стек Linux
 
-Traffic forwarding implemented through:
+Переадресация трафика реализована посредством:
 - iptables
-or:
+Или:
 - IPVS
 
-Service routing uses:
-- destination NAT (DNAT)
+Маршрутизация услуг использует:
+- NAT назначения (DNAT)
 
-Packets redirected from:
-- virtual Service IP
+Пакеты перенаправлены из:
+- IP виртуальной услуги
 
-to:
-- actual Pod IP.
+К:
+- Фактический IP-адрес Pod.
 
 ---
 
 # kube-proxy
 
-kube-proxy responsible for translating Kubernetes Service state into Linux packet forwarding rules.
+kube-proxy отвечает за преобразование состояния службы Kubernetes в правила пересылки пакетов Linux.
 
-kube-proxy continuously watches:
-- API Server
-- Services
+kube-proxy непрерывно наблюдает:
+- API-сервер
+- Услуги
 - EndpointSlices
 
-When endpoints change:
-- kube-proxy regenerates forwarding rules.
+Когда конечные точки меняются:
+- kube-proxy восстанавливает правила пересылки.
 
-kube-proxy acts as bridge between:
-- Kubernetes control plane
-and:
-- Linux networking data plane.
+kube-proxy действует как мост между:
+- Плоскость управления Kubernetes
+И:
+- Linux сетевая плоскость данных.
 
 ---
 
-# Endpoints and Service Discovery
+# Конечные точки и обнаружение сервисов
 
-Service discovers Pods through:
-- label selectors
+Сервис обнаруживает Pod посредством:
+- селекторы меток
 
-Matching Pods automatically added into:
-- EndpointSlice objects
+Подходящие по меткам объекты Pod автоматически добавляются в:
+- Объекты EndpointSlice
 
-Endpoints define:
-- actual traffic destinations
+Конечные точки определяют:
+- фактические направления трафика
 
-Without valid endpoints:
-- Service has nowhere to route traffic.
+Без действительных конечных точек:
+- Сервису некуда маршрутизировать трафик.
 
-Endpoint propagation chain:
+Цепочка распространения конечной точки:
 
 ```text
-Pod state changes
-→ EndpointSlice update
-→ API Server update
-→ kube-proxy watch event
-→ iptables/IPVS update
-→ packet forwarding changes
+Изменение состояния Pod
+→ Обновление EndpointSlice
+→ Обновление API-сервера
+→ kube-proxy смотреть событие
+→ Обновление iptables/IPVS
+→ изменения в пересылке пакетов
 ```
 
-Any propagation failure creates:
-- stale routing state
-- inconsistent forwarding behavior.
+Любая ошибка распространения создает:
+- устаревшее состояние маршрутизации
+- Несогласованное поведение при пересылке.
 
 ---
 
-# Control Plane vs Data Plane
+# Плоскость управления и плоскость данных
 
-Kubernetes control plane defines:
-- desired cluster state.
+Плоскость управления Kubernetes определяет:
+- Желаемое состояние кластера.
 
-Examples:
-- API Server
+Примеры:
+- API-сервер
 - etcd
-- controllers
+- Контроллеры
 
-Data plane performs:
-- actual packet forwarding.
+Плоскость данных выполняет:
+- Фактическая пересылка пакетов.
 
-Examples:
+Примеры:
 - kube-proxy
 - iptables
 - IPVS
-- Linux kernel networking
-- CNI routing
+- Сеть ядра Linux
+- Маршрутизация CNI
 
-Critical production insight:
-
-```text
-control plane may appear healthy
-while packet forwarding remains broken
-```
-
-Healthy Kubernetes objects do not guarantee healthy traffic flow.
-
----
-
-# Why Failures Were Intermittent
-
-Problem behavior strongly indicates:
-- partial forwarding inconsistency
-
-rather than:
-- total infrastructure outage.
-
-Most likely failure pattern:
-- kube-proxy desynchronization
-combined with:
-- conntrack pressure
-or:
-- stale iptables state.
-
-Result:
-- some nodes routed correctly
-- some nodes routed stale endpoints
-- some packets dropped
-- failures became probabilistic
-
-This explains:
-- partial success rates
-- random timeouts
-- inconsistent service reachability.
-
----
-
-# kube-proxy Desynchronization
-
-kube-proxy depends on continuous synchronization with API Server.
-
-Potential failures include:
-- delayed watch events
-- failed reconciliation loops
-- incomplete iptables regeneration
-- stale EndpointSlice state
-
-Different nodes may therefore maintain:
-- different forwarding tables
-
-Example:
+Критическая рабочая информация:
 
 ```text
-Node A → routes correctly
-Node B → stale endpoint
-Node C → missing endpoint
+Плоскость управления может выглядеть исправной
+Пока пересылка пакетов остается прерванной
 ```
 
-This creates distributed routing inconsistency across cluster.
+Исправные объекты Kubernetes не гарантируют исправный поток трафика.
 
 ---
 
-# Conntrack Table Exhaustion
+# Почему сбои возникали периодически
 
-Linux conntrack subsystem tracks:
-- TCP states
-- NAT mappings
-- connection lifecycle
+Поведение проблемы явно указывает на:
+- Частичная несогласованность пересылки
 
-Kubernetes networking heavily depends on conntrack because:
-- DNAT
-- Service routing
-- overlay networking
-- kube-proxy packet rewriting
+вместо:
+- Полное отключение инфраструктуры.
 
-If conntrack table exhausted:
-- kernel drops new connections
-- existing flows may continue
-- failures become intermittent
+Наиболее вероятная картина отказа:
+- Рассинхронизация kube-proxy
+в сочетании с:
+- conntrack давление
+Или:
+- устаревшее состояние iptables.
 
-This commonly produces:
-- random timeouts
-- partial connectivity
-- probabilistic request success
+Результат:
+- Некоторые узлы маршрутизированы правильно
+- Некоторые узлы маршрутизировали устаревшие конечные точки
+- некоторые пакеты отброшены
+- отказы стали вероятностными
 
-Key metrics:
+Это объясняет:
+- Частичные показатели успеха
+- случайные таймауты
+- Несогласованная достижимость услуги.
+
+---
+
+# Рассинхронизация kube-proxy
+
+kube-proxy зависит от непрерывной синхронизации с API-сервером.
+
+Потенциальные неисправности включают в себя:
+- события отложенного просмотра
+- неудачные циклы согласования
+- неполная регенерация iptables
+- устаревшее состояние EndpointSlice
+
+Таким образом, разные узлы могут поддерживать:
+- различные таблицы пересылки
+
+Пример:
+
+```text
+Узел A → маршрутизируется правильно
+Узел B → устаревшая конечная точка
+Узел C → отсутствует конечная точка
+```
+
+Это создает несогласованность распределенной маршрутизации в кластере.
+
+---
+
+# Исчерпание таблицы Conntrack
+
+Подсистема Linux conntrack отслеживает:
+- Состояния TCP
+- Отображения NAT
+- Жизненный цикл соединения
+
+Сеть Kubernetes сильно зависит от conntrack, потому что:
+- ДНКАТ
+- Маршрутизация услуг
+- Оверлейная сеть
+- Перезапись пакетов kube-proxy
+
+Если таблица conntrack исчерпана:
+- Ядро разрывает новые соединения
+- существующие потоки могут продолжаться
+- Сбои становятся прерывистыми
+
+Обычно это приводит к:
+- случайные таймауты
+- частичная связность
+- Вероятностный успех запроса
+
+Ключевые показатели:
 
 ```bash
 sysctl net.netfilter.nf_conntrack_count
@@ -239,48 +239,48 @@ sysctl net.netfilter.nf_conntrack_max
 
 ---
 
-# iptables Drift
+# Расхождение правил iptables
 
-Large Kubernetes clusters may accumulate:
-- massive iptables rule sets
+Большие кластеры Kubernetes могут накапливаться:
+- Массивные наборы правил iptables
 
-Rule reconciliation may become:
-- delayed
-- inconsistent
-- partially applied
+Согласование правил может представлять собой:
+- с задержкой
+- непоследовательный
+- частично применено
 
-Possible outcomes:
-- stale routing entries
-- outdated endpoint mappings
-- missing DNAT rules
+Возможные результаты:
+- устаревшие записи маршрутизации
+- устаревшие сопоставления конечных точек
+- отсутствуют правила DNAT
 
-This phenomenon known as:
-- iptables drift
+Это явление известно как:
+- Расхождение правил iptables
 
-Different nodes may therefore contain:
-- different packet forwarding state.
+Таким образом, разные узлы могут содержать:
+- различное состояние пересылки пакетов.
 
 ---
 
-# CNI Layer
+# Уровень CNI
 
-Container Network Interface (CNI) provides:
-- Pod networking
-- overlay routing
-- Pod-to-Pod communication
+Контейнерный сетевой интерфейс (CNI) обеспечивает:
+- Сеть Pod
+- наложение маршрутизации
+- Связь Pod-Pod
 
-Examples:
-- Calico
-- Flannel
-- Cilium
+Примеры:
+- Калико
+- Фланель
+- Ресничка
 
-CNI failures may produce:
-- broken Pod routes
-- overlay instability
-- missing network paths
-- ARP/neighbor inconsistencies
+Неисправности CNI могут привести к:
+- сломанные маршруты Pod
+- нестабильность наложения
+- отсутствуют сетевые пути
+- Несогласованность ARP/соседей
 
-Important investigation commands:
+Важные команды расследования:
 
 ```bash
 ip route
@@ -289,60 +289,60 @@ ip neigh
 
 ---
 
-# DNS Propagation Considerations
+# Вопросы распространения DNS
 
-DNS caching may amplify intermittent failures.
+Кэширование DNS может усиливать периодические сбои.
 
-Potential issues:
-- stale DNS cache
-- outdated endpoint records
-- delayed CoreDNS propagation
+Потенциальные проблемы:
+- устаревший кэш DNS
+- устаревшие записи конечных точек
+- задержка распространения CoreDNS
 
-Clients may continue sending traffic toward:
-- terminated Pods
+Клиенты могут продолжать отправлять трафик в направлении:
+- Завершившие работу объекты Pod
 
-However in this incident:
-- endpoint inconsistency
-- kube-proxy behavior
-- temporary redeploy recovery
+Однако в этом инциденте:
+- Несоответствие конечной точки
+- Поведение kube-proxy
+- временное перераспределение восстановления
 
-more strongly suggest:
-- forwarding-state desynchronization
+Более настоятельно рекомендуется:
+- Десинхронизация состояния пересылки
 
-than:
-- pure DNS issue.
-
----
-
-# Why Redeploy Temporarily Fixed Issue
-
-Redeploy triggered:
-- Pod recreation
-- EndpointSlice refresh
-- connection reset
-- kube-proxy reconciliation
-
-Temporary effects:
-- stale state cleared
-- forwarding tables refreshed
-- conntrack entries partially reset
-
-However underlying synchronization issue remained unresolved.
-
-Therefore failures eventually returned.
+Чем:
+- Проблема чисто DNS.
 
 ---
 
-# Investigation Process
+# Почему повторное развёртывание временно устраняло проблему
 
-## Kubernetes State
+Повторное развертывание запускается:
+- Пересоздание Pod
+- Обновление EndpointSlice
+- сброс соединения
+- kube-proxy сверка
 
-Check:
-- Services
+Временные эффекты:
+- устаревшее состояние очищено
+- Обновлены таблицы пересылки
+- Записи conntrack частично сброшены
+
+Однако основная проблема синхронизации осталась нерешенной.
+
+Поэтому сбои в конечном итоге вернулись.
+
+---
+
+# Процесс расследования
+
+## Состояние Kubernetes
+
+Проверить:
+- Услуги
 - EndpointSlices
-- kube-proxy health
+- kube-proxy здоровье
 
-Commands:
+Команды:
 
 ```bash
 kubectl get svc
@@ -353,13 +353,13 @@ kubectl logs -n kube-system kube-proxy
 
 ---
 
-# Node Networking
+# Сеть узлов
 
-Compare forwarding state between:
-- healthy nodes
-- failing nodes
+Сравнить состояние пересылки между:
+- здоровые узлы
+- вышедшие из строя узлы
 
-Commands:
+Команды:
 
 ```bash
 iptables-save
@@ -370,9 +370,9 @@ ip neigh
 
 ---
 
-# Conntrack Analysis
+# Анализ Conntrack
 
-Inspect conntrack pressure:
+Проверьте давление conntrack:
 
 ```bash
 sysctl net.netfilter.nf_conntrack_count
@@ -381,85 +381,85 @@ sysctl net.netfilter.nf_conntrack_max
 
 ---
 
-# Packet Tracing
+# Трассировка пакетов
 
-Validate packet flow:
+Проверка потока пакетов:
 
 ```bash
 tcpdump -i any host <pod-ip>
 ```
 
-Purpose:
-- determine whether packets reach destination Pods.
+Назначение:
+- Определить, достигают ли пакеты целевых объектов Pod.
 
 ---
 
-# Production Mitigation Plan
+# План снижения последствий инцидента в рабочей среде
 
-## Short-Term Mitigation
+## Краткосрочное смягчение последствий
 
-- restart kube-proxy
-- refresh forwarding rules
-- increase conntrack limits
-- clear stale networking state
-- isolate failing nodes
-
----
-
-# Long-Term Prevention
-
-## Migrate Toward IPVS
-
-IPVS scales better than:
-- large iptables rule chains
-
-Benefits:
-- faster reconciliation
-- more efficient load balancing
-- improved scalability
+- перезапуск kube-proxy
+- обновить правила переадресации
+- Увеличение лимитов conntrack
+- Очистить устаревшее состояние сети
+- изолировать вышедшие из строя узлы
 
 ---
 
-# Improve Observability
+# Долгосрочная профилактика
 
-Monitor:
-- conntrack utilization
-- kube-proxy sync latency
-- EndpointSlice propagation delay
-- packet drops
-- DNS latency
+## Миграция в сторону IPVS
 
----
+IPVS масштабируется лучше, чем:
+- большие цепочки правил iptables
 
-# Harden Networking Layer
-
-Perform:
-- CNI audits
-- route validation
-- kube-proxy health monitoring
-- forwarding consistency checks
+Преимущества:
+- Более быстрое согласование
+- Более эффективная балансировка нагрузки
+- Улучшенная масштабируемость
 
 ---
 
-# Architectural Lessons
+# Улучшение наблюдаемости
 
-Reliable Kubernetes networking depends on:
-- synchronization consistency
-- endpoint propagation correctness
-- Linux kernel networking health
-- kube-proxy reconciliation stability
-
-Kubernetes object health alone does not prove:
-- functional packet delivery.
+Отслеживать:
+- Использование conntrack
+- Задержка синхронизации kube-proxy
+- Задержка распространения EndpointSlice
+- Падение пакетов
+- Задержка DNS
 
 ---
 
-# Key Learning
+# Усиление сетевого уровня
 
-- Kubernetes Services are virtual forwarding abstractions
-- healthy Pods do not guarantee healthy networking
-- control plane and data plane may diverge
-- kube-proxy synchronization failures create probabilistic outages
-- conntrack exhaustion causes intermittent packet drops
-- redeploy may temporarily mask infrastructure problems
-- distributed systems frequently fail partially rather than completely
+Выполнить:
+- Аудит CNI
+- Проверка маршрута
+- kube-proxy Мониторинг работоспособности
+- пересылка проверок согласованности
+
+---
+
+# Архитектурные уроки
+
+Надежная сеть Kubernetes зависит от:
+- согласованность синхронизации
+- Корректность распространения конечной точки
+- Состояние сети ядра Linux
+- Стабильность согласования kube-proxy
+
+Состояние объекта Kubernetes само по себе не доказывает:
+- Функциональная доставка пакетов.
+
+---
+
+# Основные выводы
+
+- Kubernetes Сервисы представляют собой абстракции виртуальной пересылки.
+- работоспособность Pod не гарантирует работоспособность сети
+- Плоскость управления и плоскость данных могут расходиться
+- Сбои синхронизации kube-proxy создают вероятностные сбои в работе.
+- Исчерпание conntrack вызывает периодические отбрасывания пакетов.
+- Перераспределение может временно маскировать проблемы инфраструктуры.
+- Распределенные системы часто выходят из строя частично, а не полностью.

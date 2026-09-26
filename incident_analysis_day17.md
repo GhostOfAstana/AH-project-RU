@@ -1,20 +1,20 @@
-# Incident Analysis — Week 6 Day 3
+# Разбор инцидента — неделя 6, день 3
 
-## Scenario
-User reports: "API response takes 4–6 seconds"
-
----
-
-## Observations
-
-- CPU usage is normal
-- Memory usage is normal
-- API process is running correctly
-- Measured response time: ~5.2 seconds
+## Сценарий
+Пользовательские отчеты: «Ответ API занимает 4–6 секунд»
 
 ---
 
-## API Logs
+## Наблюдения
+
+- Загрузка ЦП в норме
+- Использование памяти в норме
+- Процесс API работает правильно
+- Измеренное время отклика: ~5,2 секунды.
+
+---
+
+## Журналы API
 
 INFO Request started GET /api/orders  
 INFO Calling external service: payment-service  
@@ -24,74 +24,74 @@ INFO Returning response
 
 ---
 
-## My Initial Thinking
+## Мои первоначальные размышления
 
-- I correctly identified that the issue is not related to CPU or memory
-- I suspected external dependency (payment-service)
-- I initially focused on network latency tools (ping, mtr)
+- Я правильно определил, что проблема не связана с процессором или памятью.
+- Я подозревал внешнюю зависимость (платёжный сервис)
+- Изначально я сосредоточился на инструментах измерения задержки в сети (ping, mtr).
 
-### Problem
-- I did not prioritize direct measurement of external service
-- I jumped too quickly into network diagnostics
-
----
-
-## Corrected Approach
-
-### 1. What Is Happening
-
-- API sends request to external payment-service
-- API blocks while waiting for response
-- External service responds slowly (~4.8 seconds)
-
-→ Total API response time is dominated by external dependency
+### Проблема
+- Я не придавал приоритета прямому измерению внешних услуг.
+- Я слишком быстро перешел к диагностике сети.
 
 ---
 
-### 2. First Step
+## Исправленный подход
 
-Measure external service response directly:
+### 1. Что происходит
 
-Command:
+- API отправляет запрос внешнему платежному сервису
+- API блокируется во время ожидания ответа
+- Внешняя служба отвечает медленно (~4,8 секунды)
+
+→ Общее время ответа API определяется внешней зависимостью.
+
+---
+
+### 2. Первый шаг
+
+Измерьте реакцию внешней службы напрямую:
+
+Команда:
 curl -w "%{time_total}" -o /dev/null -s http://payment-service/endpoint
 
 ---
 
-### 3. Root Cause
+### 3. Основная причина
 
-- External service (payment-service) is slow
-- API is synchronously waiting for response
-
----
-
-### 4. Validation
-
-- Compare API response time vs direct external service response
-- Measure consistency of delay
-- Use tcpdump if deeper network inspection is required
+- Внешний сервис (платёжный сервис) работает медленно.
+- API синхронно ожидает ответа
 
 ---
 
-### 5. Actions
+### 4. Проверка гипотез
 
-#### Immediate
-- Add request timeout
-- Prevent long blocking calls
-
-#### Short-term
-- Implement retry mechanism with backoff
-- Log slow external responses
-
-#### Long-term
-- Consider asynchronous processing
-- Implement circuit breaker pattern
-- Reduce dependency impact on user-facing response
+- Сравните время ответа API со временем ответа прямого внешнего сервиса.
+- Измерение постоянства задержки
+- Используйте tcpdump, если требуется более глубокая проверка сети.
 
 ---
 
-## Key Learning
+### 5. Действия
 
-- External dependencies directly impact API performance
-- System metrics (CPU, RAM) may appear normal while system is slow
-- Must prioritize direct measurement before deep diagnostics
-- Blocking calls can degrade overall system responsiveness
+#### Немедленно
+- Добавить таймаут запроса
+- Предотвращение длительной блокировки вызовов
+
+#### В краткосрочной перспективе
+- Реализовать механизм повтора с отсрочкой
+- Регистрация медленных внешних ответов
+
+#### В долгосрочной перспективе
+- Рассмотрим асинхронную обработку
+- Реализуйте схему предохранителя
+- Уменьшить влияние зависимости на ответ пользователя.
+
+---
+
+## Основные выводы
+
+- Внешние зависимости напрямую влияют на производительность API.
+- Системные показатели (ЦП, ОЗУ) могут выглядеть нормальными, пока система работает медленно.
+- Необходимо отдать приоритет прямому измерению перед глубокой диагностикой.
+- Блокировка вызовов может ухудшить общую отзывчивость системы.

@@ -1,47 +1,47 @@
 ## 2026-05-16
-- Studied Kubernetes resource isolation and memory management
-- Learned how Linux cgroups enforce container memory limits
-- Understood OOMKilled, eviction, and QoS classes
-- Learned difference between CPU pressure and memory pressure
+- Изучил изоляцию ресурсов и управление памятью в Kubernetes
+- Изучил, как cgroups в Linux обеспечивают соблюдение лимитов памяти контейнеров
+- Разобрался с OOMKilled, вытеснением Pod и классами QoS
+- Изучил различия между нехваткой CPU и памяти
 ## 2026-05-17
-- Studied Kubernetes probes and Pod lifecycle management
-- Learned difference between Running and Ready states
-- Understood Startup, Readiness, and Liveness probes
-- Learned how bad healthchecks may trigger cascading failures
-- Studied graceful shutdown and traffic draining
+- Изучил пробы Kubernetes и управление жизненным циклом Pod
+- Изучил различия между состояниями Running и Ready
+- Разобрался с проверками запуска, готовности и жизнеспособности
+- Изучил, как неверные проверки работоспособности вызывают каскадные сбои
+- Изучил корректное завершение работы и обработку оставшихся запросов
 ## 2026-05-18
-- Studied Kubernetes Scheduler internals
-- Learned why Pods remain in Pending state
-- Understood requests, bin packing, and resource fragmentation
-- Learned Node Affinity, Pod Anti-Affinity, and Taints/Tolerations
-- Studied production-grade workload placement and cluster autoscaling
+- Изучил внутреннее устройство планировщика Kubernetes
+- Разобрался, почему объекты Pod остаются в состоянии Pending
+- Разобрался с запросами ресурсов, плотным размещением нагрузки и фрагментацией ресурсов
+- Изучил привязку к узлам, раздельное размещение Pod, ограничения taints и допуски tolerations
+- Изучил размещение нагрузки в рабочей среде и автомасштабирование кластера
 ## 2026-05-19
-- Studied differences between stateless and stateful workloads
-- Learned StatefulSet, Headless Service, PV and PVC architecture
-- Understood storage orchestration and attach/detach mechanics
-- Studied split-brain risks and distributed consensus concepts
-- Learned production-grade Kubernetes database architecture
+- Изучил различия между приложениями без состояния и с сохранением состояния
+- Изучил архитектуру StatefulSet, Headless Service, PV и PVC
+- Разобрался с оркестровкой хранения и механизмами подключения и отключения томов
+- Изучил риски расхождения лидеров и основы распределённого консенсуса
+- Изучил архитектуру баз данных в Kubernetes для рабочей среды
 ## 2026-05-20
-- Studied API Gateway bottlenecks and choke points
-- Learned retry storms and thundering herd behavior
-- Understood exponential backoff and jitter strategies
-- Studied CPU saturation and queue collapse mechanics
-- Learned backpressure and load shedding principles
-- Analyzed autoscaling limitations during traffic spikes
-- Studied production-grade overload mitigation architecture
+- Изучил узкие места и критические ограничения API-шлюза
+- Изучил штормы повторных запросов и одновременные всплески обращений клиентов
+- Разобрался с экспоненциальным увеличением задержек и их случайным разбросом
+- Изучил насыщение CPU и перегрузку очередей
+- Изучил принципы обратного давления и сброса нагрузки
+- Проанализировал ограничения автомасштабирования при всплесках трафика
+- Изучил архитектуру защиты от перегрузки в рабочей среде
 ## 2026-05-21
-- Studied Kubernetes Service and ClusterIP internals
-- Learned kube-proxy reconciliation and packet forwarding
-- Understood EndpointSlice propagation chain
-- Studied control plane vs data plane separation
-- Learned conntrack exhaustion and probabilistic failures
-- Studied iptables drift and kube-proxy desynchronization
-- Analyzed Kubernetes networking investigation methodology
+- Изучил внутреннее устройство Kubernetes Service и ClusterIP
+- Изучил согласование состояния kube-proxy и пересылку пакетов
+- Разобрался с цепочкой распространения изменений EndpointSlice
+- Изучил разделение плоскости управления и плоскости данных
+- Изучил исчерпание conntrack и вероятностные сбои
+- Изучил расхождение правил iptables и рассинхронизацию kube-proxy
+- Проанализировал методику диагностики сети Kubernetes
 ## 2026-05-22
-- Studied service mesh architecture and Envoy sidecars
-- Learned tail latency and percentile-based monitoring
-- Understood timeout propagation across microservices
-- Studied retry amplification and latency feedback loops
-- Learned head-of-line blocking and queue saturation
-- Analyzed observability blind spots in distributed systems
-- Studied service mesh circuit breaking and retry budgets
+- Изучил архитектуру сервисной сети и вспомогательные прокси-контейнеры Envoy
+- Изучил высокие перцентили задержки и мониторинг на их основе
+- Разобрался с распространением тайм-аутов между микросервисами
+- Изучил усиление нагрузки из-за повторных запросов и петли обратной связи задержек
+- Изучил блокировку очереди первым запросом и насыщение очередей
+- Проанализировал пробелы в наблюдаемости распределённых систем
+- Изучил предохранители и бюджеты повторных попыток в сервисной сети

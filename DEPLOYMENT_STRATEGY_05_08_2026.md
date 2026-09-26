@@ -1,21 +1,21 @@
-# Deployment Resilience & Production Healthchecks
+# Устойчивость развёртывания и проверки работоспособности в рабочей среде
 
-This documentation defines the standards for progressive delivery and automated system health monitoring to ensure high availability during production updates.
+Эта документация определяет стандарты постепенной доставки и автоматизированного мониторинга работоспособности системы для обеспечения высокой доступности во время рабочих обновлений.
 
-## 1. Deployment Strategies
+## 1. Стратегии развёртывания
 
-To mitigate the risks of "All-at-once" deployment failures, the following strategies are implemented:
+Для снижения рисков сбоев развертывания «все сразу» реализуются следующие стратегии:
 
-* **Canary Deployment**: Traffic is gradually shifted to a small subset of instances (e.g., 5%). Full rollout proceeds only if telemetry (CPU, Latency, Error Rate) remains within SLIs.
-* **Blue/Green Deployment**: Two identical environments are maintained. Traffic is toggled via load balancer, allowing for near-instant rollbacks if the "Green" environment degrades.
-* **Feature Flags**: Decoupling code release from feature activation. This provides a "kill-switch" to disable problematic logic without requiring a full revert of the build.
+* **Канареечное развёртывание**: Трафик постепенно направляется на небольшую часть экземпляров, например на 5%. Полное развёртывание продолжается только при допустимых значениях показателей SLI: загрузки CPU, задержки и частоты ошибок.
+* **Сине-зелёное развёртывание**: Поддерживаются два идентичных окружения. Балансировщик переключает трафик между ними, что позволяет почти мгновенно откатиться при ухудшении работы «зелёного» окружения.
+* **Флаги функций**: Выпуск кода отделяется от включения функции. Проблемную логику можно отключить аварийным переключателем, не откатывая всю сборку.
 
-## 2. Active Health Monitoring (Healthchecks)
+## 2. Активный мониторинг работоспособности (проверки работоспособности)
 
-A robust service must be self-aware. The `/health` endpoint serves as the primary signal for orchestrators (like Kubernetes or Nginx) to manage traffic routing.
+Надёжный сервис должен уметь сообщать о своём состоянии. Эндпоинт `/health` служит основным сигналом для оркестраторов, таких как Kubernetes или Nginx, при управлении маршрутизацией трафика.
 
-### Implementation Standard:
-The endpoint must return a `503 Service Unavailable` status when the internal error budget is exhausted or the Circuit Breaker is active.
+### Стандарт реализации:
+Конечная точка должна вернуть статус `503 Service Unavailable`, когда лимит внутренних ошибок исчерпан или предохранитель активен.
 
 ```python
 @app.route('/health')
@@ -28,16 +28,16 @@ def health_check():
 
 ```
 
-## 3. Incident Mitigation & Rollback Strategy
+## 3. Снижение последствий инцидентов и стратегия отката
 
-**Load Shedding**: When a node reports an unhealthy state, the load balancer must automatically remove it from the pool to prevent cascading failures.
+**Сброс нагрузки**: Когда узел сообщает о неисправности, балансировщик должен автоматически исключить его из пула, чтобы предотвратить каскадные сбои.
 
-**Automated Rollback**: If p99 latency exceeds a 4x baseline or 5xx errors increase by 2% within the first 10 minutes of deployment, the CI/CD pipeline triggers an automatic revert to the previous stable image.
+**Автоматический откат**: если задержка p99 превышает базовый уровень в 4 раза или ошибки 5xx увеличиваются на 2% в течение первых 10 минут развертывания, конвейер CI/CD запускает автоматический возврат к предыдущему стабильному образу.
 
-## 4. Key Takeaways for SRE
+## 4. Основные выводы для SRE
 
-Resilience is a designed property of the infrastructure. By combining Progressive Delivery with Active Health Probes, we ensure that "broken" code never reaches 100% of the user base and the system remains self-healing.
+Устойчивость является спроектированным свойством инфраструктуры. Сочетая прогрессивную доставку с активными проверками работоспособности, мы гарантируем, что «сломанный» код никогда не достигнет 100 % пользовательской базы, а система останется самовосстанавливающейся.
 
 ---
 
-*Professional Practice | Backend Engineering | May 2026*
+*Профессиональная практика | Бэкэнд-инжиниринг | май 2026 г.*

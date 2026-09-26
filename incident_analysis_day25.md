@@ -1,92 +1,92 @@
-# Incident Analysis — Week 7 Day 4
+# Разбор инцидента — неделя 7, день 4
 
-## Scenario
-User reports:
-"System behaves inconsistently — sometimes fast, sometimes very slow or failing. Hard to reproduce."
-
----
-
-## Observations
-
-- CPU and RAM usage are normal
-- Error rate fluctuates
-- Latency varies significantly:
-  - p95 ≈ 200ms
-  - p99 ≈ 5s
-- Logs show no obvious errors
+## Сценарий
+Отчеты пользователей:
+«Система ведет себя непоследовательно — иногда быстро, иногда очень медленно или дает сбой. Трудно воспроизвести».
 
 ---
 
-## What Is Happening
+## Наблюдения
 
-- System experiences tail latency issues
-- A small percentage of requests take significantly longer
-- Average metrics hide these slow requests
-
-→ Result:
-Most users are unaffected, but some experience severe delays
-
----
-
-## Core Problem
-
-- Lack of end-to-end visibility
-- Logs are unstructured and disconnected
-- No way to trace a single request across services
+- Использование ЦП и ОЗУ в норме
+- Частота ошибок колеблется
+- Задержка значительно варьируется:
+  - p95 ≈ 200 мс
+  - p99 ≈ 5 с
+- Журналы не показывают очевидных ошибок.
 
 ---
 
-## Solutions
+## Что происходит
 
-### 1. Structured Logging + Correlation ID
+- В системе возникают проблемы с задержкой хвоста
+- Небольшой процент запросов занимает значительно больше времени.
+- Средние метрики скрывают эти медленные запросы
 
-- Assign unique ID to each request
-- Pass it through all services and components
-- Log structured data (not plain text)
+→ Результат:
+На большинство пользователей это не влияет, но у некоторых возникают серьезные задержки.
 
-Fields:
+---
+
+## Основная проблема
+
+- Отсутствие сквозной видимости
+- Журналы неструктурированы и отключены.
+- Невозможно отследить одиночный запрос между службами.
+
+---
+
+## Решения
+
+### 1. Структурированные журналы и идентификатор корреляции
+
+- Присвоение уникального идентификатора каждому запросу.
+- Пропустите его через все службы и компоненты.
+- Журнал структурированных данных (не простой текст)
+
+Поля:
 - request_id
 - user_id
-- endpoint
-- latency
-- status
+- конечная точка
+- задержка
+- Статус
 
-Result:
-- Enables tracing request flow through logs
-
----
-
-### 2. Metrics with Percentiles
-
-- Track p50, p95, p99 latency
-- Break down metrics by:
-  - endpoint
-  - service
-  - dependency
-
-Result:
-- Reveals hidden performance issues
-- Identifies problematic components
+Результат:
+- Позволяет отслеживать поток запросов через журналы.
 
 ---
 
-### 3. Distributed Tracing
+### 2. Метрики с процентилями
 
-- Split request into spans
-- Track time spent in each component:
+- Трек p50, задержка p95, p99
+- Разбивка показателей по:
+  - конечная точка
+  - сервис
+  - зависимость
+
+Результат:
+- Выявляет скрытые проблемы с производительностью
+- Идентифицирует проблемные компоненты
+
+---
+
+### 3. Распределенная трассировка
+
+- Разделение запроса на промежутки
+- Отслеживайте время, потраченное на каждый компонент:
   - API
-  - database
-  - external services
+  - база данных
+  - внешние услуги
 
-Result:
-- Full visibility of request lifecycle
-- Pinpoints exact bottlenecks
+Результат:
+- Полная видимость жизненного цикла запроса.
+- Точно определяет узкие места.
 
 ---
 
-## Key Learning
+## Основные выводы
 
-- Average metrics can hide real problems
-- Tail latency significantly impacts user experience
-- Observability is essential for debugging complex systems
-- Visibility must be built into system design
+- Средние показатели могут скрывать реальные проблемы
+- Задержка в высоких перцентилях значительно влияет на взаимодействие с пользователем
+- Наблюдаемость важна для отладки сложных систем.
+- Видимость должна быть встроена в конструкцию системы.

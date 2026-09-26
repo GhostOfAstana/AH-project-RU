@@ -1,23 +1,23 @@
-# Postman Day 1
+# Postman — день 1
 
-## What I did
-- Sent a GET request to https://postman-echo.com/get
-- Got a 200 OK response
-- Added query parameter: city=Astana
-- Sent the request again and saw the parameter in the response
-- Sent a GET request to https://postman-echo.com/status/404
-- Got a 404 response
+## Что я сделал
+- Отправил запрос GET на https://postman-echo.com/get
+- Получил ответ 200 ОК
+- Добавил параметр запроса: city=Astana
+- Отправил запрос еще раз и увидел параметр в ответе
+- Отправил запрос GET на https://postman-echo.com/status/404
+- Получил ответ с кодом 404
 
-## What I learned
-- GET is used to request data
-- Query parameters change the request URL
-- 200 means success
-- 404 means not found
+## Что я узнал
+- GET используется для запроса данных
+- Параметры запроса изменяют URL-адрес запроса.
+- 200 означает успех
+- 404 означает, что не найдено
 
-## My Reminder
-In Postman I should always check:
-1. method
-2. URL
-3. params
-4. status code
-5. response body
+## Памятка
+В Postman я всегда должен проверять:
+1. Метод
+2. URL-адрес
+3. Параметры
+4. код состояния
+5. Тело ответа

@@ -1,233 +1,233 @@
-# Incident Analysis — Week 8 Day 4
+# Разбор инцидента — неделя 8, день 4
 
-## Scenario
+## Сценарий
 
-Team deployed API containers using Docker on a single server.
+Команда развернула API-контейнеры с использованием Docker на одном сервере.
 
-After several weeks:
-- containers occasionally crashed at night
-- API stayed offline after container failure
-- one container could not handle production load
-- deployments caused downtime
-- developers manually restarted services
-- configuration drift appeared between servers
+Через несколько недель:
+- Контейнеры иногда разбились по ночам
+- API оставался в автономном режиме после сбоя контейнера
+- один контейнер не справлялся с рабочей нагрузкой
+- Развертывания приводили к простоям
+- разработчики вручную перезапустили службы
+- Между серверами возникло смещение конфигурации
 
-CTO concluded that Docker solved packaging problems but not infrastructure management.
-
----
-
-## What Problem Is Happening
-
-The system lacks automated lifecycle management.
-
-Docker guarantees:
-- reproducible runtime environment
-- container isolation
-- consistent packaging
-
-But Docker alone does not manage:
-- cluster state
-- failover
-- automatic recovery
-- scaling
-- deployment coordination
-
-The infrastructure depends on manual operational actions.
-
-Result:
-- fragile production environment
-- operational overhead
-- downtime risk
-- inconsistent infrastructure state
+Технический директор пришел к выводу, что Docker решает проблемы упаковки, но не управления инфраструктурой.
 
 ---
 
-## Why Docker Alone Is Not Enough For Production
+## В чём заключается проблема
 
-Docker is a container runtime, not a distributed orchestration system.
+В системе отсутствует автоматизированное управление жизненным циклом.
 
-Docker Engine only understands:
-- local containers
-- local resources
-- local runtime state
+Docker гарантирует:
+- воспроизводимая среда выполнения
+- изоляция контейнера
+- последовательная упаковка
 
-It does not understand:
-- cluster-wide health
-- infrastructure topology
-- distributed scheduling
-- automatic failover
+Но Docker в одиночку не справляется:
+- состояние кластера
+- аварийное переключение
+- автоматическое восстановление
+- масштабирование
+- координация развертывания
 
-Problems:
-- no high availability
-- no self-healing
-- manual scaling
-- downtime during deployments
-- manual infrastructure recovery
+Инфраструктура зависит от ручных операционных действий.
 
----
-
-## What Orchestration Is
-
-Container orchestration is automated infrastructure state management.
-
-Orchestrator continuously compares:
-
-### Desired State
-
-Example:
-- 5 healthy API replicas must exist
+Результат:
+- хрупкая рабочая среда
+- операционные накладные расходы
+- Риск простоя
+- Несогласованное состояние инфраструктуры
 
 ---
 
-### Current State
+## Почему для рабочей среды недостаточно одного Docker
 
-Example:
-- only 4 replicas are currently running
+Docker представляет собой среду выполнения контейнера, а не распределенную систему оркестрации.
 
----
+Docker Engine понимает только:
+- местные контейнеры
+- местные ресурсы
+- локальное состояние времени выполнения
 
-### Reconciliation Action
+Он не понимает:
+- Здоровье всего кластера
+- Топология инфраструктуры
+- распределенное планирование
+- автоматическое переключение при сбое
 
-Orchestrator automatically:
-- creates missing containers
-- reschedules workloads
-- restores desired infrastructure state
-
-This mechanism is called:
-- reconciliation loop
-
-The goal is continuous convergence toward desired system state.
-
----
-
-## What Problems Orchestrators Solve
-
-### 1. Self-Healing
-
-If container crashes:
-- orchestrator recreates it automatically
-
-If node fails:
-- workloads move to healthy nodes
+Проблемы:
+- нет высокой доступности
+- отсутствие самовосстановления
+- ручное масштабирование
+- Время простоя во время развертываний
+- ручное восстановление инфраструктуры
 
 ---
 
-### 2. Scaling
+## Что такое оркестровка
 
-Infrastructure automatically adjusts:
-- replica count
-- resource allocation
+Контейнерная оркестровка представляет собой автоматизированное управление состоянием инфраструктуры.
 
-based on:
-- CPU load
-- memory usage
-- traffic volume
+Оркестратор непрерывно сравнивает:
 
----
+### Желаемое состояние
 
-### 3. Rolling Updates
-
-Containers update gradually:
-- one replica at a time
-
-Traffic continues flowing during deployment.
-
-Result:
-- zero or minimal downtime
+Пример:
+- Должно существовать 5 работоспособных реплик API.
 
 ---
 
-### 4. Service Discovery
+### Текущее состояние
 
-Services communicate through stable internal names instead of dynamic IP addresses.
-
----
-
-### 5. Load Balancing
-
-Traffic distributes automatically across healthy replicas.
+Пример:
+- В настоящее время запущено только 4 реплики
 
 ---
 
-### 6. Scheduling
+### Действие по согласованию
 
-Orchestrator decides:
-- on which node workloads should run
+Оркестратор автоматически:
+- Создает недостающие контейнеры
+- перепланирует рабочие нагрузки
+- восстанавливает желаемое состояние инфраструктуры
 
-based on:
-- available CPU
-- RAM
-- node health
-- resource constraints
-- infrastructure policies
+Этот механизм называется:
+- цикл согласования
 
----
-
-## Why Kubernetes Appeared
-
-At large scale manual infrastructure management becomes impossible.
-
-Google originally solved this problem internally using:
-- Borg
-
-Kubernetes inherited many Borg concepts.
-
-Main reasons Kubernetes appeared:
-- container management at massive scale
-- cluster abstraction
-- automated infrastructure operations
-- declarative deployment management
+Целью является непрерывная конвергенция к желаемому состоянию системы.
 
 ---
 
-## Declarative Infrastructure Concept
+## Какие проблемы решают оркестраторы
 
-Traditional approach:
+### 1. Самовосстановление
 
-Administrator manually performs operations.
+Если контейнер выходит из строя:
+- оркестратор автоматически воссоздает его
 
-Example:
-- start container here
-- restart service there
-
----
-
-Kubernetes approach:
-
-Engineer declares desired system state.
-
-Example:
-- system must always maintain 5 healthy replicas
-
-Kubernetes continuously works to enforce that state automatically.
+Если узел выходит из строя:
+- рабочие нагрузки перемещаются на исправные узлы
 
 ---
 
-## Control Plane vs Worker Nodes
+### 2. Масштабирование
 
-### Control Plane
+Инфраструктура автоматически адаптируется:
+- количество реплик
+- распределение ресурсов
 
-Cluster brain responsible for:
-- API management
-- scheduling
-- orchestration decisions
-- cluster state management
-
----
-
-### Worker Nodes
-
-Machines responsible for:
-- running containers
-- executing workloads
-- serving application traffic
+на основе:
+- Загрузка процессора
+- использование памяти
+- объем трафика
 
 ---
 
-## Key Learning
+### 3. Последовательные обновления
 
-- Docker solves packaging and runtime consistency
-- Production systems require orchestration
-- Orchestrators manage desired infrastructure state
-- Kubernetes automates recovery, scaling, and deployments
-- Modern infrastructure is declarative rather than manually operated
+Контейнеры обновляются постепенно:
+- по одной реплике за раз
+
+Трафик продолжает течь во время развертывания.
+
+Результат:
+- нулевое или минимальное время простоя
+
+---
+
+### 4. Обнаружение сервисов
+
+Службы взаимодействуют через стабильные внутренние имена вместо динамических IP-адресов.
+
+---
+
+### 5. Балансировка нагрузки
+
+Трафик автоматически распределяется между работоспособными репликами.
+
+---
+
+### 6. Планирование
+
+Оркестратор решает:
+- на каком узле должны выполняться рабочие нагрузки
+
+на основе:
+- Доступный процессор
+- ОЗУ
+- Состояние узла
+- Ограничения ресурсов
+- Инфраструктурная политика
+
+---
+
+## Почему появился Kubernetes
+
+В больших масштабах ручное управление инфраструктурой становится невозможным.
+
+Изначально компания Google решила эту проблему собственными силами, используя:
+- Борг
+
+Kubernetes унаследовал многие концепции боргов.
+
+Основные причины появления Kubernetes:
+- Управление контейнерами в больших масштабах
+- кластерная абстракция
+- автоматизированные операции инфраструктуры
+- Декларативное управление развертыванием
+
+---
+
+## Концепция декларативной инфраструктуры
+
+Традиционный подход:
+
+Администратор вручную выполняет операции.
+
+Пример:
+- Запустите контейнер здесь
+- перезапустить службу там
+
+---
+
+Подход Kubernetes:
+
+Инженер объявляет желаемое состояние системы.
+
+Пример:
+- Система должна всегда поддерживать 5 исправных реплик.
+
+Kubernetes постоянно работает над автоматическим соблюдением этого состояния.
+
+---
+
+## Плоскость управления и рабочие узлы
+
+### Плоскость управления
+
+Управляющий центр кластера отвечает за:
+- Управление API
+- планирование
+- Решения по оркестровке
+- Управление состоянием кластера
+
+---
+
+### Рабочие узлы
+
+Машины, ответственные за:
+- запуск контейнеров
+- выполнение рабочих нагрузок
+- обслуживание трафика приложения
+
+---
+
+## Основные выводы
+
+- Docker решает проблему согласованности упаковки и времени выполнения.
+- Рабочие системы требуют оркестровки.
+- Оркестраторы управляют желаемым состоянием инфраструктуры.
+- Kubernetes автоматизирует восстановление, масштабирование и развертывание.
+- Современная инфраструктура является скорее декларативной, чем управляемой вручную.

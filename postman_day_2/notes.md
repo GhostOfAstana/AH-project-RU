@@ -1,26 +1,26 @@
-# Postman Day 2
+# Postman — день 2
 
-## What I did
-- Sent a POST request to https://postman-echo.com/post
-- Sent JSON data in the request body
-- Got a 200 OK response
-- Saw the same data returned in response
+## Что я сделал
+- Отправил запрос POST на https://postman-echo.com/post
+- Отправил данные JSON в теле запроса
+- Получил ответ 200 ОК
+- Видел те же данные, возвращенные в ответ
 
-- Sent a POST request without body
-- Got a 200 response but with empty data
+- Отправлен запрос POST без тела.
+- Получил ответ 200, но с пустыми данными.
 
-## What I learned
-- GET is used to request data
-- POST is used to send data
-- Body is important for POST requests
-- Without body, POST is almost useless
+## Что я узнал
+- GET используется для запроса данных
+- POST используется для отправки данных
+- Тело важно для запросов POST.
+- Без тела запроса POST почти бесполезен
 
-## Difference between GET and POST
-- GET → no body, used to retrieve data
-- POST → has body, used to send data
+## Разница между GET и POST
+- GET → нет тела, используется для получения данных
+- POST → имеет тело, используемое для отправки данных.
 
-## My Reminder
-When using POST:
-1. Always check Body
-2. Use JSON format
-3. Check response to confirm data was received
+## Памятка
+При использовании POST:
+1. Всегда проверяйте тело
+2. Используйте формат JSON.
+3. Проверьте ответ, чтобы подтвердить получение данных.

@@ -1,34 +1,34 @@
-# Incident Report 3
+# Отчет об инциденте 3
 
-## Issue
-User reports: "I see an empty list, but I know there should be data"
+## Проблема
+Пользователь сообщает: «Я вижу пустой список, но знаю, что там должны быть данные»
 
-## Steps to Reproduce
-1. User opens the data page
-2. System returns an empty list
-3. No error messages are shown
+## Этапы воспроизведения
+1. Пользователь открывает страницу данных
+2. Система возвращает пустой список
+3. Сообщения об ошибках не отображаются.
 
-## Observed Result
-- Page loads successfully
-- Status 200 OK
-- No data displayed
+## Наблюдаемый результат
+- Страница успешно загружается
+- Статус 200 ОК
+- Данные не отображаются
 
-## Expected Result
-- User should see previously created data
+## Ожидаемый результат
+- Пользователь должен видеть ранее созданные данные
 
-## Initial Analysis
-- No errors from system (200 OK)
-- Data might exist but is not displayed
-- Possible filtering or query issue
+## Первоначальный анализ
+- Нет ошибок системы (200 ОК)
+- Данные могут существовать, но не отображаются
+- Возможная проблема с фильтрацией или запросом.
 
-## Possible Causes
-- Incorrect filtering conditions (SQL WHERE)
-- Data belongs to another user or scope
-- Frontend is not displaying returned data
-- API returns empty list due to wrong parameters
+## Возможные причины
+- Неправильные условия фильтрации (SQL WHERE)
+- Данные принадлежат другому пользователю или области действия.
+- Интерфейс не отображает возвращенные данные
+- API возвращает пустой список из-за неверных параметров
 
-## Next Actions
-- Check API response (is it empty or not?)
-- Verify request parameters (filters, user ID)
-- Check SQL query logic
-- Escalate if data exists but is not shown
+## Следующие действия
+- Проверьте ответ API (он пустой или нет?)
+- Проверка параметров запроса (фильтры, идентификатор пользователя)
+- Проверка логики SQL-запроса
+- Эскалация, если данные существуют, но не отображаются

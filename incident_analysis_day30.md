@@ -1,128 +1,128 @@
-# Incident Analysis — Week 8 Day 2
+# Разбор инцидента — неделя 8, день 2
 
-## Scenario
+## Сценарий
 
-Team built a Docker image for API deployment.
+Команда создала образ Docker для развертывания API.
 
-Problems observed:
-- image size reached 4.7 GB
-- container startup time became very slow
-- CI/CD pipeline slowed down significantly
-- builds frequently invalidated cache
-- production nodes accumulated large unused images
+Наблюдаемые проблемы:
+- Размер образа достиг 4,7 ГБ
+- Время запуска контейнера стало очень медленным
+- Конвейер CI/CD значительно замедлился.
+- создает часто недействительный кэш
+- рабочие узлы накопили большие неиспользуемые образы
 
-CTO concluded that Docker was being used inefficiently.
-
----
-
-## What Problem Is Happening
-
-The team treats Docker image as a generic file archive instead of an optimized deployment artifact.
-
-Large image size usually indicates:
-- unnecessary files copied into image
-- oversized base image
-- duplicated dependencies
-- inefficient build process
-- poor Docker layer usage
-
-Result:
-- slower builds
-- slower deployments
-- increased infrastructure overhead
+Технический директор пришел к выводу, что Docker использовался неэффективно.
 
 ---
 
-## Why Large Docker Images Are Dangerous
+## В чём заключается проблема
 
-### 1. Slow Delivery
+Команда рассматривает образ Docker как общий файловый архив, а не как оптимизированный артефакт развертывания.
 
-Large images require more time to:
-- build
-- upload
-- download
-- deploy
+Большой размер образа обычно указывает:
+- ненужные файлы скопированы в образ
+- Слишком большой базовый образ
+- дублированные зависимости
+- неэффективный процесс сборки
+- Плохое использование слоя Docker
 
-This increases lead time during releases and incident recovery.
-
----
-
-### 2. Network Pressure
-
-In production systems:
-- multiple nodes pull images simultaneously
-- autoscaling increases image downloads
-- rolling deployments multiply traffic
-
-Huge images slow down rollout speed.
+Результат:
+- Более медленные сборки
+- более медленное развертывание
+- Увеличение накладных расходов на инфраструктуру
 
 ---
 
-### 3. Storage Overhead
+## Почему большие образы Docker опасны
 
-Container registries and production nodes accumulate large image layers.
+### 1. Медленная доставка
 
-Result:
-- wasted disk space
-- higher infrastructure costs
+Большие образы требуют больше времени для:
+- построить
+- загрузить
+- скачать
+- развернуть
 
----
-
-### 4. Security Risk
-
-More packages inside image means:
-- larger attack surface
-- more vulnerabilities
-- unnecessary tools available inside runtime container
+Это увеличивает время выполнения во время релизов и восстановления после инцидентов.
 
 ---
 
-## What Docker Layers Are
+### 2. Нагрузка на сеть
 
-Each Dockerfile instruction creates a read-only filesystem layer.
+В рабочих системах:
+- Несколько узлов одновременно скачивают образы
+- Автомасштабирование увеличивает загрузку образов
+- Последовательное развертывание увеличивает трафик
 
-Examples:
+Огромные образы замедляют скорость развертывания.
+
+---
+
+### 3. Накладные расходы на хранение
+
+Реестры контейнеров и рабочие узлы накапливают большие слои образов.
+
+Результат:
+- потраченное впустую дисковое пространство
+- более высокие затраты на инфраструктуру
+
+---
+
+### 4. Риск безопасности
+
+Больше пакетов внутри образа означает:
+- большая поверхность атаки
+- Еще уязвимости
+- Ненужные инструменты доступны внутри контейнера времени выполнения
+
+---
+
+## Что такое слои Docker
+
+Каждая инструкция Dockerfile создает уровень файловой системы, доступный только для чтения.
+
+Примеры:
 - FROM
 - RUN
 - COPY
 
-Docker stores:
-- filesystem differences between layers
+Docker хранит:
+- различия файловых систем между слоями
 
-instead of full copies.
-
----
-
-## Layer Caching Mechanism
-
-If a layer has not changed:
-- Docker reuses cached version
-
-If one layer changes:
-- all following layers must rebuild
-
-This behavior is called:
-- cache invalidation
+Вместо полных копий.
 
 ---
 
-## Why Dockerfile Command Order Matters
+## Механизм кэширования слоев
 
-Incorrect order example:
+Если слой не изменился:
+- Docker повторно использует кэшированную версию
+
+Если изменяется один слой:
+- все последующие слои должны быть перестроены
+
+Такое поведение называется:
+- Инвалидация кэша
+
+---
+
+## Почему важен порядок команд Dockerfile
+
+Пример неправильного порядка команд:
 
 ```dockerfile
 COPY . .
 RUN pip install -r requirements.txt
 ````
 
-Problem:
+Проблема:
 
-* every source code change invalidates dependency cache
-* dependencies reinstall every build
+* каждое изменение исходного кода делает недействительным кэш зависимостей
+* зависимости переустанавливаются при каждой сборке
 
 ---
 
-Correct approach:
+Правильный подход:
 
 ```dockerfile
 COPY requirements.txt .
@@ -131,97 +131,97 @@ RUN pip install -r requirements.txt
 COPY . .
 ```
 
-Result:
+Результат:
 
-* dependency layer reused
-* faster rebuilds
+* Повторное использование уровня зависимостей
+* Более быстрое восстановление
 
 ---
 
-## Production-Ready Docker Image Principles
+## Принципы подготовки образа Docker к эксплуатации
 
-### 1. Minimal Base Images
+### 1. Минимальные базовые образы
 
-Use:
+Использовать:
 
 * alpine
 * slim
 
-instead of full operating system images.
+вместо полных образов операционной системы.
 
 ---
 
 ### 2. .dockerignore
 
-Exclude unnecessary files:
+Исключите ненужные файлы:
 
 * .git
-* logs
-* **pycache**
-* local virtual environments
-* temporary files
+* журналы
+* **пикеш**
+* локальные виртуальные среды
+* временные файлы
 
 ---
 
-### 3. Multi-Stage Builds
+### 3. Многоэтапные сборки
 
-Separate:
+Разделить:
 
-* build environment
-* runtime environment
+* среда создания
+* среда выполнения
 
-Build stage contains:
+Этап сборки содержит:
 
-* compilers
-* build tools
-* dependencies
+* Составители
+* инструменты для сборки
+* зависимости
 
-Runtime stage contains only:
+Стадия выполнения содержит только:
 
-* application
-* required runtime libraries
+* применение
+* необходимые библиотеки времени выполнения
 
-Result:
+Результат:
 
-* smaller image
-* reduced attack surface
+* Образ меньшего размера
+* уменьшенная поверхность атаки
 
 ---
 
-### 4. Non-Root Execution
+### 4. Выполнение без полномочий root
 
-Containers should not run as root.
+Контейнеры не должны запускаться от имени пользователя root.
 
-Use:
+Использовать:
 
 ```dockerfile
 USER appuser
 ```
 
-to improve runtime security.
+Для улучшения безопасности во время выполнения.
 
 ---
 
-### 5. Minimal Runtime Environment
+### 5. Минимальная среда выполнения
 
-Production image should contain only what is required to run application.
+Рабочий образ должен содержать только то, что требуется для запуска приложения.
 
-Avoid:
+Избегать:
 
-* compilers
-* package managers
-* git
-* test tools
+* Составители
+* менеджеры пакетов
+* мерзавец
+* Инструменты тестирования
 
-inside runtime container.
+внутри контейнера времени выполнения.
 
 ---
 
-## Key Learning
+## Основные выводы
 
-* Docker images are deployment artifacts, not file archives
-* Layer caching directly affects CI/CD performance
-* Smaller images improve deployment speed and reliability
-* Multi-stage builds reduce runtime overhead
-* Production containers should be minimal and secure
+* Образы Docker являются артефактами развертывания, а не файловыми архивами.
+* Кэширование уровней напрямую влияет на производительность CI/CD.
+* Образы меньшего размера повышают скорость и надежность развертывания.
+* Многоэтапные сборки сокращают накладные расходы во время выполнения.
+* Рабочие контейнеры должны быть минимальными и безопасными.
 

@@ -1,151 +1,151 @@
-# Incident Analysis — Week 7 Day 6
+# Разбор инцидента — неделя 7, день 6
 
-## Scenario
+## Сценарий
 
-Production incident occurred during peak traffic:
+Рабочий инцидент произошел во время пиковой нагрузки:
 
-- API unavailable for 18 minutes
-- Users received HTTP 500 errors
-- Payment processing stalled
-- Some orders were processed twice
+- API недоступен в течение 18 минут.
+- Пользователи получили ошибки HTTP 500.
+- Обработка платежей остановлена.
+- Некоторые заказы обрабатывались дважды
 
-System was later restored.
-
----
-
-## What Is a Postmortem
-
-Postmortem is not a formal report for management.
-
-Its purpose is:
-- to convert a costly failure into operational knowledge
-- to ensure the same incident cannot happen again in the same way
-
-A serious incident must improve system resilience.
+Позже система была восстановлена.
 
 ---
 
-## Main Team Mistake
+## Что такое разбор инцидента (postmortem)
 
-The worst possible reaction is searching for a person to blame.
+Разбор инцидента — не формальный отчёт для руководства.
 
-Blame culture causes:
-- fear
-- hidden mistakes
-- poor incident reporting
+Его целью является:
+- Превратить дорогостоящий отказ в эксплуатационные знания
+- Чтобы гарантировать, что тот же инцидент не может повториться снова таким же образом
 
-Correct approach:
-- assume engineers acted in good faith
-- analyze why the system allowed the failure
-
-Focus:
-- process
-- architecture
-- missing safeguards
-
-Not personal attacks.
+Серьезный инцидент должен повысить устойчивость системы.
 
 ---
 
-## What a Good Postmortem Contains
+## Главная ошибка команды
 
-### 1. Summary
-Short explanation of:
-- what happened
-- affected systems
-- affected users
+Худшая возможная реакция – это поиск виноватого.
 
----
+Культура вины вызывает:
+- страх
+- скрытые ошибки
+- Плохое сообщение об инцидентах
 
-### 2. Timeline
-Minute-by-minute sequence:
+Правильный подход:
+- Предполагаем, что инженеры действовали добросовестно
+- проанализировать, почему система допустила сбой
 
-- incident start
-- detection time
-- mitigation start
-- recovery time
+Сосредоточиться на следующем:
+- процесс
+- архитектура
+- отсутствуют средства защиты
 
----
-
-### 3. Impact
-Business and technical impact:
-
-- number of affected users
-- downtime duration
-- financial losses
-- duplicated or failed operations
+Не личные нападки.
 
 ---
 
-### 4. Root Cause Analysis
-Deep technical explanation of why the incident occurred.
+## Что должен содержать качественный разбор инцидента
 
-Not:
-"database failed"
-
-But:
-- why it failed
-- what conditions allowed it
-- why protection mechanisms failed
+### 1. Резюме
+Краткое объяснение:
+- что случилось
+- Затронутые системы
+- затронутые пользователи
 
 ---
 
-### 5. Action Items
-Concrete remediation tasks:
+### 2. Хронология
+Поминутная последовательность:
 
-Examples:
-- add missing DB index
-- increase connection pool
-- add timeout protection
-- improve monitoring
-- create load test scenario
-
-Tasks must be tracked in GitHub/Jira.
+- Начало инцидента
+- время обнаружения
+- Начало смягчения последствий
+- время восстановления
 
 ---
 
-## Root Cause Analysis Example (5 Whys)
+### 3. Влияние на пользователей и сервис
+Коммерческий и технический эффект:
 
-Why was API unavailable?
-→ Order service crashed.
-
-Why did it crash?
-→ Database stopped responding.
-
-Why did database stop responding?
-→ Connection pool exhausted.
-
-Why was pool exhausted?
-→ Long-running query blocked table access.
-
-Why did query become long-running?
-→ Missing database index was not detected during testing.
-
-Root Cause:
-Missing index + insufficient performance testing.
+- количество затронутых пользователей
+- продолжительность простоя
+- финансовые потери
+- дублированные или неудачные операции
 
 ---
 
-## What Is Considered a Good Result
+### 4. Анализ первопричин
+Подробное техническое объяснение того, почему произошел инцидент.
 
-A successful postmortem is not a completed document.
+Не:
+«Ошибка базы данных»
 
-Success means:
-- corrective actions were implemented
-- monitoring improved
-- system became more resilient
-
-If the same traffic spike happens again:
-- system survives
-- or fails gracefully
-
-without repeating the same incident.
+Но:
+- почему это не удалось
+- какие условия это позволили
+- почему механизмы защиты вышли из строя
 
 ---
 
-## Key Learning
+### 5. Действия
+Конкретные задачи восстановления:
 
-- Incidents must improve the system
-- Blameless culture improves reliability
-- Root cause is deeper than visible symptoms
-- Action items matter more than documentation
+Примеры:
+- добавить недостающий индекс БД
+- увеличить пул соединений
+- добавить защиту по тайм-ауту
+- Улучшение мониторинга
+- создать сценарий нагрузочного тестирования
+
+Задачи необходимо отслеживать в GitHub/Jira.
+
+---
+
+## Пример анализа первопричин (5 «почему»)
+
+Почему API был недоступен?
+→ Служба заказов аварийно завершилась.
+
+Почему произошел сбой?
+→ База данных перестала отвечать.
+
+Почему база данных перестала отвечать?
+→ Пул соединений исчерпан.
+
+Почему пул оказался исчерпан?
+→ Длительный запрос блокировал доступ к таблице.
+
+Почему запрос стал длительным?
+→ Отсутствующий индекс базы данных не был обнаружен во время тестирования.
+
+Основная причина:
+Отсутствует индекс + недостаточное тестирование производительности.
+
+---
+
+## Что считается хорошим результатом
+
+Успешный разбор инцидента не сводится к заполненному документу.
+
+Успех означает:
+- были реализованы корректирующие действия
+- Улучшен мониторинг
+- система стала более устойчивой
+
+Если тот же всплеск трафика произойдет снова:
+- система выживает
+- или изящно терпит неудачу
+
+без повторения того же инцидента.
+
+---
+
+## Основные выводы
+
+- Инциденты должны улучшить систему
+- Безупречная культура повышает надежность
+- Первопричина лежит глубже, чем видимые симптомы.
+- Действия имеют большее значение, чем документация.

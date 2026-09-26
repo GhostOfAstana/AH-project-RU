@@ -1,47 +1,47 @@
-# Mini Resume – Ernat
+# Краткое резюме — Эрнат
 
-## Profile
-I am building a transition into the IT field with a focus on support, operations, and coordination roles.
+## Профиль
+Я планирую переход в сферу ИТ, уделяя особое внимание функциям поддержки, эксплуатации и координации.
 
-## Background
-I have a background in military service, which gave me strong discipline, responsibility, and the ability to work under pressure.
+## Опыт
+У меня есть опыт военной службы, который дал мне сильную дисциплину, ответственность и способность работать под давлением.
 
-## Strengths
-- Process discipline
-- Structured thinking
-- Coordination and task control
-- Ability to handle stressful situations
-- Self-management and consistency
+## Сильные стороны
+- Дисциплина соблюдения процессов
+- Структурированное мышление
+- Координация и контроль задач
+- Способность справляться со стрессовыми ситуациями
+- Самоорганизация и последовательность
 
-## IT Skills (Entry Level)
+## ИТ-навыки (начальный уровень)
 
 - SQL:
   - SELECT, WHERE, LIKE, IN, COUNT
   - JOIN, GROUP BY, HAVING
-  - AND, OR, NOT (logic control)
+  - AND, OR, NOT (логическое управление)
 
-- HTTP / API:
-  - Understanding of GET and POST requests
-  - Working with status codes (200, 404, 500)
-  - Reading API responses
+- HTTP/API:
+  - Понимание запросов GET и POST
+  - Работа с кодами состояния (200, 404, 500)
+  - Чтение ответов API
 
 - Postman:
-  - Sending GET and POST requests
-  - Working with JSON body
-  - Testing API responses and errors
+  - Отправка запросов GET и POST
+  - Работа с телом JSON
+  - Тестирование ответов и ошибок API
 
-- Support Skills:
-  - Incident analysis (ask → check → escalate)
-  - Understanding system flow: API → backend → database
-  - Ability to identify problem layer (frontend, backend, network)
+- Навыки поддержки:
+  - Анализ инцидента (спросить → проверить → передать на рассмотрение)
+  - Понимание потока работы системы: API → серверная часть → база данных.
+  - Способность идентифицировать проблемный уровень (интерфейс, сервер, сеть)
 
-## Target Roles
-- Application Support
-- Junior Project Coordinator
-- Office IT Support / Service Desk
+## Целевые должности
+- Поддержка приложений
+- Младший координатор проектов
+- Поддержка офисной IT-инфраструктуры / служба поддержки
 
-## Current Focus
-I am actively building practical skills through daily learning and hands-on practice.
+## Над чем я работаю сейчас
+Я развиваю практические навыки благодаря ежедневному обучению и выполнению практических заданий.
 
-## Goal
-Enter the Astana Hub IT ecosystem in 2027 with a strong foundation in support and operations.
+## Цель
+Войти в IT-экосистему Astana Hub в 2027 году с прочной базой в поддержке и эксплуатации систем.

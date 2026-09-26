@@ -1,104 +1,104 @@
-# Incident Analysis — Week 10 Day 7
+# Разбор инцидента — неделя 10, день 7
 
-## Scenario
+## Сценарий
 
-Large Kubernetes platform uses:
+Большая платформа Kubernetes использует:
 
 * Prometheus
 * Grafana
 * Loki
-* Tempo
+* Темп
 * OpenTelemetry
-* Istio Service Mesh
+* Istio Сервисная сетка
 
-During production peak:
+Во время пика добычи:
 
-* dashboards became extremely slow
-* Grafana timed out
-* Prometheus memory exploded
-* nodes entered OOM pressure
-* observability namespace consumed massive CPU
-* application workloads degraded
-* scraping delays increased
-* alerting became inconsistent
-* some incidents were invisible during outage
+* Приборные панели стали чрезвычайно медленными
+* Время ожидания Grafana истекло
+* Память Prometheus взорвана
+* Узлы ввода давления ОМН
+* Пространство имен наблюдаемости потребляло огромный процессор
+* Рабочие нагрузки приложений ухудшились
+* Задержки сбора метрик выросли
+* оповещения стали непоследовательными
+* Некоторые инциденты были невидимы во время простоя
 
-Team believed:
-“monitoring stack is passive infrastructure.”
+Команда полагала:
+«Стек мониторинга представляет собой пассивную инфраструктуру».
 
-After incident investigation:
-observability platform itself became distributed system bottleneck.
-
----
-
-# What Actually Happened
-
-The platform entered:
-
-* telemetry amplification collapse
-
-Observability stack became one of the heaviest workloads in cluster.
-
-The root problem:
-
-* uncontrolled cardinality explosion
-* excessive metric dimensionality
-* aggressive scraping
-* high-frequency tracing
-* log ingestion overload
-
-Monitoring system started DDoSing itself and entire cluster.
+После расследования инцидента:
+Платформа наблюдения сама по себе стала узким местом распределенной системы.
 
 ---
 
-# Why Observability Is NOT Free
+# Что произошло на самом деле
 
-Every telemetry signal consumes resources.
+Платформа ввела:
 
-Three telemetry pillars:
+* Коллапс усиления телеметрии
 
-* metrics
-* logs
-* traces
+Стек наблюдаемости стал одной из самых тяжелых рабочих нагрузок в кластере.
 
-All three generate:
+Основная проблема:
 
-* CPU load
-* memory allocations
-* network traffic
-* disk IO
-* serialization overhead
+* Неконтролируемый рост кардинальности
+* чрезмерная метрическая размерность
+* Слишком частый сбор метрик
+* высокочастотная трассировка
+* перегрузка приема журнала
 
-At small scale this overhead invisible.
-
-At large scale:
-
-* observability becomes infrastructure-scale distributed system.
+Система мониторинга запустила DDoSинг как на себя, так и на весь кластер.
 
 ---
 
-# Cardinality Explosion
+# Почему наблюдаемость требует ресурсов
 
-This is the most dangerous Prometheus failure mode.
+Каждый телеметрический сигнал потребляет ресурсы.
+
+Три основных принципа телеметрии:
+
+* метрики
+* журналы
+* следы
+
+Все три генерируют:
+
+* Загрузка процессора
+* Распределение памяти
+* сетевой трафик
+* дисковый ввод-вывод
+* Накладные расходы на сериализацию
+
+В небольших масштабах эти накладные расходы незаметны.
+
+В больших масштабах:
+
+* Наблюдаемость становится распределенной системой масштаба инфраструктуры.
 
 ---
 
-# What Is Cardinality
+# Резкий рост кардинальности метрик
 
-Prometheus metric uniqueness defined by:
+Это наиболее опасный режим отказа Prometheus.
 
-* metric name
-* label combinations
+---
 
-Example:
+# Что такое кардинальность
+
+Уникальность метрики Prometheus определяется посредством:
+
+* название метрики
+* Комбинации этикеток
+
+Пример:
 
 ```text
 http_requests_total{service="api"}
 ```
 
-Low cardinality.
+Низкая кардинальность.
 
-Danger begins when labels include:
+Опасность начинается, когда на этикетках указано:
 
 * user_id
 * request_id
@@ -106,531 +106,531 @@ Danger begins when labels include:
 * pod_uid
 * trace_id
 
-Example:
+Пример:
 
 ```text
 http_requests_total{user_id="948182"}
 ```
 
-Every unique label combination creates:
+Каждая уникальная комбинация этикеток создает:
 
-* entirely new time series
+* совершенно новый временной ряд
 
-Millions of users:
-→ millions of time series.
+Миллионы пользователей:
+→ миллионы временных рядов.
 
 ---
 
-# Why Cardinality Destroys Prometheus
+# Почему кардинальность уничтожает Prometheus
 
-Each time series consumes:
+Каждый временной ряд потребляет:
 
-* RAM
-* index structures
-* WAL writes
-* compaction resources
+* ОЗУ
+* индексные структуры
+* WAL пишет
+* Ресурсы уплотнения
 
-Cardinality grows multiplicatively.
+Кардинальность растёт мультипликативно.
 
-Example:
+Пример:
 
 ```text
 endpoint × status × region × pod × user_id
 ```
 
-Result:
+Результат:
 
-* explosive memory growth
+* взрывной рост памяти
 
-Prometheus often dies from:
+Prometheus часто погибает от:
 
-* metadata scale
-  not
-* raw metric values.
+* Масштаб метаданных
+  нет
+* Необработанные значения показателей.
 
 ---
 
-# Why Histograms Become Dangerous
+# Почему гистограммы становятся опасными
 
-Latency metrics often implemented via histograms.
+Метрики задержки часто реализуются посредством гистограмм.
 
-Example:
+Пример:
 
 ```text
 http_request_duration_seconds_bucket
 ```
 
-Each bucket creates additional series.
+Каждое ведро создает дополнительные серии.
 
-If histogram labels include:
+Если метки гистограммы включают:
 
-* pod
-* endpoint
-* region
-* method
-* tenant
+* капсула
+* конечная точка
+* регион
+* Метод
+* арендатор
 
-Series count explodes exponentially.
+Количество серий растет экспоненциально.
 
 ---
 
-# Remote Write Amplification
+# Усиление удаленной записи
 
-Prometheus frequently configured with:
+Prometheus часто конфигурируется с помощью:
 
 * remote_write
 
-Sending metrics to:
+Отправка метрик в:
 
-* Thanos
-* Cortex
-* Mimir
-* VictoriaMetrics
+* Танос
+* Кортекс
+* Мимир
+* ВикторияМетрикс
 
-Problem:
-every sample now duplicated across:
+Проблема:
+Каждый образец теперь дублируется:
 
-* WAL
-* memory
-* network
-* remote storage
+* ВАЛ
+* память
+* сеть
+* удаленное хранилище
 
-Under overload:
+При перегрузке:
 
-* queues back up
-* memory pressure increases
-* retries amplify traffic
+* резервное копирование очередей
+* увеличивается давление памяти
+* повторные попытки увеличивают трафик
 
-Monitoring pipeline begins cascading failure.
+Мониторинг конвейера начинает каскадировать сбои.
 
 ---
 
-# Why Scraping Can Kill Cluster
+# Почему сбор метрик может вывести кластер из строя
 
-Prometheus scrapes endpoints continuously.
+Prometheus непрерывно очищает конечные точки.
 
-Large clusters may contain:
+Большие кластеры могут содержать:
 
-* tens of thousands of targets
+* десятки тысяч целей
 
-Aggressive scrape intervals:
+Слишком короткие интервалы сбора метрик:
 
 ```text
 scrape_interval: 1s
 ```
 
-create enormous traffic.
+создают огромный трафик.
 
-Scraping itself consumes:
+Само соскабливание требует:
 
-* CPU
-* TLS handshakes
-* serialization
-* network bandwidth
+* ЦП
+* TLS-квитирования
+* сериализация
+* Пропускная способность сети
 
-Applications begin spending measurable CPU:
+Приложения начинают расходовать измеримую часть ЦП:
 
-* serving metrics
-  instead of
-* serving users.
-
----
-
-# OpenTelemetry Amplification
-
-OpenTelemetry collectors aggregate:
-
-* metrics
-* traces
-* logs
-
-Improper sampling configuration catastrophic.
+* Показатели обслуживания
+  вместо
+* Обслуживание пользователей.
 
 ---
 
-# Full Trace Sampling Disaster
+# Усиление нагрузки со стороны OpenTelemetry
 
-If tracing configured:
+Агрегат коллекторов OpenTelemetry:
+
+* метрики
+* следы
+* журналы
+
+Неправильная конфигурация отбора проб приводит к катастрофе.
+
+---
+
+# Последствия сохранения 100% трассировок
+
+Если настроено отслеживание:
 
 ```text
-sampling = 100%
+выборка = 100%
 ```
 
-every request produces:
+каждый запрос выдает:
 
-* spans
-* metadata
-* context propagation
-* serialization
+* Пролеты
+* метаданные
+* Распространение контекста
+* сериализация
 
-High traffic systems generate:
+Системы с высоким трафиком генерируют:
 
-* millions of spans per minute
+* миллионы пролетов в минуту
 
-Tracing backend becomes bottleneck.
-
----
-
-# Service Mesh Telemetry Explosion
-
-Istio/Envoy produce extremely verbose telemetry.
-
-Each sidecar exports:
-
-* request metrics
-* retry counters
-* latency histograms
-* TCP statistics
-* TLS metadata
-
-In large clusters:
-
-* telemetry traffic itself becomes significant percentage of total traffic.
+Серверная часть отслеживания становится узким местом.
 
 ---
 
-# Why Loki And Logging Explode
+# Резкий рост объёма телеметрии сервисной сети
 
-Logs deceptively expensive.
+Istio/Envoy создают чрезвычайно подробную телеметрию.
 
-Problems:
+Каждый вспомогательный прокси-контейнер экспортирует:
 
-* JSON serialization
-* indexing
-* compression
-* ingestion buffering
+* запросить метрики
+* Счетчики повторов
+* Гистограммы задержки
+* Статистика TCP
+* Метаданные TLS
 
-Worst anti-pattern:
+В больших кластерах:
+
+* Телеметрический трафик сам по себе становится значительным процентом от общего трафика.
+
+---
+
+# Почему Loki и сбор журналов перегружаются
+
+Бревна обманчиво дороги.
+
+Проблемы:
+
+* Сериализация JSON
+* индексирование
+* сжатие
+* буферизация приема
+
+Худший антипаттерн:
 
 ```text
-debug logging enabled in production
+В рабочей среде включено ведение журнала отладки
 ```
 
-Under incident:
+В случае инцидента:
 
-* retries increase
-* logs increase
-* disk IO increases
-* CPU increases
+* Увеличение повторных попыток
+* Увеличение логов
+* Увеличение дискового ввода-вывода
+* Увеличение ЦП
 
-Feedback loop forms.
-
----
-
-# Observability Feedback Loop
-
-Classic collapse pattern:
-
-Incident begins
-→ retries increase
-→ logs increase
-→ metrics increase
-→ tracing increases
-→ monitoring overloads
-→ cluster slows further
-→ telemetry volume increases again
-
-Monitoring system amplifies outage.
+Формируется петля обратной связи.
 
 ---
 
-# Why Dashboards Failed First
+# Контур обратной связи наблюдаемости
 
-Grafana queries often expensive.
+Классический образец разрушения:
 
-Bad dashboards execute:
+Инцидент начинается
+→ количество повторных попыток увеличивается
+→ увеличение логов
+→ увеличение показателей
+→ отслеживание увеличения
+→ контроль перегрузок
+→ кластер еще больше замедляется
+→ громкость телеметрии снова увеличивается
 
-* wide PromQL scans
-* regex queries
-* high-resolution aggregations
+Система мониторинга усиливает простои.
 
-Example anti-pattern:
+---
+
+# Почему информационные панели вышли из строя первыми
+
+Запросы Grafana часто являются дорогостоящими.
+
+Неверные информационные панели выполняются:
+
+* широкие сканы PromQL
+* регулярные запросы
+* Агрегации высокого разрешения
+
+Пример анти-шаблона:
 
 ```text
 rate(http_requests_total[1h])
 ```
 
-across:
+Между:
 
-* millions of series
+* миллионы серий
 
-Query engine consumes:
+Механизм запросов потребляет:
 
-* huge RAM
-* massive CPU
-* expensive decompression
+* огромная оперативная память
+* массивный процессор
+* Дорогая декомпрессия
 
-Dashboards timeout.
-
----
-
-# Why Alerts Became Unreliable
-
-Prometheus under memory pressure:
-
-* delays rule evaluation
-* skips scrapes
-* misses samples
-
-Result:
-
-* false negatives
-* delayed alerts
-* alert flapping
-
-During outage:
-
-* observability lost observability.
+Тайм-аут информационных панелей.
 
 ---
 
-# Investigation Process
+# Почему оповещения стали ненадежными
+
+Prometheus при нехватке памяти:
+
+* задерживает оценку правила
+* пропускает царапины
+* пропускает образцы
+
+Результат:
+
+* ложноотрицательные результаты
+* отложенные оповещения
+* Сигнал тревоги
+
+Во время простоя:
+
+* Наблюдаемость потеряла наблюдаемость.
 
 ---
 
-# 1. Cardinality Analysis
+# Процесс расследования
 
-Critical first step.
+---
 
-Commands:
+# 1. Анализ кардинальности
+
+Критический первый шаг.
+
+Команды:
 
 ```text
 topk(20, count by (__name__)({__name__=~".+"}))
 ```
 
-and:
+И:
 
 ```text
 promtool tsdb analyze
 ```
 
-Goal:
+Цель:
 
-* identify exploding labels
-
----
-
-# 2. WAL Pressure
-
-Inspect:
-
-* WAL growth
-* compaction delays
-* remote_write queue sizes
-
-Indicators:
-
-* WAL replay slow
-* disk saturation
-* memory spikes
+* Идентификация взрывающихся этикеток
 
 ---
 
-# 3. Query Profiling
+# 2. Нагрузка на WAL
 
-Find expensive dashboards.
+Исследовать:
 
-Look for:
+* Рост WAL
+* Задержки уплотнения
+* Размеры очереди remote_write
 
-* unbounded regex
-* high-cardinality aggregations
-* long range queries
+Признаки:
 
----
-
-# 4. Trace Sampling Rates
-
-Inspect:
-
-* collector CPU
-* span ingestion rate
-* queue pressure
-
-Check:
-
-* dropped spans
-* exporter retries
+* Медленное воспроизведение WAL
+* насыщенность диска
+* скачки памяти
 
 ---
 
-# 5. Log Ingestion Rate
+# 3. Профилирование запроса
 
-Measure:
+Найдите дорогие приборные панели.
+
+Ищите:
+
+* неограниченное регулярное выражение
+* Агрегации метрик с высокой кардинальностью
+* Запросы на большие расстояния
+
+---
+
+# 4. Доля сохраняемых трассировок
+
+Исследовать:
+
+* коллектор ЦП
+* Диапазон скорости приема
+* давление очереди
+
+Проверить:
+
+* Отброшены пролеты
+* Повторные попытки экспортера
+
+---
+
+# 5. Скорость приема журналов
+
+Измерить:
 
 * bytes/sec
-* label cardinality
-* ingestion burst patterns
+* Кардинальность меток
+* Пакетные шаблоны приема
 
 ---
 
-# Production Mitigation Plan
+# План снижения последствий инцидента в рабочей среде
 
-## Immediate Stabilization
+## Немедленная стабилизация
 
 ---
 
-# Reduce Scrape Frequency
+# Снизить частоту сбора метрик
 
-Increase:
+Увеличить:
 
 ```yaml
 scrape_interval: 30s
 ```
 
-or higher.
+или выше.
 
-Purpose:
+Назначение:
 
-* reduce telemetry traffic immediately.
+* Немедленно сократить трафик телеметрии.
 
 ---
 
-# Disable High Cardinality Labels
+# Удалить метки с высокой кардинальностью
 
-Remove:
+Удалить:
 
 * user_id
 * session_id
 * request_id
-* dynamic identifiers
+* динамические идентификаторы
 
-Metrics must remain aggregate-oriented.
+Метрики должны оставаться агрегированными.
 
 ---
 
-# Enable Trace Sampling
+# Включить выборочное сохранение трассировок
 
-Never use:
+Никогда не используйте:
 
-* 100% tracing
+* 100% отслеживание
 
-Use:
+Использовать:
 
-* probabilistic sampling
+* Вероятностная выборка
 * tail sampling
 
-Example:
+Пример:
 
 ```text
 1%
 ```
 
-or less under heavy traffic.
+или менее при интенсивном движении.
 
 ---
 
-# Rate Limit Logging
+# Ограничить интенсивность записи журналов
 
-Disable:
+Отключить:
 
-* debug logging
-* request body logging
-* verbose retry logs
+* ведение журнала отладки
+* запросить регистрацию тела
+* Подробные журналы повторных попыток
 
-Under incident:
+В случае инцидента:
 
-* logging volume must decrease
-  not
-* increase.
+* Объем регистрации должен уменьшиться
+  нет
+* Увеличиваются.
 
 ---
 
-# Protect Cluster Resources
+# Защита ресурсов кластера
 
-Apply:
+Применить:
 
-* resource quotas
+* квоты на ресурсы
 * limits
-* dedicated observability nodes
+* выделенные узлы наблюдения
 
-Monitoring must never starve production workloads.
-
----
-
-# Long-Term Architecture
+Мониторинг никогда не должен ограничивать рабочие нагрузки.
 
 ---
 
-# Hierarchical Observability
-
-Separate:
-
-* local metrics
-* aggregate metrics
-* long-term storage
-
-Do not centralize everything into one Prometheus.
-
-Use:
-
-* federation
-* Thanos
-* sharding
+# Долгосрочная архитектура
 
 ---
 
-# Cardinality Governance
+# Иерархическая наблюдаемость
 
-Treat labels as:
+Разделить:
 
-* production-critical schema design
+* локальные метрики
+* агрегированные показатели
+* длительное хранение
 
-Establish:
+Не централизуйте все в один Prometheus.
 
-* cardinality budgets
-* telemetry review process
+Использовать:
 
-Never allow arbitrary labels into production.
-
----
-
-# Adaptive Sampling
-
-Sampling must dynamically react to:
-
-* traffic
-* incidents
-* saturation
-
-During outages:
-
-* telemetry volume often must decrease automatically.
+* федерация
+* Танос
+* шардинг
 
 ---
 
-# Multi-Tier Logging
+# Управление кардинальностью
 
-Not all logs equal.
+Относитесь к этикеткам как:
 
-Separate:
+* Проектирование критически важной для рабочей среды схемы
 
-* audit logs
-* operational logs
-* debug logs
+Установить:
 
-Different retention policies required.
+* Бюджеты кардинальности
+* Процесс просмотра телеметрии
 
----
-
-# Dedicated Observability Clusters
-
-Very large platforms isolate telemetry infrastructure.
-
-Production cluster should not collapse because:
-
-* monitoring collapsed.
+Никогда не допускайте в рабочую среду произвольных этикеток.
 
 ---
 
-# Key Learning
+# Адаптивная выборка
 
-* observability is distributed system
-* telemetry has real infrastructure cost
-* cardinality destroys monitoring systems
-* metrics schema design is architectural responsibility
-* traces require aggressive sampling
-* logs amplify incidents
-* monitoring systems can DDoS production
-* dashboards may become outage source
-* telemetry pipelines require resource isolation
-* observability must remain operational during failures
+Отбор проб должен динамически реагировать на:
+
+* трафик
+* инциденты
+* насыщенность
+
+Во время простоев:
+
+* Объем телеметрии часто должен уменьшаться автоматически.
+
+---
+
+# Многоуровневая организация журналов
+
+Не все журналы одинаковы.
+
+Разделить:
+
+* журналы аудита
+* Операционные журналы
+* журналы отладки
+
+Требуются разные политики хранения.
+
+---
+
+# Выделенные кластеры наблюдаемости
+
+Очень большие платформы изолируют инфраструктуру телеметрии.
+
+Рабочий кластер не должен разрушаться, потому что:
+
+* Мониторинг рухнул.
+
+---
+
+# Основные выводы
+
+* Наблюдаемость — это распределенная система
+* телеметрия имеет реальную стоимость инфраструктуры
+* Высокая кардинальность перегружает системы мониторинга
+* Проектирование схемы метрик является архитектурной ответственностью.
+* Следы требуют агрессивного отбора проб
+* Журналы усиливают инциденты
+* Системы мониторинга могут производить DDoS-атаки
+* Дашборды могут стать источником сбоев
+* Конвейеры телеметрии требуют изоляции ресурсов
+* Наблюдаемость должна оставаться работоспособной во время сбоев

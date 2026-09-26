@@ -1,29 +1,30 @@
-# Containerization Strategy: Ensuring Environment Parity
+# Стратегия контейнеризации: единообразие окружений
 
-This document outlines the containerization approach for the orders-api service to solve the "Works on my machine" problem and ensure seamless deployment across all environments.
+Документ описывает контейнеризацию сервиса orders-api, которая решает проблему «на моей машине работает» и обеспечивает единообразное развёртывание во всех окружениях.
 
-## 1. Problem Statement: Environment Drift
-Before containerization, the application faced risks associated with:
-* **Library Mismatches**: Different versions of dependencies between local (WSL/Ubuntu) and production environments.
-* **Python Runtime Inconsistency**: Potential conflicts between Python 3.9 (legacy server) and Python 3.11 (modern local dev).
-* **Manual Setup Errors**: High probability of human error during manual server configuration.
+## 1. Постановка задачи: расхождение окружений
+До контейнеризации приложение сталкивалось с рисками, связанными с:
+* **Несоответствия библиотек**: Различные версии зависимостей между локальной (WSL/Ubuntu) и рабочей средами.
+* **Различия сред выполнения Python**: Возможные конфликты между Python 3.9 на старом сервере и Python 3.11 в современной локальной среде разработки.
+* **Ошибки ручной настройки**: Высокая вероятность человеческой ошибки во время ручной настройки сервера.
 
-## 2. Solution: Dockerization
-We have implemented **Docker** to encapsulate the application and its environment into a single, immutable unit (Image).
+## 2. Решение: докеризация
+Мы реализовали **Docker** для инкапсуляции приложения и его среды в единый неизменяемый блок (образ).
 
-### Key Concepts Implemented:
-* **Base Image**: Utilizing `python:3.11-slim` for a minimal footprint and reduced attack surface.
-* **Immutable Infrastructure**: Once built, the image remains unchanged as it moves from Staging to Production.
-* **Network Binding**: Configured the application to listen on `0.0.0.0` inside the container to ensure accessibility via port forwarding.
+### Реализованные ключевые концепции:
+* **Базовый образ**: Используется `python:3.11-slim`, чтобы уменьшить размер образа и поверхность атаки.
+* **Неизменяемая инфраструктура**: После сборки образ остаётся неизменным при переходе из тестовой среды в рабочую.
+* **Сетевая привязка**: приложение настроено на прослушивание `0.0.0.0` внутри контейнера, чтобы гарантировать доступность посредством переадресации портов.
 
-## 3. Mature Deployment Workflow
-Our container-first workflow ensures high reliability:
-1. **Build**: `docker build -t my-api-v1 .` creates a snapshot of the current stable code and environment.
-2. **Isolation**: Every container runs in its own namespace, preventing dependency conflicts with other services on the host.
-3. **Port Mapping**: Explicit mapping (`-p 8000:8000`) provides a clear interface for the host machine.
+## 3. Надёжный процесс развёртывания
+Наш рабочий процесс, ориентированный на контейнеры, обеспечивает высокую надежность:
+1. **Сборка**: `docker build -t my-api-v1 .` создает снимок текущего стабильного кода и среды.
+2. **Изоляция**: каждый контейнер работает в своем собственном пространстве имен, предотвращая конфликты зависимостей с другими службами на хосте.
+3. **Сопоставление портов**: Явное сопоставление (`-p 8000:8000`) обеспечивает понятный интерфейс для хост-машины.
 
-## 4. How to Run
-To spin up a fully configured environment, simply execute:
+## 4. Как запустить
+Чтобы развернуть полностью настроенную среду, просто выполните:
 ```bash
 docker build -t my-api-v1 .
 docker run -p 8000:8000 my-api-v1
+```

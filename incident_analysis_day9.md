@@ -1,13 +1,13 @@
-# Incident Analysis — Week 5 Day 2
+# Разбор инцидента — неделя 5, день 2
 
-## Scenario
-Service `/api/orders` shows intermittent database timeouts.
+## Сценарий
+Служба `/api/orders` показывает периодические тайм-ауты базы данных.
 
-Log sample includes user_id values.
+Выборка журнала включает значения user_id.
 
 ---
 
-## Log Sample
+## Пример журнала
 
 2026-04-18 10:01:01 INFO Request GET /api/orders 200 user_id=101  
 2026-04-18 10:01:02 INFO Request GET /api/orders 200 user_id=102  
@@ -20,72 +20,72 @@ Log sample includes user_id values.
 
 ---
 
-## My Initial Thinking
+## Мои первоначальные размышления
 
-- I noticed that some users receive errors while others do not
-- I incorrectly assumed the issue might be related to users (latency, behavior)
-- I considered contacting affected users
+- Я заметил, что некоторые пользователи получают ошибки, а другие нет.
+- Я ошибочно предположил, что проблема может быть связана с пользователями (задержка, поведение).
+- Я подумал о том, чтобы связаться с затронутыми пользователями
 
-### Problem
-- Misinterpreted system issue as user-level issue
-- Did not correctly analyze repeating patterns in logs
-- Did not understand how to filter logs by user_id
-
----
-
-## Corrected Approach
-
-### 1. What I See
-
-- Errors are not random
-- user_id=103 appears multiple times with errors
-- user_id=104 appears only once (likely not systemic)
-- Indicates pattern, not random failure
+### Проблема
+- Неверно интерпретированная системная проблема как проблема на уровне пользователя.
+- Некорректно анализировались повторяющиеся шаблоны в журналах.
+- Не понял как фильтровать логи по user_id
 
 ---
 
-### 2. First Step (Log Analysis)
+## Исправленный подход
 
-Use Linux tools to isolate pattern:
+### 1. Что я вижу
+
+- Ошибки не случайны
+- user_id=103 появляется несколько раз с ошибками.
+- user_id=104 появляется только один раз (вероятно, не системно)
+- Указывает на закономерность, а не на случайный отказ.
+
+---
+
+### 2. Первый шаг: анализ журналов
+
+Используйте инструменты Linux для выделения узора:
 
 - `grep user_id=103 /var/log/orders.log`
 - `grep user_id=103 /var/log/orders.log | wc -l`
 
-Compare with other users:
+Сравните с другими пользователями:
 
 - `grep user_id=104 /var/log/orders.log | wc -l`
 
 ---
 
-### 3. Key Insight
+### 3. Ключевое наблюдение
 
-This is not a user issue:
+Это не проблема пользователя:
 
-→ Repeated failures for specific user_id  
-→ Indicates data-related or query-related problem  
-
----
-
-### 4. Possible Cause
-
-- Heavy or complex data for user_id=103
-- Slow database queries related to that user
-- Database cannot process specific requests in time
+→ Повторяющиеся сбои для конкретного user_id  
+→ Указывает на проблему, связанную с данными или запросами.  
 
 ---
 
-### 5. Actions
+### 4. Возможная причина
 
-- Analyze queries related to user_id=103
-- Check database performance for those queries
-- Investigate data volume or structure
-- Optimize query or indexing if needed
+- Тяжелые или сложные данные для user_id=103
+- Медленные запросы к базе данных, связанные с этим пользователем
+- База данных не может вовремя обработать определенные запросы.
 
 ---
 
-## Key Learning
+### 5. Действия
 
-- Logs must be analyzed for patterns, not isolated errors
-- Repeated errors for specific user_id indicate system/data issue
-- Do not assume user-side problems without evidence
-- Linux tools (grep, wc) are essential for log analysis
+- Анализ запросов, связанных с user_id=103.
+- Проверьте производительность базы данных для этих запросов.
+- Исследование объема или структуры данных
+- При необходимости оптимизируйте запрос или индексацию.
+
+---
+
+## Основные выводы
+
+- Журналы необходимо анализировать на наличие шаблонов, а не отдельных ошибок.
+- Повторяющиеся ошибки для конкретного user_id указывают на проблему с системой/данными.
+- Не предполагайте проблемы на стороне пользователя без доказательств.
+- Инструменты Linux (grep, wc) необходимы для анализа журналов.

@@ -1,87 +1,87 @@
-# Incident Analysis — Week 4 Day 2
+# Разбор инцидента — неделя 4, день 2
 
-## Scenario
-User reports: "I see my orders list, but one of my recent orders is missing"
-
----
-
-## My Initial Thinking
-
-### Questions
-- Have you tried refreshing the page?
-- Is your internet connection stable?
-- Does the issue happen again?
-
-### First Steps
-- Check data via SQL
-- Test API via Postman
-- Verify frontend behavior
-
-### Problem
-- I was jumping between tools without clear order
-- I did not start from the user action
-- I tried to go too deep (SQL) too early
+## Сценарий
+Пользователь сообщает: «Я вижу список своих заказов, но один из моих последних заказов отсутствует»
 
 ---
 
-## Corrected Approach
+## Мои первоначальные размышления
 
-### 1. Questions to User
-- When was the order created?
-- Did you receive confirmation after creating it?
-- Do you see other orders?
-- Is the issue only with this order?
+### Вопросы
+- Вы пробовали обновить страницу?
+- Стабильно ли ваше интернет-соединение?
+- Возникает ли проблема снова?
+
+### Первые шаги
+- Проверка данных через SQL
+- Тестирование API через Postman
+- Проверка поведения внешнего интерфейса
+
+### Проблема
+- Я прыгал между инструментами без четкого порядка
+- Я не начал с действия пользователя
+- Я пытался углубиться (SQL) слишком рано
 
 ---
 
-### 2. First Step (Frontend - DevTools)
+## Исправленный подход
 
-Open browser DevTools → Network:
-- Reload orders page
-- Find GET /orders request
-- Check response
+### 1. Вопросы пользователю
+- Когда был создан заказ?
+- Получили ли вы подтверждение после его создания?
+- Видите ли вы другие заказы?
+- Проблема только с этим заказом?
 
 ---
 
-### 3. Diagnostic Logic
+### 2. Первый шаг (интерфейс — DevTools)
 
-#### If order is present in API response:
-→ Frontend issue (data not displayed)
+Откройте браузер DevTools → Сеть:
+- Перезагрузить страницу заказов.
+- Найти запрос GET /orders
+- Проверка ответа
 
-#### If order is NOT present:
+---
 
-Step 1: Check request parameters
+### 3. Диагностическая логика
+
+#### Если заказ присутствует в ответе API:
+→ Проблема с интерфейсом (данные не отображаются)
+
+#### Если заказ ОТСУТСТВУЕТ:
+
+Шаг 1: Проверка параметров запроса
 - user_id
-- filters
-- status
+- фильтры
+- Статус
 
-Step 2: Test API via Postman
+Шаг 2: Тестирование API через Postman
 
-Step 3: Check backend / database
-
----
-
-### 4. Possible Causes
-
-- Order was not created successfully
-- API does not return the order
-- SQL/filter excludes the order
-- Order belongs to different user/account
-- Frontend does not display the data
+Шаг 3: Проверка серверной части/базы данных
 
 ---
 
-### 5. Escalation
+### 4. Возможные причины
 
-- Frontend → if API returns data but UI does not show it
-- Backend → if API does not return the order
-- Database → if order is not stored
+- Заказ не был успешно создан.
+- API не возвращает заказ
+- SQL-запрос или фильтр исключает заказ из результатов
+- Заказ принадлежит другому пользователю/аккаунту.
+- Интерфейс не отображает данные
 
 ---
 
-## Key Learning
+### 5. Эскалация
 
-- Always start from user action
-- DevTools is the primary diagnostic tool
-- Do not jump directly to SQL or Postman
-- Follow system layers: frontend → API → backend → database
+- Интерфейс → если API возвращает данные, но пользовательский интерфейс их не показывает
+- Backend → если API не возвращает заказ
+- База данных → если заказ не сохранен
+
+---
+
+## Основные выводы
+
+- Всегда начинать с действия пользователя
+- DevTools является основным диагностическим инструментом.
+- Не переходите непосредственно к SQL или Postman.
+- Следуйте уровням системы: интерфейс → API → серверная часть → база данных.

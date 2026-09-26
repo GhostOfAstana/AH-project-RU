@@ -1,25 +1,25 @@
-# High-Efficiency Docker Strategy: Layer Optimization & Security
+# Эффективная работа с Docker: оптимизация слоёв и безопасность
 
-This document details the production-ready improvements made to the containerization lifecycle, focusing on build speed, security, and image size.
+В этом документе подробно описаны готовые к эксплуатации улучшения, внесенные в жизненный цикл контейнеризации, с упором на скорость сборки, безопасность и размер образа.
 
-## 1. Layered Architecture & Cache Efficiency
-To minimize build times, we implement **Cache-Aware Layering**:
-* **Dependency Caching**: `requirements.txt` is copied and installed *before* the application source code.
-* **Result**: Code changes trigger only a lightweight source-copy layer, bypassing the time-consuming dependency installation (using `CACHED` layers).
+## 1. Архитектура слоёв и эффективность кэша
+Чтобы сократить время сборки, слои организованы **с учётом повторного использования кэша**:
+* **Кэширование зависимостей**: Файл `requirements.txt` копируется, а зависимости устанавливаются *до* копирования исходного кода приложения.
+* **Результат**: Изменение кода требует пересборки только лёгкого слоя с исходниками; длительная установка зависимостей пропускается благодаря слоям `CACHED`.
 
-## 2. Production Hardening (Security)
-* **Non-Root Execution**: The application no longer runs as the `root` user. A dedicated `appuser` is created to enforce the Principle of Least Privilege.
-* **Attack Surface Reduction**: Utilizing `python:3.11-slim` to eliminate unnecessary system binaries (compilers, debuggers, shells).
+## 2. Повышение безопасности рабочей среды
+* **Выполнение без полномочий root**: Приложение больше не запускается от имени пользователя `root`. Специальный `appuser` создан для реализации принципа наименьших привилегий.
+* **Уменьшение поверхности атаки**: Использование `python:3.11-slim` для устранения ненужных системных двоичных файлов (компиляторов, отладчиков, оболочек).
 
-## 3. Minimal Footprint (.dockerignore)
-Standard files such as `.git`, `__pycache__`, and `.venv` are explicitly excluded from the build context.
-* **Benefit**: Smaller build context transfer and zero "garbage" in production images.
+## 3. Минимальный размер контекста сборки (.dockerignore)
+Стандартные файлы, такие как `.git`, `__pycache__` и `.venv`, явно исключаются из контекста сборки.
+* **Преимущество**: Меньшая передача контекста сборки и отсутствие «мусора» в рабочих образах.
 
-## 4. Performance Metrics
-* **Cold Build**: ~45 seconds (full dependency resolution).
-* **Warm Build (Code Change)**: ~2 seconds (leveraging build cache).
-* **Network Efficiency**: Reduced image pull time by ~70% compared to standard base images.
+## 4. Показатели производительности
+* **Холодная сборка**: ~45 секунд (полное разрешение зависимостей).
+* **Теплая сборка (изменение кода)**: ~2 секунды (использование кэша сборки).
+* **Эффективность сети**: Время скачивания образа сократилось примерно на 70% по сравнению со стандартными базовыми образами.
 
 ---
-*Production Hardening | CI/CD Efficiency | Security First*
-*Professional Practice | May 2026*
+*Повышение защищённости рабочей среды | Эффективность CI/CD | Приоритет безопасности*
+*Профессиональная практика | май 2026 г.*

@@ -1,192 +1,192 @@
-# Incident Analysis — Week 8 Day 5
+# Разбор инцидента — неделя 8, день 5
 
-## Scenario
+## Сценарий
 
-Team migrated services into Kubernetes.
+Команда перенесла сервисы в Kubernetes.
 
-After deployment:
-- containers constantly restarted
-- Pod IP addresses changed
-- services occasionally lost backend connectivity
-- some requests reached old API versions after updates
-- developers manually created containers using kubectl run
-- scaling behavior became inconsistent
+После развертывания:
+- контейнеры постоянно перезапускались
+- IP-адреса Pod изменились
+- сервисы иногда теряли соединение с серверной частью
+- некоторые запросы после обновлений достигали старых версий API
+- Разработчики вручную создавали контейнеры, используя kubectl run
+- Поведение масштабирования стало противоречивым
 
-CTO concluded that the team does not understand core Kubernetes abstractions.
-
----
-
-## What Problem Is Happening
-
-The team applies Docker-oriented infrastructure thinking inside Kubernetes.
-
-They treat:
-- containers as permanent servers
-- Pod IP addresses as stable endpoints
-- manual runtime operations as normal workflow
-
-This contradicts Kubernetes architecture principles:
-- infrastructure is ephemeral
-- workloads are declarative
-- runtime state is continuously reconciled
-
-Result:
-- unstable deployments
-- inconsistent scaling
-- networking failures
-- operational chaos
+Технический директор пришел к выводу, что команда не понимает основные абстракции Kubernetes.
 
 ---
 
-## What Pod Actually Is
+## В чём заключается проблема
 
-Pod is the smallest deployable and schedulable unit in Kubernetes.
+Команда применяет Docker-ориентированное инфраструктурное мышление внутри Kubernetes.
 
-A Pod is not simply a container.
+Они лечат:
+- контейнеры в качестве постоянных серверов
+- IP-адреса Pod в качестве постоянных конечных точек
+- Ручные операции во время выполнения как обычный рабочий процесс
 
-Mechanically, Pod is a shared runtime environment containing:
-- shared network namespace
-- shared localhost
-- shared storage volumes
-- shared lifecycle boundaries
+Это противоречит принципам архитектуры Kubernetes:
+- инфраструктура эфемерна
+- рабочие нагрузки являются декларативными
+- Состояние времени выполнения постоянно согласовывается
 
-All containers inside a Pod:
-- share one IP address
-- communicate through localhost
-- can mount the same volumes
-
-Example:
-- API container
-- logging sidecar
-- monitoring agent
-
-can work together inside one Pod.
+Результат:
+- нестабильные развертывания
+- непоследовательное масштабирование
+- сетевые сбои
+- оперативный хаос
 
 ---
 
-## Why Kubernetes Manages Pods Instead Of Containers
+## Что на самом деле представляет собой Pod
 
-Kubernetes orchestrates tightly coupled workloads as a single atomic unit.
+Pod — минимальная единица развёртывания и размещения планировщиком в Kubernetes.
 
-If Kubernetes managed containers independently:
-- related processes could be scheduled onto different nodes
-- shared localhost communication would break
-- sidecar architecture would become unreliable
+Pod — это не просто контейнер.
 
-Pod guarantees:
-- co-location
-- shared networking
-- shared lifecycle
-- deployment consistency
+С технической точки зрения Pod — общая среда выполнения, содержащая:
+- общее сетевое пространство имен
+- поделился localhost
+- общие тома хранения
+- общие границы жизненного цикла
 
-Kubernetes schedules, replaces, and scales entire Pods.
+Все контейнеры внутри Pod:
+- использовать один IP-адрес
+- Общаться через localhost
+- можно монтировать одни и те же тома
 
----
+Пример:
+- API-контейнер
+- Вспомогательный контейнер для сбора журналов
+- агент мониторинга
 
-## What ReplicaSet Is
-
-ReplicaSet is a controller responsible for maintaining desired Pod count.
-
-Example:
-- desired replicas = 5
-
-If one Pod crashes:
-- ReplicaSet automatically creates replacement Pod
-
-Main responsibility:
-- desired replica reconciliation
-
-ReplicaSet enables:
-- self-healing
-- high availability
-- replica consistency
+Могут работать вместе внутри одного Pod.
 
 ---
 
-## What Deployment Is
+## Почему Kubernetes управляет объектами Pod, а не отдельными контейнерами
 
-Deployment is a higher-level controller managing ReplicaSets.
+Kubernetes организует тесно связанные рабочие нагрузки как единый атомарный блок.
 
-Deployment responsibilities:
-- rolling updates
-- rollout management
-- rollback support
-- version transitions
+Если Kubernetes управлял контейнерами независимо:
+- связанные процессы могут быть запланированы на разные узлы
+- общая связь localhost прерывалась
+- Архитектура со вспомогательными контейнерами стала бы ненадёжной
 
-During update:
-1. new ReplicaSet is created
-2. new Pods gradually start
-3. old Pods gradually terminate
+Pod гарантирует:
+- совместное размещение
+- общая сеть
+- общий жизненный цикл
+- согласованность развертывания
 
-Result:
-- zero or minimal downtime deployment
-
----
-
-## Why Pod IP Addresses Are Temporary
-
-Pods are ephemeral infrastructure objects.
-
-Pods can be:
-- recreated
-- rescheduled
-- replaced
-- evicted
-
-When Pod is recreated:
-- new IP address is assigned
-
-Therefore:
-- Pod IPs must never be treated as stable infrastructure endpoints
-
-Direct Pod IP dependency creates fragile systems.
+Kubernetes размещает, заменяет и масштабирует объекты Pod целиком.
 
 ---
 
-## What Kubernetes Service Solves
+## Что такое ReplicaSet
 
-Service provides stable virtual networking abstraction.
+ReplicaSet представляет собой контроллер, ответственный за поддержание желаемого количества Pod.
 
-Service:
-- exposes stable virtual IP/DNS name
-- automatically routes traffic
-- hides Pod replacement and IP changes
+Пример:
+- желаемые реплики = 5
 
-Applications communicate through:
-- Services
+Если один Pod выходит из строя:
+- ReplicaSet автоматически создает замену Pod
 
-not through:
-- direct Pod addresses
+Основная ответственность:
+- желаемое согласование реплик
 
-This decouples networking from Pod lifecycle.
-
----
-
-## Immutable Infrastructure Principle
-
-Kubernetes typically does not repair broken Pods.
-
-Instead:
-1. unhealthy Pod is terminated
-2. replacement Pod is created
-
-This model is called:
-- immutable infrastructure
-- repair through replacement
-
-Infrastructure becomes:
-- predictable
-- reproducible
-- self-healing
+ReplicaSet позволяет:
+- самоисцеление
+- высокая доступность
+- Согласованность реплик
 
 ---
 
-## Key Learning
+## Что такое Deployment
 
-- Pod is the core Kubernetes runtime abstraction
-- Containers inside Pod share runtime environment
-- ReplicaSet maintains desired replica count
-- Deployment manages rollout lifecycle
-- Pod IPs are temporary
-- Services provide stable networking abstraction
-- Kubernetes infrastructure is declarative and ephemeral
+Deployment представляет собой контроллер более высокого уровня, управляющий ReplicaSets.
+
+Deployment обязанности:
+- непрерывные обновления
+- Управление развертыванием
+- Поддержка отката
+- Переходы версий
+
+Во время обновления:
+1. Создан новый ReplicaSet
+2. Новые объекты Pod постепенно запускаются
+3. Старые объекты Pod постепенно завершают работу
+
+Результат:
+- Развертывание с нулевым или минимальным временем простоя
+
+---
+
+## Почему IP-адреса Pod являются временными
+
+Pod являются эфемерными объектами инфраструктуры.
+
+Объекты Pod могут быть:
+- воссоздан
+- перенесено
+- заменен
+- выселен
+
+При воссоздании Pod:
+- присвоен новый IP-адрес
+
+Поэтому:
+- IP-адреса Pod никогда не следует рассматривать как конечные точки стабильной инфраструктуры.
+
+Прямая IP-зависимость Pod создает хрупкие системы.
+
+---
+
+## Что решает сервис Kubernetes
+
+Сервис обеспечивает стабильную абстракцию виртуальной сети.
+
+Сервис:
+- предоставляет стабильное виртуальное имя IP/DNS.
+- автоматически маршрутизирует трафик
+- скрывает замену Pod и изменения IP
+
+Приложения обмениваются данными посредством:
+- Услуги
+
+не посредством:
+- прямые адреса Pod
+
+Это отделяет сетевое взаимодействие от жизненного цикла Pod.
+
+---
+
+## Принцип неизменяемой инфраструктуры
+
+Kubernetes обычно не восстанавливает неисправные объекты Pod.
+
+Вместо этого:
+1. Неисправный Pod завершает работу
+2. Создаётся новый Pod взамен старого
+
+Эта модель называется:
+- неизменяемая инфраструктура
+- ремонт путем замены
+
+Инфраструктура становится:
+- предсказуемый
+- воспроизводимый
+- самоисцеление
+
+---
+
+## Основные выводы
+
+- Pod — это базовая абстракция времени выполнения Kubernetes.
+- Контейнеры внутри Pod совместно используют среду выполнения.
+- ReplicaSet поддерживает желаемое количество реплик.
+- Deployment управляет жизненным циклом развертывания
+- IP-адреса Pod являются временными.
+- Сервисы обеспечивают стабильную сетевую абстракцию.
+- Инфраструктура Kubernetes является декларативной и эфемерной.

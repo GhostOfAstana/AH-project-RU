@@ -1,119 +1,119 @@
-# Incident Analysis — Week 6 Day 6
+# Разбор инцидента — неделя 6, день 6
 
-## Scenario
-User reports:
-"API sometimes responds in ~200ms, sometimes in 5–8 seconds, especially in the evening"
-
----
-
-## Observations
-
-- CPU usage fluctuates but is not maxed out
-- Database is generally fast, but occasionally responds in 2–3 seconds
-- External service is inconsistent (100ms to 2–3 seconds)
-- Cache hit rate is ~60% (below optimal 90%+)
-- Under load, response time varies significantly
+## Сценарий
+Отчеты пользователей:
+«API иногда отвечает через ~200 мс, иногда через 5–8 секунд, особенно вечером»
 
 ---
 
-## My Initial Thinking
+## Наблюдения
 
-- I recognized that there is no single bottleneck
-- I identified instability caused by multiple small delays
-- I considered long-tail latency and outlier impact
-
----
-
-## What Is Happening
-
-- Occasional slow responses from DB and external service
-- These slow operations occupy workers and resources
-- New requests are queued and delayed
-
-→ Result:
-Even fast requests are slowed down due to resource contention
+- Загрузка ЦП колеблется, но не достигает максимума
+- База данных обычно работает быстро, но иногда отвечает через 2–3 секунды.
+- Внешняя служба нестабильна (от 100 мс до 2–3 секунд)
+- Частота попадания в кэш составляет ~60% (ниже оптимальных 90%+).
+- Под нагрузкой время отклика значительно меняется.
 
 ---
 
-## First Step
+## Мои первоначальные размышления
 
-Find correlation between delays:
-
-- Compare API response times with:
-  - DB response times
-  - External service latency
-- Identify if slowdowns occur simultaneously
+- Я понял, что не существует единого узкого места.
+- Я выявил нестабильность, вызванную множеством небольших задержек.
+- Я рассмотрел задержку с длинным хвостом и влияние выбросов
 
 ---
 
-## Root Cause (Combined)
+## Что происходит
 
-- Unstable external dependency
-- Suboptimal cache hit rate
-- Occasional DB slow queries
-- Resource contention under load
-- Possible cache stampede
+- Периодические медленные ответы от базы данных и внешнего сервиса.
+- Эти медленные операции занимают рабочих и ресурсы.
+- Новые запросы ставятся в очередь и задерживаются.
 
----
-
-## Validation
-
-### 1. Analyze logs with timing
-
-- Identify slow requests (>500ms)
-- Track where time is spent (API / DB / external)
+→ Результат:
+Даже быстрые запросы замедляются из-за конкуренции за ресурсы.
 
 ---
 
-### 2. Measure percentiles
+## Первый шаг
 
-- p50 (median)
-- p95 / p99 (tail latency)
+Найдите корреляцию между задержками:
+
+- Сравните время ответа API с:
+  - Время отклика БД
+  - Задержка внешней услуги
+- Определите, происходят ли замедления одновременно.
 
 ---
 
-### 3. Load testing
+## Основная причина (комбинированная)
 
-Command:
+- Нестабильная внешняя зависимость
+- Неоптимальная частота попадания в кэш
+- Случайные медленные запросы к БД
+- Конфликт за ресурсы под нагрузкой
+- Возможная давка в кэше
+
+---
+
+## Проверка гипотез
+
+### 1. Проанализировать журналы с учётом временных отметок
+
+- Выявление медленных запросов (>500 мс)
+- Отслеживать, где тратится время (API/DB/внешний)
+
+---
+
+### 2. Измерение процентилей
+
+- p50 (медиана)
+- p95/p99 (задержка в высоких перцентилях)
+
+---
+
+### 3. Нагрузочное тестирование
+
+Команда:
 ab -n 100 -c 20 http://localhost:8000/api/orders
 
 ---
 
-### 4. (Optional) Distributed tracing
+### 4. (Необязательно) Распределенная трассировка
 
-- Visualize request flow across services
-
----
-
-## Actions
-
-### Priority 1 — Stabilization
-
-- Add timeout for external service calls
-- Implement fail-fast behavior
-- Introduce circuit breaker
+- Визуализация потока запросов между службами
 
 ---
 
-### Priority 2 — Load Reduction
+## Действия
 
-- Improve cache hit rate (target: 90%+)
-- Implement cache warm-up
-- Prevent cache stampede
+### Приоритет 1 — Стабилизация
 
----
-
-### Priority 3 — Optimization
-
-- Optimize DB queries and indexing
-- Tune connection pool sizes
-- Monitor slow queries
+- Добавлен тайм-аут для вызовов внешних служб.
+- Реализуйте отказоустойчивое поведение.
+- Введение предохранителя
 
 ---
 
-## Key Learning
+### Приоритет 2 — Снижение нагрузки
 
-- System instability often comes from multiple small issues
-- Long-tail latency affects overall performance
-- Stability is more important than average speed
-- Must prioritize protection before optimization
+- Улучшение частоты попадания в кэш (цель: 90%+)
+- Реализация прогрева кэша
+- Предотвращение скопления кэша
+
+---
+
+### Приоритет 3 — Оптимизация
+
+- Оптимизация запросов и индексации БД
+- Настройка размеров пула соединений
+- Мониторинг медленных запросов
+
+---
+
+## Основные выводы
+
+- Нестабильность системы часто возникает из-за множества мелких проблем.
+- Задержка с длинным хвостом влияет на общую производительность.
+- Стабильность важнее средней скорости.
+- Перед оптимизацией необходимо установить приоритет защиты.

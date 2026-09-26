@@ -1,31 +1,31 @@
 ## 2026-03-28
-- Added sql_day_3.sql
-- Learned JOIN and GROUP BY
-- Practiced combining tables and aggregating data
+- Добавлен sql_day_3.sql
+- Изучены JOIN и GROUP BY.
+- Практика объединения таблиц и агрегирования данных.
 ## 2026-03-29
-- Sent POST requests in Postman
-- Learned difference between GET and POST
-- Practiced sending JSON body
-- Added postman_day_2/notes.md
+- Отправлены запросы POST в Postman.
+- Изучена разница между GET и POST.
+- Практика отправки тела JSON.
+- Добавлен postman_day_2/notes.md
 ## 2026-03-30
-- Added 2 support cases: page load issue, data not saving
-- Practiced incident thinking (questions, checks, escalation)
-- Learned to distinguish frontend, backend, and network issue
+- Добавлено 2 случая поддержки: проблема с загрузкой страницы, данные не сохраняются.
+- Практика обдумывания инцидентов (вопросы, проверки, эскалация)
+- Научился различать проблемы клиентской части, серверной части и сети
 ## 2026-03-31
-- Sent request with 500 status in Postman
-- Learned how to identify server-side errors
-- Practiced thinking like support (diagnose and escalate)
-- Added postman_day_3/notes.md
+- Отправлен запрос со статусом 500 в Postman.
+- Научились выявлять ошибки на стороне сервера.
+- Практика мышления как поддержка (диагностика и эскалация)
+- Добавлен postman_day_3/notes.md.
 ## 2026-04-01
-- Added sql_day_4.sql
-- Learned AND, OR, NOT conditions
-- Practiced combining filters and using parentheses
+- Добавлен sql_day_4.sql
+- Изучены условия AND, OR, NOT.
+- Практика комбинирования фильтров и использования круглых скобок.
 ## 2026-04-02
-- Added complex support case (data not visible)
-- Practiced full chain: POST → GET → data storage
-- Simulated real scenario in Postman
-- Understood difference between API and database
+- Добавлен сложный случай поддержки (данные не видны)
+- Практика полной цепочки: POST → GET → хранение данных.
+- Смоделированный реальный сценарий в Postman
+- Понятна разница между API и базой данных.
 ## 2026-04-03
-- Updated mini_resume.md with new skills
-- Completed week 2 of IT transition
-- Strengthened SQL, API, Postman, and support thinking
+- Обновлен mini_resume.md новыми навыками.
+- Завершена вторая неделя перехода к ИТ.
+- Укрепил навыки SQL, API, Postman и системного подхода к технической поддержке

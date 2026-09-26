@@ -1,90 +1,90 @@
-# Incident Analysis — Week 7 Day 3
+# Разбор инцидента — неделя 7, день 3
 
-## Scenario
-User reports:
-"After introducing timeouts, API returns errors more frequently instead of slow responses"
-
----
-
-## Observations
-
-- External service latency:
-  - ~70% → 200–300ms
-  - ~30% → 2–3 seconds
-- Timeout is set to 1 second
-- Fail-fast strategy is enabled
+## Сценарий
+Отчеты пользователей:
+«После введения таймаутов API чаще возвращает ошибки вместо медленных ответов»
 
 ---
 
-## What Is Happening
+## Наблюдения
 
-- Timeout cuts off slow but potentially successful responses
-- 30% of requests are prematurely terminated
-- System becomes faster but less successful
-
-→ Result:
-Latency improves, but error rate increases
-
----
-
-## Core Problem
-
-- Timeout is too aggressive for real latency distribution
-- System prioritizes responsiveness over success rate
-- No adaptive strategy for handling slow responses
+- Задержка внешней услуги:
+  - ~70% → 200–300 мс
+  - ~30% → 2–3 секунды
+- Тайм-аут установлен на 1 секунду.
+- Включена стратегия отказоустойчивости.
 
 ---
 
-## Trade-Off
+## Что происходит
 
-- Responsiveness (fast failure)
-- Availability / Success rate (waiting longer)
+- Тайм-аут отсекает медленные, но потенциально успешные ответы.
+- 30% запросов прекращаются преждевременно
+- Система становится быстрее, но менее успешной
 
-System must balance both based on business needs
-
----
-
-## Solutions
-
-### 1. Bounded Retry (Balanced Approach)
-
-- Keep short timeout (e.g., 1s)
-- Retry failed requests within a total deadline (e.g., 2–3s)
-- Limit number of retries
-
-Result:
-- Improves success rate without long blocking
+→ Результат:
+Задержка улучшается, но увеличивается частота ошибок.
 
 ---
 
-### 2. Fallback / Partial Success
+## Основная проблема
 
-- Provide alternative response if dependency fails
-
-Examples:
-- Show cached or popular data
-- Return partial results
-
-Result:
-- Avoids hard failures
-- Maintains user experience
+- Тайм-аут слишком агрессивен для реального распределения задержки.
+- Система отдает приоритет оперативности, а не успеху.
+- Нет адаптивной стратегии для обработки медленных ответов.
 
 ---
 
-### 3. Asynchronous Processing
+## Компромисс
 
-- Accept request and process in background
-- Return immediate acknowledgment
+- Быстродействие (быстрый отказ)
+- Доступность/доля успеха (длительное ожидание)
 
-Result:
-- Decouples user experience from slow dependencies
-- Handles long-running operations safely
+Система должна сбалансировать оба подхода в зависимости от потребностей бизнеса.
 
 ---
 
-## Key Learning
+## Решения
 
-- Timeout transforms latency variability into deterministic failures
-- Fast failure is not always better than slow success
-- System design must reflect business priorities
-- Graceful degradation improves user experience
+### 1. Ограниченное число повторов (сбалансированный подход)
+
+- Сохраняйте короткий тайм-аут (например, 1 с)
+- Повторить неудачные запросы в течение общего срока (например, 2–3 секунды).
+- Ограничить количество повторов
+
+Результат:
+- Повышает вероятность успеха без длительной блокировки.
+
+---
+
+### 2. Резервный вариант/частичный успех
+
+- Предоставить альтернативный ответ, если зависимость не удалась.
+
+Примеры:
+- Показать кэшированные или популярные данные
+- Возврат частичных результатов
+
+Результат:
+- Предотвращает серьезные сбои
+- Поддерживает пользовательский опыт
+
+---
+
+### 3. Асинхронная обработка
+
+- Принять запрос и обработать его в фоновом режиме.
+- Немедленное возвратное подтверждение
+
+Результат:
+- Отделяет пользовательский опыт от медленных зависимостей.
+- Безопасно справляется с длительными операциями.
+
+---
+
+## Основные выводы
+
+- Тайм-аут преобразует изменчивость задержки в детерминированные сбои.
+- Быстрая неудача не всегда лучше медленного успеха.
+- Проект системы должен отражать бизнес-приоритеты.
+- Плавное ухудшение качества улучшает взаимодействие с пользователем.

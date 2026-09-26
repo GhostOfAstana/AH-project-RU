@@ -1,33 +1,33 @@
-# Incident Report 4
+# Отчет об инциденте 4
 
-## Issue
-User reports: "Payment was successful, but order is not created"
+## Проблема
+Пользователь сообщает: «Платеж прошел успешно, но заказ не создан»
 
-## Steps to Reproduce
-1. User completes payment
-2. Payment is confirmed (status 200 / success)
-3. Order is not created in the system
+## Этапы воспроизведения
+1. Пользователь завершает оплату
+2. Платеж подтвержден (статус 200/успех)
+3. Заказ не создается в системе
 
-## Observed Result
-- Payment is successful
-- No order appears in the system
+## Наблюдаемый результат
+- Платеж прошел успешно
+- В системе не появляется заказ
 
-## Expected Result
-- Successful payment should create an order
+## Ожидаемый результат
+- Успешный платеж должен создать заказ.
 
-## Initial Analysis
-- Payment service works correctly
-- Order creation step may have failed
-- Possible issue in backend integration between payment and order service
+## Первоначальный анализ
+- Платежный сервис работает корректно
+- Возможно, произошел сбой на этапе создания заказа.
+- Возможная проблема в серверной интеграции между службой оплаты и заказа.
 
-## Possible Causes
-- Failure in order creation API after payment
-- Data not passed correctly between services
-- Backend processing error after payment confirmation
+## Возможные причины
+- Сбой в API создания заказа после оплаты.
+- Данные не передаются корректно между службами.
+- Ошибка внутренней обработки после подтверждения платежа
 
-## Escalation (Important)
-Escalating to backend team with:
-- Steps to reproduce
-- Confirmation that payment is successful
-- Missing order creation after payment
-- Request to check integration between payment and order services
+## Эскалация (важно)
+Передача бэкэнд-группе с:
+- Этапы воспроизведения
+- Подтверждение того, что платеж прошел успешно
+- Отсутствует создание заказа после оплаты
+- Запрос на проверку интеграции между сервисами оплаты и заказа

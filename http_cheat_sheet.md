@@ -1,41 +1,41 @@
-# HTTP Cheat Sheet
+# Шпаргалка по HTTP
 
-## Request and Response
-- Request = message from client to server
-- Response = message from server to client
+## Запрос и ответ
+- Запрос = сообщение от клиента к серверу
+- Ответ = сообщение от сервера клиенту.
 
-## Main HTTP Methods
-- GET = get data
-- POST = create or send data
-- PUT = update/replace data
-- DELETE = remove data
+## Основные методы HTTP
+- GET = получить данные
+- POST = создать или отправить данные
+- PUT = обновить/заменить данные
+- DELETE = удалить данные
 
-## Common Status Codes
-- 200 = OK
-- 201 = Created
-- 400 = Bad Request
-- 401 = Unauthorized
-- 403 = Forbidden
-- 404 = Not Found
-- 500 = Internal Server Error
+## Общие коды состояния
+- 200 = ОК
+- 201 = Создано
+- 400 = Неверный запрос
+- 401 = требуется аутентификация
+- 403 = Запрещено
+- 404 = Не найдено
+- 500 = Внутренняя ошибка сервера
 
-## Simple Examples
+## Простые примеры
 
-### GET example
-Client asks server for users list.
+### Пример GET
+Клиент запрашивает у сервера список пользователей.
 
-### POST example
-Client sends new user data to server.
+### Пример POST
+Клиент отправляет новые пользовательские данные на сервер.
 
-### PUT example
-Client updates existing user data.
+### Пример PUT
+Клиент обновляет существующие пользовательские данные.
 
-### DELETE example
-Client removes a user.
+### Пример DELETE
+Клиент удаляет пользователя.
 
-## My Reminder
-When I see an API request, I ask:
-1. What method is used?
-2. What data is sent?
-3. What status code came back?
-4. What does the response mean?
+## Памятка
+Когда я вижу запрос API, я спрашиваю:
+1. Какой метод используется?
+2. Какие данные отправляются?
+3. Какой код состояния вернулся?
+4. Что означает ответ?

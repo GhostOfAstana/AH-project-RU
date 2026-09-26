@@ -1,84 +1,84 @@
-# Incident Analysis — Week 5 Day 6
+# Разбор инцидента — неделя 5, день 6
 
-## Scenario
-User reports: "Order is created successfully but does not appear immediately"
-
----
-
-## Context
-
-- Order creation API returns success
-- Order is stored in database
-- Subsequent request to fetch orders does not include the new order
+## Сценарий
+Пользователь сообщает: «Заказ создан успешно, но не появляется сразу»
 
 ---
 
-## My Initial Thinking
+## Контекст
 
-- I identified that the issue is not in order creation
-- I suspected cache-related problem
-- I suggested clearing cache after order creation
-
-### Problem
-- My explanation was too general
-- I did not consider different cache strategies
-- I did not explicitly describe read/write inconsistency
+- API создания заказа возвращает успех
+- Заказ сохраняется в базе данных.
+- Последующий запрос на получение заказов не включает новый заказ.
 
 ---
 
-## Corrected Approach
+## Мои первоначальные размышления
 
-### 1. What Is Happening
+- Я определил, что проблема не связана с созданием заказа
+- Я подозревал проблему, связанную с кэшем
+- Я предложил очистить кеш после создания заказа
 
-- Write operation (create order) is successful
-- Read operation (get orders) returns outdated data
-- Database contains correct data, but cache does not reflect it
-
-→ This is a read/write inconsistency issue
-
----
-
-### 2. First Step
-
-Verify cache behavior after write operation:
-- Does cache update after new order?
-- Does cache return stale data?
+### Проблема
+- Мое объяснение было слишком общим
+- Я не рассматривал различные стратегии кэширования
+- Я не описывал явно несогласованность чтения/записи.
 
 ---
 
-### 3. Root Cause
+## Исправленный подход
 
-- Cache is not invalidated or updated after write
-- System reads from cache instead of DB
-- Cache contains outdated (stale) data
+### 1. Что происходит
 
----
+- Операция записи (создание заказа) прошла успешно.
+- Операция чтения (получения заказов) возвращает устаревшие данные
+- База данных содержит правильные данные, но кэш их не отражает.
 
-### 4. Validation
-
-- Create a new order
-- Immediately request order list → check result
-- Clear cache manually
-- Request again → verify if order appears
-
-Additional checks:
-- Inspect cache TTL
-- Monitor cache key updates
+→ Это проблема несогласованности чтения/записи.
 
 ---
 
-### 5. Actions
+### 2. Первый шаг
 
-- Implement cache invalidation on write
-- Update cache after successful order creation
-- Adjust TTL if necessary
-- Consider write-through caching strategy
+Проверьте поведение кэша после операции записи:
+- Обновляется ли кэш после нового заказа?
+- Возвращает ли кэш устаревшие данные?
 
 ---
 
-## Key Learning
+### 3. Основная причина
 
-- Write success does not guarantee correct read behavior
-- Cache must stay consistent with database
-- Stale cache can cause user-visible inconsistencies
-- Always validate assumptions with experiments
+- Кэш не аннулируется и не обновляется после записи.
+- Система читает из кэша вместо БД.
+- Кэш содержит устаревшие (устаревшие) данные
+
+---
+
+### 4. Проверка гипотез
+
+- Создать новый заказ
+- Немедленно запросить список заказов → проверить результат
+- Очистить кэш вручную
+- Повторите запрос → проверьте, появился ли заказ
+
+Дополнительные проверки:
+- Проверка TTL кэша
+- Мониторинг обновлений ключей кэша
+
+---
+
+### 5. Действия
+
+- Реализация аннулирования кэша при записи.
+- Обновление кеша после успешного создания заказа
+- При необходимости отрегулируйте TTL.
+- Рассмотрите стратегию кэширования со сквозной записью.
+
+---
+
+## Основные выводы
+
+- Успешная запись не гарантирует корректного поведения чтения.
+- Кэш должен оставаться согласованным с базой данных.
+- Устаревший кэш может вызвать видимые пользователем несоответствия.
+- Всегда подтверждайте предположения экспериментами.

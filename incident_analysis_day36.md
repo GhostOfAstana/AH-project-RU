@@ -1,333 +1,333 @@
-# Incident Analysis — Week 9 Day 1
+# Разбор инцидента — неделя 9, день 1
 
-## Scenario
+## Сценарий
 
-Team deployed API into Kubernetes cluster.
+Команда развернула API в кластере Kubernetes.
 
-System worked correctly on staging.
+Система корректно работала на этапе постановки.
 
-However, production environment started showing severe instability:
-- Pods periodically restarted
-- requests terminated unexpectedly
-- Kubernetes events showed `OOMKilled`
-- p99 latency increased sharply before restarts
-- some Pods disappeared completely under load
-- entire node became slow and unstable
+Однако рабочая среда начала демонстрировать серьезную нестабильность:
+- Объекты Pod периодически перезапускались
+- Запросы неожиданно завершаются
+- События Kubernetes показали `OOMKilled`
+- Задержка p99 резко увеличилась перед перезапусками.
+- некоторые Pod полностью пропадали под нагрузкой
+- Весь узел стал медленным и нестабильным
 
-Observed metrics:
-- CPU usage: 45%
-- Node RAM usage: 98%
-- Kubernetes events:
+Наблюдаемые показатели:
+- Загрузка ЦП: 45%
+- Использование оперативной памяти узла: 98%
+- События Kubernetes:
   - OOMKilled
   - Evicted
 
-CTO concluded that the team does not understand Kubernetes resource management and memory isolation.
+Технический директор пришел к выводу, что команда не понимает Kubernetes управления ресурсами и изоляции памяти.
 
 ---
 
-## What Problem Is Happening
+## В чём заключается проблема
 
-The cluster entered memory overcommitment state.
+Кластер вошел в состояние перераспределения памяти.
 
-Production traffic caused applications to consume significantly more RAM than during staging tests.
+Рабочий трафик приводил к тому, что приложения потребляли значительно больше оперативной памяти, чем во время промежуточных тестов.
 
-As node memory approached exhaustion:
-- Linux kernel activated Out Of Memory protection mechanisms
-- Kubernetes started eviction procedures
-- node stability degraded
+Когда память узла приближалась к исчерпанию:
+- Ядро Linux активировало механизмы защиты от нехватки памяти.
+- Kubernetes начал процедуру вытеснения.
+- Стабильность узла ухудшилась
 
-System behavior became unstable because memory is an incompressible resource.
+Поведение системы стало нестабильным, поскольку память является несжимаемым ресурсом.
 
-Unlike CPU starvation:
-- memory exhaustion cannot be delayed safely
-- processes must be terminated to protect node survival
+В отличие от голодания ЦП:
+- Истощение памяти не может быть отсрочено безопасно
+- Процессы должны быть завершены, чтобы защитить выживание узла
 
-Result:
-- request interruptions
-- Pod restarts
-- node degradation
-- cascading instability
-
----
-
-## What OOMKilled Actually Is
-
-OOMKilled is not generated directly by Kubernetes.
-
-It originates from Linux kernel memory protection mechanisms.
-
-Kubernetes relies on Linux cgroups (control groups) to isolate container resources.
-
-Mechanism:
-1. Kubernetes defines memory limits for container
-2. Linux cgroups enforce those limits
-3. Process attempts to allocate memory beyond limit
-4. Kernel denies allocation
-5. Linux OOM Killer selects victim process
-6. Process receives SIGKILL
-7. Container exits with code 137
-8. Kubernetes reports state as OOMKilled
-
-Result:
-- container terminates immediately
-- active requests are interrupted
-- Pod may restart depending on restart policy
+Результат:
+- Запросить перерывы
+- Перезапуски Pod
+- Деградация узла
+- каскадная нестабильность
 
 ---
 
-## Container-Level OOM vs Node-Level OOM
+## Что на самом деле представляет собой OOMKilled
 
-### Container-Level OOM
+OOMKilled не генерируется непосредственно Kubernetes.
 
-Occurs when:
-- container exceeds its cgroup memory limit
+Он происходит из механизмов защиты памяти ядра Linux.
 
-Result:
-- specific container dies
-- node remains operational
+Kubernetes использует cgroups Linux (группы управления) для изоляции ресурсов контейнера.
+
+Механизм:
+1. Kubernetes определяет пределы памяти для контейнера.
+2. Контрольные группы Linux обеспечивают соблюдение этих ограничений.
+3. Процесс пытается выделить память сверх лимита
+4. Ядро отказывается от выделения
+5. Linux OOM Killer выбирает процесс-жертву
+6. Процесс получает сигнал SIGKILL.
+7. Контейнер выезжает с кодом 137
+8. Kubernetes сообщает о состоянии как OOMKilled
+
+Результат:
+- Контейнер немедленно завершает работу
+- активные запросы прерываются
+- Pod может перезапуститься в зависимости от политики перезапуска.
 
 ---
 
-### Node-Level OOM
+## OOM уровня контейнера и OOM уровня узла
 
-Occurs when:
-- total node memory becomes exhausted
+### OOM уровня контейнера
 
-Result:
-- Linux kernel may kill:
-  - application Pods
+Происходит, когда:
+- контейнер превышает лимит памяти cgroup
+
+Результат:
+- Специальные штампы для контейнеров
+- Узел остается работоспособным
+
+---
+
+### OOM уровня узла
+
+Происходит, когда:
+- Общая память узла исчерпана
+
+Результат:
+- Ядро Linux может убить:
+  - Объекты Pod приложения
   - kubelet
-  - container runtime
-  - system services
+  - время выполнения контейнера
+  - системные службы
 
-This creates catastrophic node instability.
-
----
-
-## Why Memory Pressure Is More Dangerous Than CPU Pressure
-
-CPU is a compressible resource.
-
-When CPU becomes overloaded:
-- processes slow down
-- latency increases
-- Linux throttles execution time
-
-Application usually remains alive.
+Это создает катастрофическую нестабильность узла.
 
 ---
 
-Memory is an incompressible resource.
+## Почему нагрузка на память более опасна, чем нагрузка на процессор
 
-When memory becomes unavailable:
-- allocations fail immediately
-- operating system cannot delay allocation safely
-- kernel must terminate processes
+ЦП представляет собой сжимаемый ресурс.
 
-Result:
-- abrupt request failures
-- broken client sessions
-- Pod crashes
-- infrastructure instability
+Когда ЦП перегружен:
+- процессы замедляются
+- Задержка увеличивается
+- Linux регулирует время выполнения
+
+Приложение обычно остается активным.
 
 ---
 
-## What Requests Are
+Память представляет собой несжимаемый ресурс.
 
-Requests define guaranteed resource reservation.
+Когда память становится недоступной:
+- Немедленный сбой распределения
+- операционная система не может безопасно задержать выделение
+- Ядро должно завершать процессы
 
-Kubernetes Scheduler uses requests during Pod placement decisions.
-
-Example:
-- Pod requests 2 GB RAM
-- Scheduler places Pod only on node with enough allocatable memory
-
-Purpose:
-- prevent uncontrolled overcommitment
-- improve placement predictability
-- reserve minimum required resources
-
-Requests affect:
-- scheduling
-- QoS classification
-- cluster capacity planning
+Результат:
+- внезапные сбои запросов
+- прерванные клиентские сессии
+- Pod аварийно завершает работу.
+- нестабильность инфраструктуры
 
 ---
 
-## What Limits Are
+## Что такое запросы ресурсов (requests)
 
-Limits define maximum allowed resource consumption.
+Запросы ресурсов определяют гарантированно резервируемый объём.
 
-Linux cgroups enforce limits strictly.
+Планировщик Kubernetes учитывает запрошенные ресурсы при размещении Pod.
 
-If container exceeds memory limit:
-- allocation fails
-- OOM Killer may terminate process
+Пример:
+- Pod запрашивает 2 ГБ ОЗУ
+- Планировщик размещает Pod только на узле с достаточным количеством выделяемой памяти.
 
-Purpose:
-- prevent noisy neighbor problems
-- isolate workloads
-- protect node stability
+Назначение:
+- Предотвратить неконтролируемое превышение обязательств
+- улучшить предсказуемость размещения
+- зарезервировать минимально необходимые ресурсы
+
+Запросы ресурсов влияют на:
+- планирование
+- Классификация QoS
+- Планирование ресурсов кластера
 
 ---
 
-## Kubernetes QoS Classes
+## Что такое лимиты ресурсов (limits)
 
-Kubernetes assigns QoS (Quality of Service) classes based on requests and limits.
+Лимиты задают максимально допустимое потребление ресурсов.
+
+Групповые группы Linux строго соблюдают ограничения.
+
+Если контейнер превышает предел памяти:
+- Не удалось выделить
+- OOM Killer может завершить процесс
+
+Назначение:
+- Предотвратить проблемы с шумными соседями
+- изолировать рабочие нагрузки
+- Защита стабильности узла
+
+---
+
+## Классы QoS в Kubernetes
+
+Kubernetes назначает классы QoS (качества обслуживания) на основе запросов и ограничений.
 
 ---
 
 ### Guaranteed
 
-Requirements:
+Требования:
 - requests == limits
-- for both CPU and memory
+- как для ЦП, так и для памяти
 
-Characteristics:
-- highest stability
-- lowest eviction priority
-- strongest isolation
+Характеристики:
+- высочайшая стабильность
+- Самый низкий приоритет вытеснения
+- сильнейшая изоляция
 
-Used for:
-- critical APIs
-- ingress controllers
-- production databases
+Используется для:
+- критические API
+- Входные контроллеры
+- рабочие базы данных
 
 ---
 
 ### Burstable
 
-Requirements:
-- requests defined
-- limits higher than requests
+Требования:
+- Определены запросы
+- лимиты выше запросов
 
-Characteristics:
-- flexible scaling behavior
-- moderate protection
-- moderate eviction risk
+Характеристики:
+- гибкое поведение масштабирования
+- умеренная защита
+- умеренный риск вытеснения
 
-Most common production class.
+Самый распространенный рабочий класс.
 
 ---
 
 ### BestEffort
 
-Requirements:
-- no requests
-- no limits
+Требования:
+- нет запросов
+- ограничений нет
 
-Characteristics:
-- no guarantees
-- highest eviction priority
-- extremely dangerous in production
+Характеристики:
+- Никаких гарантий
+- высший приоритет вытеснения
+- Крайне опасен в рабочей среде
 
-BestEffort Pods are usually killed first during node pressure.
-
----
-
-## What Eviction Is
-
-Eviction is Kubernetes node survival mechanism.
-
-When node experiences memory pressure:
-- kubelet proactively removes Pods
-
-Purpose:
-- protect node stability
-- avoid full node crash
-- preserve critical workloads
-
-Eviction occurs before total node failure whenever possible.
+При нехватке ресурсов узла объекты Pod класса BestEffort обычно завершаются первыми.
 
 ---
 
-## Noisy Neighbor Problem
+## Что такое вытеснение Pod
 
-Without limits:
-- one workload may consume excessive resources
-- neighboring applications become unstable
+Вытеснение является механизмом выживания узла Kubernetes.
 
-This is called noisy neighbor effect.
+Когда узел испытывает нехватку памяти:
+- kubelet активно удаляет Pod
 
-Limits and QoS isolation reduce:
-- resource starvation
-- cross-service instability
-- unpredictable failures
+Назначение:
+- Защита стабильности узла
+- избежать полного сбоя узла
+- сохранять критические рабочие нагрузки
 
----
-
-## Production-Grade Resource Management
-
-Stable production infrastructure requires:
-
-### Proper Requests And Limits
-
-Every critical workload must define:
-- CPU requests
-- memory requests
-- CPU limits
-- memory limits
-
-BestEffort workloads should not exist in production.
+Вытеснение происходит до полного отказа узла, когда это возможно.
 
 ---
 
-### Guaranteed QoS For Critical Services
+## Проблема «шумного соседа»
 
-Critical components should use:
-- Guaranteed QoS
-- predictable memory boundaries
-- stable scheduling behavior
+Без ограничений:
+- одна рабочая нагрузка может потреблять чрезмерные ресурсы
+- соседние приложения становятся нестабильными
+
+Это называется эффектом шумного соседа.
+
+Лимиты и изоляция по классам QoS уменьшают:
+- нехватка ресурсов
+- межсервисная нестабильность
+- непредсказуемые сбои
 
 ---
 
-### Node Allocatable Reservation
+## Управление ресурсами в рабочей среде
 
-Part of node resources must remain reserved for:
+Стабильная рабочая инфраструктура требует:
+
+### Корректные запросы ресурсов и лимиты
+
+Каждая критическая рабочая нагрузка должна определять:
+- Запросы ЦП
+- Запросы памяти
+- Ограничения ЦП
+- ограничения памяти
+
+Рабочие нагрузки BestEffort не должны существовать в рабочей среде.
+
+---
+
+### Класс QoS Guaranteed для критически важных сервисов
+
+Критические компоненты должны использовать:
+- Guaranteed Качество обслуживания
+- предсказуемые границы памяти
+- Стабильное поведение планирования
+
+---
+
+### Резервирование системных ресурсов узла
+
+Часть ресурсов узла должна оставаться зарезервированной для:
 - kubelet
-- container runtime
-- Linux kernel
-- system daemons
+- время выполнения контейнера
+- Ядро Linux
+- системные демоны
 
-Without reservation:
-- node itself may become unstable
-
----
-
-### Horizontal Scaling
-
-Horizontal Pod Autoscaler (HPA) should scale workloads based on:
-- CPU
-- memory
-- traffic patterns
-
-Purpose:
-- distribute load
-- avoid memory saturation
-- reduce risk of OOM events
+Без оговорок:
+- Сам узел может стать нестабильным
 
 ---
 
-### Observability
+### Горизонтальное масштабирование
 
-Production monitoring must track:
-- memory usage
-- memory growth trends
-- eviction events
-- OOMKilled frequency
-- p95/p99 latency
-- node pressure signals
+Horizontal Pod Autoscaler (HPA) должен масштабировать рабочие нагрузки на основе:
+- ЦП
+- память
+- Шаблоны трафика
+
+Назначение:
+- Распределить нагрузку
+- избегать перенасыщения памяти
+- Снизить риск событий ООМ
 
 ---
 
-## Key Learning
+### Наблюдаемость
 
-- memory exhaustion causes process termination
-- Kubernetes relies on Linux cgroups for isolation
-- OOMKilled originates from Linux kernel protection
-- requests affect scheduling decisions
-- limits enforce hard resource boundaries
-- BestEffort Pods are dangerous in production
-- QoS classes influence eviction priority
-- memory pressure is more dangerous than CPU pressure
-- stable infrastructure requires predictable resource governance
+Рабочий мониторинг должен отслеживать:
+- использование памяти
+- Тенденции роста памяти
+- события вытеснения
+- Частота OOMKilled
+- Задержка p95/p99
+- Узел сигналов давления
+
+---
+
+## Основные выводы
+
+- Исчерпание памяти приводит к завершению процесса
+- Kubernetes использует cgroups Linux для изоляции.
+- OOMKilled происходит от защиты ядра Linux.
+- Запросы влияют на решения по планированию
+- Ограничения обеспечивают соблюдение жестких границ ресурсов
+- BestEffort Pod опасны в рабочей среде
+- Классы QoS влияют на приоритет вытеснения
+- Нехватка памяти более опасна, чем нагрузка на процессор
+- Стабильная инфраструктура требует предсказуемого управления ресурсами.

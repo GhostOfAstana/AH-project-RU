@@ -1,236 +1,236 @@
-# Incident Analysis — Week 8 Day 6
+# Разбор инцидента — неделя 8, день 6
 
-## Scenario
+## Сценарий
 
-Team successfully deployed API into Kubernetes.
+Команда успешно развернула API в Kubernetes.
 
-Pods were running.
-ReplicaSets maintained replica count.
-Deployments updated successfully.
+Pod работали.
+ReplicaSets поддерживал количество реплик.
+Deployments успешно обновлен.
 
-However, new problems appeared:
-- frontend intermittently received 502 Bad Gateway
-- some requests reached old API versions
-- internal services worked, but external API became unreachable
-- connections broke after Pod restart
-- developers tried using direct Pod IPs
-- NodePorts were manually opened for multiple services
+Однако появились новые проблемы:
+- Интерфейс периодически получал 502 Bad Gateway
+- некоторые запросы достигали старых версий API
+- внутренние сервисы работали, но внешний API стал недоступен
+- соединения разорвались после перезапуска Pod
+- Разработчики пытались использовать прямые IP-адреса Pod.
+- Порты NodePort были открыты вручную для нескольких сервисов.
 
-CTO concluded that the team does not understand Kubernetes networking model.
-
----
-
-## What Problem Is Happening
-
-The team incorrectly treats Pod IP addresses as stable infrastructure endpoints.
-
-This contradicts Kubernetes architecture:
-- Pods are ephemeral
-- Pod IPs are temporary
-- Pods are continuously replaced during scaling, deployment, and recovery
-
-As a result:
-- connections break after Pod recreation
-- traffic routing becomes unstable
-- infrastructure becomes tightly coupled to runtime state
-
-Additionally:
-- uncontrolled NodePort exposure creates operational and security chaos
+Технический директор пришел к выводу, что команда не понимает сетевую модель Kubernetes.
 
 ---
 
-## What Kubernetes Service Actually Is
+## В чём заключается проблема
 
-Service is a stable virtual networking abstraction over a dynamic group of Pods.
+Команда неправильно трактует IP-адреса Pod как конечные точки стабильной инфраструктуры.
 
-Mechanically, Service works through:
-- virtual IP allocation
-- label selectors
-- endpoint tracking
-- kube-proxy traffic routing
+Это противоречит архитектуре Kubernetes:
+- Pod являются эфемерными
+- IP-адреса Pod являются временными.
+- Pod постоянно заменяются во время масштабирования, развертывания и восстановления.
 
-Service does not track Pods directly.
+В результате:
+- соединения разрываются после воссоздания Pod
+- Маршрутизация трафика становится нестабильной
+- инфраструктура становится тесно связанной с состоянием времени выполнения
 
-Instead:
-1. Service selects Pods using labels
-2. Kubernetes continuously updates Endpoints list
-3. kube-proxy configures networking rules
-4. traffic is routed toward healthy Pods
+Дополнительно:
+- неконтролируемое воздействие NodePort создает хаос в работе и безопасности.
 
-Traffic forwarding is usually implemented using:
+---
+
+## Что на самом деле представляет собой Kubernetes Service
+
+Сервис представляет собой стабильную абстракцию виртуальной сети в динамической группе Pod.
+
+Механически Сервис работает посредством:
+- Распределение виртуального IP
+- селекторы меток
+- отслеживание конечной точки
+- kube-proxy маршрутизация трафика
+
+Сервис не отслеживает Pod напрямую.
+
+Вместо этого:
+1. Сервис выбирает Pod с помощью меток
+2. Kubernetes постоянно обновляет список конечных точек.
+3. kube-proxy настраивает сетевые правила
+4. Трафик направляется к исправным объектам Pod
+
+Переадресация трафика обычно реализуется с использованием:
 - iptables
 - IPVS
 
-on every cluster node.
+на каждом узле кластера.
 
 ---
 
-## Why Service Solves Ephemeral Pod IP Problem
+## Как Service решает проблему временных IP-адресов Pod
 
-Pods can:
-- crash
-- restart
-- reschedule
-- scale
-- update
+Объекты Pod могут:
+- авария
+- перезапуск
+- перенести расписание
+- масштаб
+- обновление
 
-Every recreated Pod receives a new IP address.
+Каждый воссозданный Pod получает новый IP-адрес.
 
-Service solves this by providing:
-- stable virtual IP
-- stable DNS name
-- automatic backend discovery
+Сервис решает эту проблему, предоставляя:
+- стабильный виртуальный IP
+- стабильное DNS-имя
+- автоматическое обнаружение серверной части
 
-Applications communicate with:
-- Service
+Приложения взаимодействуют с:
+- Сервис
 
-instead of:
-- direct Pod addresses
+вместо:
+- прямые адреса Pod
 
-When Pods change:
-- Endpoints update automatically
-- Service IP remains unchanged
+При изменении Pod:
+- Конечные точки обновляются автоматически
+- IP-адрес службы остается неизменным.
 
-Result:
-- clients remain unaffected by Pod lifecycle events
+Результат:
+- Клиенты остаются незатронутыми событиями жизненного цикла Pod.
 
 ---
 
-## ClusterIP
+## ClusterIP — внутренний IP-адрес сервиса
 
-ClusterIP is the default Service type.
+ClusterIP является типом службы по умолчанию.
 
-Characteristics:
-- internal cluster access only
-- inaccessible from the internet
-- used for internal communication
+Характеристики:
+- Доступ только к внутреннему кластеру
+- недоступен из Интернета
+- используется для внутренней связи
 
-Typical usage:
+Типичное использование:
 - PostgreSQL
 - Redis
-- internal APIs
-- backend communication
+- внутренние API
+- Внутренняя связь
 
-ClusterIP improves:
-- security
-- isolation
-- internal service discovery
-
----
-
-## NodePort
-
-NodePort exposes Service through a static port on every cluster node.
-
-Mechanism:
-- Kubernetes opens port range (usually 30000–32767)
-- traffic reaching node:port redirects into Service
-
-Characteristics:
-- externally reachable
-- simple but limited
-- often used for testing or small systems
-
-Problems:
-- poor scalability
-- difficult port management
-- increased attack surface
-
-NodePort should not become primary production exposure strategy.
+ClusterIP улучшает:
+- безопасность
+- изоляция
+- обнаружение внутренних служб
 
 ---
 
-## LoadBalancer
+## NodePort — доступ через порт узла
 
-LoadBalancer integrates Kubernetes with cloud provider infrastructure.
+NodePort предоставляет Сервис через статический порт на каждом узле кластера.
 
-Mechanism:
-- Kubernetes requests external cloud load balancer
-- cloud provider allocates public IP
-- traffic forwards into cluster Services
+Механизм:
+- Kubernetes открывает диапазон портов (обычно 30000–32767)
+- трафик, достигающий узла:порт, перенаправляется в Сервис
 
-Characteristics:
-- production-grade external exposure
-- managed traffic distribution
-- cloud-native integration
+Характеристики:
+- доступный извне
+- простой, но ограниченный
+- часто используется для тестирования или небольших систем
 
-Typically used in:
-- AWS
-- GCP
-- Azure
+Проблемы:
+- плохая масштабируемость
+- сложное управление портами
+- увеличенная поверхность атаки
 
-LoadBalancer often works together with NodePort internally.
-
----
-
-## What Ingress Is
-
-Ingress is Layer 7 HTTP/HTTPS routing abstraction.
-
-Ingress does not directly forward packets.
-
-Instead, it defines routing rules:
-- host-based routing
-- path-based routing
-- TLS termination
-- redirects
-- traffic policies
-
-Example:
-- mysite.kz/api → API service
-- mysite.kz/admin → admin service
-
-Ingress allows:
-- one public entrypoint
-- centralized SSL handling
-- smart HTTP routing
+NodePort не следует использовать как основной способ предоставления внешнего доступа в рабочей среде.
 
 ---
 
-## Ingress Controller
+## LoadBalancer — внешний балансировщик нагрузки
 
-Ingress resource alone does nothing.
+LoadBalancer интегрирует Kubernetes с инфраструктурой облачного провайдера.
 
-Actual traffic processing is performed by:
-- Ingress Controller
+Механизм:
+- Kubernetes запрашивает внешний балансировщик нагрузки облака
+- Поставщик облачных услуг выделяет публичный IP-адрес
+- Перенаправление трафика в службы кластера
 
-Examples:
+Характеристики:
+- Внешнее воздействие для рабочей среды
+- управляемое распределение трафика
+- облачная интеграция
+
+Обычно используется в:
+- АВС
+- ГКП
+- Лазурь
+
+LoadBalancer часто работает вместе с NodePort внутри страны.
+
+---
+
+## Что такое Ingress
+
+Входной трафик представляет собой абстракцию маршрутизации HTTP/HTTPS уровня 7.
+
+Ingress не пересылает пакеты напрямую.
+
+Вместо этого он определяет правила маршрутизации:
+- Маршрутизация на основе хоста
+- Маршрутизация на основе пути
+- Завершение TLS
+- перенаправляет
+- Политика трафика
+
+Пример:
+- mysite.kz/api → Сервис API
+- mysite.kz/admin → служба администрирования
+
+Ingress позволяет:
+- одна общедоступная точка входа
+- централизованная обработка SSL
+- интеллектуальная маршрутизация HTTP
+
+---
+
+## Контроллер Ingress
+
+Входной ресурс сам по себе ничего не делает.
+
+Фактическая обработка трафика выполняется посредством:
+- Контроллер Ingress
+
+Примеры:
 - NGINX Ingress
-- Traefik
+- Траефик
 - HAProxy
-- Kong
+- Конг
 
-Ingress Controller reads Kubernetes Ingress objects and configures reverse proxy behavior.
-
----
-
-## Layer 4 vs Layer 7
-
-LoadBalancer primarily operates at:
-- Layer 4 (TCP/UDP)
-
-Ingress operates at:
-- Layer 7 (HTTP/HTTPS)
-
-Difference:
-- Layer 4 routes packets
-- Layer 7 understands HTTP requests
-
-Ingress can route based on:
-- URL paths
-- domains
-- headers
-- TLS configuration
+Ingress Controller считывает входные объекты Kubernetes и настраивает поведение обратного прокси-сервера.
 
 ---
 
-## Key Learning
+## Сетевые уровни L4 и L7
 
-- Pod IPs are temporary
-- Services provide stable networking abstraction
-- kube-proxy routes traffic toward healthy Pods
-- ClusterIP is internal-only
-- NodePort exposes node-level ports
-- LoadBalancer integrates cloud external networking
-- Ingress provides Layer 7 HTTP routing
-- Kubernetes networking depends on abstractions, not direct infrastructure addresses
+LoadBalancer в основном работает по адресу:
+- Уровень 4 (TCP/UDP)
+
+Ingress работает по адресу:
+- Уровень 7 (HTTP/HTTPS)
+
+Различие:
+- Пакеты маршрутизации уровня 4
+- Уровень 7 понимает запросы HTTP
+
+Входная информация может маршрутизироваться на основе:
+- URL-пути
+- домены
+- заголовки
+- Конфигурация TLS
+
+---
+
+## Основные выводы
+
+- IP-адреса Pod являются временными.
+- Сервисы обеспечивают стабильную сетевую абстракцию.
+- kube-proxy направляет трафик к исправным объектам Pod
+- ClusterIP предназначен только для внутреннего использования.
+- NodePort предоставляет порты уровня узла.
+- LoadBalancer интегрирует внешнюю облачную сеть
+- Ingress обеспечивает маршрутизацию HTTP уровня 7.
+- Сеть Kubernetes зависит от абстракций, а не от прямых адресов инфраструктуры.

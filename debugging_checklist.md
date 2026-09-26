@@ -1,51 +1,51 @@
-# Debugging Checklist
+# Контрольный список отладки
 
-## 1. Understand the Issue
-- What exactly did the user do?
-- What is expected?
-- What actually happened?
+## 1. Понимание проблемы
+- Что именно сделал пользователь?
+- Что ожидается?
+- Что на самом деле произошло?
 
-## 2. Start from User Action (Frontend)
-- Did the user action trigger a request?
-- Check browser DevTools (Network)
+## 2. Начать с действия пользователя на стороне интерфейса
+- Вызвало ли действие пользователя запрос?
+- Проверьте DevTools браузера (сеть)
 
-## 3. Check API Request
-- Is request sent?
-- What is the status code?
-- What is the response body?
+## 3. Проверка запроса API
+- Запрос отправлен?
+- Что такое код состояния?
+- Что такое тело ответа?
 
-## 4. Analyze Response
-- 200 OK → is data correct?
-- 4xx/5xx → error case
-- Empty data → possible logic/filter issue
+## 4. Анализ ответа
+- 200 ОК → данные верны?
+- 4xx/5xx → случай ошибки
+- Пустые данные → возможная проблема с логикой/фильтром.
 
-## 5. Verify Parameters
+## 5. Проверка параметров
 - user_id
-- filters
-- request payload
+- фильтры
+- запросить полезную нагрузку
 
-## 6. Backend / Database Check
-- Is data stored?
-- Are queries correct?
-- Any processing errors?
+## 6. Проверка серверной части/базы данных
+- Сохраняются ли данные?
+- Корректны ли запросы?
+- Есть ли ошибки обработки?
 
-## 7. Identify Type of Issue
-- Bug (500, crash)
-- User error
-- Empty/incorrect data
-- Integration issue
-- Performance issue
+## 7. Определите тип проблемы
+- Ошибка (500, сбой)
+- Ошибка пользователя
+- Пустые/неправильные данные
+- Проблема интеграции
+- Проблема с производительностью
 
-## 8. Decide Action
-- Fixable on your side?
-- Needs escalation?
+## 8. Принятие решения о действии
+- Поправимо с вашей стороны?
+- Требуется эскалация?
 
-## 9. Escalation (if needed)
-- What works?
-- What doesn’t?
-- Where is the break?
+## 9. Эскалация (при необходимости)
+- Что работает?
+- Что не так?
+- Где разрыв?
 
-## 10. Document Everything
-- Incident report
-- Steps to reproduce
-- Observations
+## 10. Документируйте все
+- Отчет об инциденте
+- Этапы воспроизведения
+- Наблюдения

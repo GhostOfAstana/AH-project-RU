@@ -1,20 +1,20 @@
-# Day 56 — Envoy Connection Pool Exhaustion and Outlier Detection Cascade
+# День 56 — исчерпание пула соединений Envoy и каскадные сбои при обнаружении неисправных узлов
 
-## Incident
+## Инцидент
 
-After a new API release:
+После новой версии API:
 
-- Users intermittently receive HTTP 503 responses.
-- Average latency increased from 80ms to 2s.
-- CPU utilization remains between 20% and 35%.
-- Memory usage remains healthy.
-- PostgreSQL and Redis show no signs of degradation.
+- Пользователи периодически получают HTTP 503 ответа.
+- Средняя задержка увеличена с 80 мс до 2 с.
+- Загрузка ЦП остается между 20% и 35%.
+- Использование памяти остается нормальным.
+- PostgreSQL и Redis не проявляют признаков деградации.
 
-Infrastructure:
+Инфраструктура:
 
-Internet -> NGINX Ingress -> checkout-api -> Istio Service Mesh -> payment-service / inventory-service
+Интернет -> NGINX Ingress -> checkout-api -> сервисная сеть Istio -> payment-service / inventory-service
 
-Observed metrics:
+Наблюдаемые показатели:
 
 NGINX:
 
@@ -41,46 +41,46 @@ trafficPolicy:
       maxRequestsPerConnection: 1
 ```
 
-Outlier detection was enabled one day before the incident.
+Обнаружение неисправных узлов включили за день до инцидента.
 
 ```yaml
 outlierDetection:
   consecutive5xxErrors: 3
 ```
 
-## Root Cause
+## Основная причина
 
-The service mesh became the bottleneck before the application layer reached its actual capacity limits.
+Сервисная сеть стала узким местом ещё до того, как приложения достигли фактических пределов своей пропускной способности.
 
-Connection pool limits inside Envoy were configured too aggressively.
+Ограничения пула соединений внутри Envoy были настроены слишком агрессивно.
 
-As traffic increased, Envoy exhausted available upstream connections and pending request queues.
+С ростом трафика Envoy исчерпал доступные соединения с целевыми сервисами и ёмкость очередей ожидающих запросов.
 
-Requests were rejected locally inside the proxy layer, producing HTTP 503 responses.
+Запросы отклонялись локально на уровне прокси, который возвращал ответы HTTP 503.
 
-Outlier Detection interpreted these failures as unhealthy upstream instances and started ejecting healthy pods from load balancing.
+Механизм Outlier Detection принял эти ошибки за признак неисправности целевых экземпляров и начал исключать исправные объекты Pod из балансировки нагрузки.
 
-The reduction in available capacity increased load on the remaining instances, creating a cascading failure pattern.
+Сокращение доступной мощности увеличило нагрузку на оставшиеся экземпляры, создавая каскадную картину отказов.
 
-## Key Concepts
+## Ключевые понятия
 
 ### upstream_cx_overflow
 
-Indicates that Envoy reached the configured upstream connection limit.
+Указывает, что Envoy достиг настроенного лимита соединений с целевыми сервисами.
 
-New TCP connections cannot be established.
+Новые TCP-соединения не могут быть установлены.
 
 ### upstream_rq_pending_overflow
 
-Indicates that the pending request queue is full.
+Указывает, что очередь ожидающих запросов заполнена.
 
-Additional requests are rejected immediately.
+Дополнительные запросы отклоняются немедленно.
 
-### Connection Pooling
+### Пул соединений
 
-Connection pools protect upstream services from overload.
+Пулы соединений защищают целевые сервисы от перегрузки.
 
-Improper limits can artificially reduce throughput and become a bottleneck.
+Неправильные пределы могут искусственно снизить пропускную способность и стать узким местом.
 
 ### maxRequestsPerConnection
 
@@ -88,37 +88,37 @@ Improper limits can artificially reduce throughput and become a bottleneck.
 maxRequestsPerConnection: 1
 ```
 
-Forces connection closure after every request.
+Принудительно закрывает соединение после каждого запроса.
 
-Effects:
+Последствия:
 
-- TCP handshake overhead
-- Increased socket churn
-- More TIME_WAIT sockets
-- Reduced throughput
-- Faster pool exhaustion
+- Накладные расходы на установление TCP-соединения
+- Более частое создание и закрытие сокетов
+- Больше сокетов в состоянии TIME_WAIT
+- Снижение пропускной способности
+- Более быстрое исчерпание пула
 
-### Outlier Detection
+### Обнаружение неисправных узлов (Outlier Detection)
 
-Outlier Detection automatically removes endpoints that appear unhealthy.
+Механизм Outlier Detection автоматически исключает конечные точки с признаками неисправности.
 
-In this incident, the proxy-generated failures caused healthy services to be incorrectly ejected from rotation.
+В этом инциденте сбои, генерируемые прокси-сервером, привели к неправильному исключению исправных служб из ротации.
 
-## Why CPU and Memory Look Healthy
+## Почему процессор и память выглядят исправными
 
-Applications were not CPU-bound.
+Производительность приложений не ограничивалась CPU.
 
-Most requests were blocked or rejected before reaching business logic.
+Большинство запросов были заблокированы или отклонены до достижения бизнес-логики.
 
-The bottleneck existed inside the service mesh connection management layer rather than in application processing.
+Узкое место существовало внутри уровня управления соединениями сервисной сети, а не в обработке приложений.
 
-Low CPU utilization therefore did not indicate healthy request handling.
+Таким образом, низкая загрузка ЦП не указывает на исправную обработку запросов.
 
-## Investigation
+## Расследование
 
-### Envoy Metrics
+### Метрики Envoy
 
-Monitor:
+Отслеживать:
 
 ```text
 upstream_cx_overflow
@@ -126,96 +126,96 @@ upstream_rq_pending_overflow
 upstream_rq_retry
 ```
 
-### Proxy Configuration
+### Конфигурация прокси
 
-Inspect active Envoy configuration:
+Проверьте активную конфигурацию Envoy:
 
 ```bash
 istioctl proxy-config cluster <pod-name> -o json
 ```
 
-### Access Logs
+### Журналы доступа
 
-Differentiate:
+Различать:
 
-- Local Envoy-generated 503 responses
-- Application-generated 503 responses
+- Ответы 503, сформированные локально в Envoy
+- Ответы 503, сформированные приложением
 
-### Outlier Analysis
+### Анализ исключения неисправных узлов
 
-Identify:
+Определить:
 
-- Ejected endpoints
-- Ejection frequency
-- Capacity reduction during incident progression
+- Исключённые из балансировки конечные точки
+- Частота исключения конечных точек
+- Снижение пропускной способности во время развития инцидента
 
-## Immediate Mitigation
+## Немедленное смягчение последствий
 
-### Increase Pool Limits
+### Увеличение лимитов пула
 
-Increase:
+Увеличить:
 
 ```yaml
 maxConnections
 http1MaxPendingRequests
 ```
 
-to values aligned with production traffic.
+к значениям, соответствующим рабочему трафику.
 
-### Disable Outlier Detection
+### Отключение обнаружения неисправных узлов
 
-Temporarily disable endpoint ejection to stop the cascading reduction of healthy capacity.
+Временно отключить исключение конечных точек, чтобы остановить каскадное сокращение числа работающих экземпляров.
 
-### Enable Connection Reuse
+### Включение повторного использования соединения
 
-Replace:
+Заменить:
 
 ```yaml
 maxRequestsPerConnection: 1
 ```
 
-with:
+С:
 
 ```yaml
 maxRequestsPerConnection: 0
 ```
 
-to allow persistent connections.
+чтобы разрешить постоянные соединения.
 
-## Long-Term Solutions
+## Долгосрочные решения
 
-### Capacity Testing
+### Тестирование пропускной способности
 
-Perform load testing before production rollout.
+Провести нагрузочное тестирование перед развёртыванием в рабочей среде.
 
-Validate service mesh limits under realistic traffic patterns.
+Подтвердить пределы сети услуг в соответствии с реалистичными моделями трафика.
 
-### HTTP/2 or gRPC Adoption
+### Переход на HTTP/2 или gRPC
 
-Enable request multiplexing over persistent TCP connections.
+Включить мультиплексирование запросов по постоянным TCP-соединениям.
 
-Benefits:
+Преимущества:
 
-- Lower connection overhead
-- Higher throughput
-- Better utilization of connection pools
+- Снижение затрат на соединение
+- Более высокая пропускная способность
+- Лучшее использование пулов соединений
 
-### Retry Budget Controls
+### Ограничение бюджета повторных попыток
 
-Prevent retry amplification during partial failures.
+Предотвращение повторных попыток усиления во время частичных сбоев.
 
-Limit retries and define retry budgets.
+Ограничьте повторные попытки и определите бюджеты повторных попыток.
 
-### Adaptive Circuit Breaking
+### Адаптивное управление предохранителем
 
-Tune circuit breaker thresholds based on observed traffic and service capacity rather than static assumptions.
+Настройте пороговые значения предохранителя на основе наблюдаемого трафика и пропускной способности обслуживания, а не статических предположений.
 
-## Lessons Learned
+## Извлеченные уроки
 
-The platform was not limited by application resources.
+Платформа не была ограничена ресурсами приложения.
 
-The bottleneck existed in connection management inside the service mesh.
+Узкое место существовало в управлении соединениями внутри сервисной сети.
 
-Poorly tuned connection pools combined with aggressive Outlier Detection created a feedback loop that removed healthy capacity and amplified service degradation.
+Неверная настройка пулов соединений вместе с агрессивным обнаружением неисправных узлов создала цикл обратной связи: исправные экземпляры исключались из работы, а деградация сервиса усиливалась.
 
-Healthy infrastructure metrics do not guarantee healthy request flow.
+Показатели работоспособности инфраструктуры не гарантируют работоспособность потока запросов.

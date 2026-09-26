@@ -1,28 +1,28 @@
 ## 2026-04-11
-- Analyzed profile update issue
-- Practiced independent debugging approach
-- Improved diagnostic flow (frontend → API → backend → database)
+- Проанализирована проблема обновления профиля.
+- Практикуемый подход к независимой отладке.
+- Улучшен поток диагностики (интерфейс → API → серверная часть → база данных).
 ## 2026-04-12
-- Analyzed missing order issue
-- Introduced DevTools (Network) into debugging flow
-- Improved step-by-step diagnosis without jumping to SQL
+- Проанализирована проблема отсутствия заказа.
+- В поток отладки добавлены DevTools (Network).
+- Улучшенная пошаговая диагностика без перехода к SQL.
 ## 2026-04-13
-- Analyzed payment/order status mismatch
-- Identified integration gap between payment and order system
-- Improved structured debugging in critical scenarios
+- Проанализировано несоответствие статуса платежа/заказа.
+- Выявлен разрыв в интеграции между системой оплаты и заказа.
+- Улучшена структурированная отладка в критических сценариях.
 ## 2026-04-14
-- Analyzed file upload issue
-- Introduced storage layer into debugging process
-- Improved diagnostics for file-related scenarios
+- Проанализированная проблема с загрузкой файла.
+- В процесс отладки введен уровень хранения.
+- Улучшенная диагностика для сценариев, связанных с файлами.
 ## 2026-04-15
-- Analyzed authentication/session issue
-- Learned token/cookie-based session handling
-- Practiced debugging login flow with DevTools (Network + Application)
+- Проанализирована проблема аутентификации/сеанса.
+- Изучена обработка сеансов на основе токенов/cookie.
+- Практика отладки процесса входа в систему с помощью DevTools (сеть + приложение).
 ## 2026-04-16
-- Analyzed cart state issue
-- Learned difference between inventory and cart state
-- Improved debugging of session/user-related problems
+- Проанализирована проблема состояния корзины.
+- Изучил различия между складскими остатками и состоянием корзины
+- Улучшенная отладка проблем, связанных с сеансом/пользователем.
 ## 2026-04-17
-- Analyzed system-level incident (error rate spike)
-- Learned difference between user-level and system-level debugging
-- Introduced logs and metrics into diagnostic process
+- Анализируемый инцидент на уровне системы (скачок частоты ошибок)
+- Изучил различия между диагностикой проблем пользователя и системы в целом
+- В процесс диагностики введены журналы и метрики.
