@@ -2,7 +2,7 @@
 
 **Go/backend · системное мышление · анализ инфраструктурных инцидентов**
 
-[Англоязычная версия — ernat-it-journey](https://github.com/ernat-soltanbekov/ernat-it-journey)
+[Англоязычная версия — ernat-it-journey](https://github.com/GhostOfAstana/ernat-it-journey)
 
 ## Об авторе
 
@@ -24,7 +24,7 @@
 
 ## О репозитории
 
-**AH-project-RU** — русскоязычный архив моих учебных материалов, связанный с [ernat-it-journey](https://github.com/ernat-soltanbekov/ernat-it-journey). Несмотря на название, это **не готовый программный продукт Astana Hub**.
+**AH-project-RU** — русскоязычный архив моих учебных материалов, связанный с [ernat-it-journey](https://github.com/GhostOfAstana/ernat-it-journey). Несмотря на название, это **не готовый программный продукт Astana Hub**.
 
 В репозитории собраны:
 
